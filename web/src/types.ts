@@ -102,10 +102,18 @@ export interface Paper {
 
 /** 从库里算出来的进度。谁跑的都算得出来——命令行跑的、服务重启过的，一样可见 */
 export interface Progress {
+  /** 带编号的阶段名（`③ 解题`），和上面那排 ①②③ 标志对得上 */
   stage: string
+  /** 白话状态词（`解题中`），列表页用——那里没有编号可对照 */
+  stageShort: string
+  stageCode: string
   stageCur: number
   stageTotal: number
   busy: boolean
+  /** 跑完了：⑦ 装的是当前这份数据。装过但比库里的数据旧不算完成 */
+  done: boolean
+  /** 失败原因。只认得出这个后端进程里起过的任务，null 不等于成功 */
+  failed: string | null
   questions: number
   labels: number
   solutions: number
@@ -114,7 +122,15 @@ export interface Progress {
   judged: number
   worth: number
   scenes: number
+  /** ④c 选中的题里写了几份 spec。④ 的分母是 worth，不是题数 */
+  specsWorth: number
+  /** 还没过 ④b 自检的 spec */
+  drafts: number
+  /** ⑤ 真正会做的题（自检通过 + ④c 选中），以及其中已经试过的 */
+  ready: number
+  sceneTried: number
   assembled: boolean
+  assembledFresh: boolean
   elapsedSeconds: number | null
   /** 网页上传的任务才有的细节（正在解哪道题）；命令行跑的是 null */
   step?: string | null
@@ -140,7 +156,9 @@ export interface PaperSummary {
   mtime: number
   /** 列表页也要能看出哪份还在跑——返回试卷库不等于任务停了 */
   progress?: {
-    stage: string; cur: number; total: number; busy: boolean
+    stage: string; short: string; code: string
+    cur: number; total: number
+    busy: boolean; done: boolean; failed: string | null
     solved: number; questions: number; elapsedSeconds: number | null
   }
 }

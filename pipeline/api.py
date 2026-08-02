@@ -9,6 +9,11 @@ api.py —— 后端 JSON API（FastAPI）
 --------
 后端**只做编排和数据**，不拼 HTML。页面长什么样是 React 的事。
 
+  POST   /api/auth/code           要一封验证码信（body: {"email": "..."}）
+  POST   /api/auth/verify         用验证码换会话（body: {"email":..., "code":...}）
+  POST   /api/auth/logout         退出
+  GET    /api/auth/me             当前登录的是谁；没登录给 401
+
   POST   /api/upload              收 PDF，起一个后台任务跑管线
   GET    /api/jobs/{id}           轮询任务状态与日志
   GET    /api/papers              已处理的试卷列表
@@ -17,6 +22,10 @@ api.py —— 后端 JSON API（FastAPI）
   GET    /api/papers/{name}       某份试卷的完整结构化数据（题干/选项/插图/场景）
   GET    /api/papers/{name}/img/  插图静态文件
   GET    /api/papers/{name}/scene.js  该卷可用场景的 JS（含运行时）
+
+除 /api/auth/* 外一律要登录，而且**试卷按账号隔离**：拿不到会话就是 401，
+拿得到但这份卷子不是你的，一律 404 —— 和「不存在」给同一个回答，
+否则拿卷名去试就能问出别人库里有什么。
 
 数据从哪来
 ----------
@@ -31,13 +40,14 @@ questions.json。现在没 publish 就不算数，漂移无从发生。
 为什么管线是 Python：PDF 解析、坐标运算、数值求解、无头浏览器编排，
 这几件事在 Node 生态里没有对等的库。前端不必因此也用 Python。
 """
-import json, os, re, signal, subprocess, sys, threading, time, uuid
+import json, os, re, secrets, signal, subprocess, sys, threading, time, uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import segment          # 跨页表的合并规则只写一份，前后端不能各有一套
 import store            # 库与资产存储；API 只经过它
+import mailer           # 验证码信；没配 SMTP 时退化成打日志
 
-from fastapi import Body, FastAPI, UploadFile, File, HTTPException
+from fastapi import Body, Depends, FastAPI, Request, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -51,8 +61,11 @@ if not os.path.exists(PY):
     PY = sys.executable
 
 app = FastAPI(title="exam-explainer")
+# allow_credentials 是必须的：会话是 cookie，跨源请求默认不带 cookie。
+# 开发时前端在 5173、API 在 8712，是两个源。上线同源部署时这条不生效也无害。
 app.add_middleware(CORSMiddleware, allow_origins=["http://127.0.0.1:5173",
                                                   "http://localhost:5173"],
+                   allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
 
 JOBS = {}
@@ -80,6 +93,144 @@ def paper_dir(name):
     if not os.path.isdir(d):
         raise HTTPException(404, "没有这份试卷")
     return d
+
+
+# ---------------------------------------------------------------- 登录
+#
+# 邮箱验证码，没有密码。做成这样的取舍见 schema.sql：没有密码就没有密码泄露、
+# 没有撞库、没有找回流程，代价是每次新设备登录要收一封信。
+#
+# 会话放 **HttpOnly cookie**，不放 localStorage：token 一旦能被 JS 读到，
+# 页面上任何一处 XSS 都等于会话被拿走。而这个页面要渲染的是模型生成的
+# HTML/JS 场景 —— 恰恰是最不该把凭据暴露给 JS 的那类页面。
+COOKIE = "ee_session"
+SESSION_DAYS = int(os.environ.get("EXAM_SESSION_DAYS", "30"))
+CODE_TTL_MIN = int(os.environ.get("EXAM_CODE_TTL_MIN", "10"))
+# 上了 https 再打开。本地 http 开着的话浏览器根本不会存这个 cookie
+COOKIE_SECURE = os.environ.get("EXAM_COOKIE_SECURE", "0") == "1"
+
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+\.[^@\s]+$")
+
+# 同一个 IP 每小时能要几次码。挡的是「拿这个接口当免费群发器」——
+# 邮箱那一层已经有 60 秒冷却，但换邮箱就能绕过，只有按来源限才拦得住。
+IP_QUOTA = int(os.environ.get("EXAM_CODE_IP_QUOTA", "20"))
+IP_HITS = {}
+
+
+def ip_allow(ip):
+    now = time.time()
+    with LOCK:
+        hits = [t for t in IP_HITS.get(ip, []) if now - t < 3600]
+        if len(hits) >= IP_QUOTA:
+            IP_HITS[ip] = hits
+            return False
+        hits.append(now)
+        IP_HITS[ip] = hits
+        if len(IP_HITS) > 5000:           # 别让它无限长大
+            for k in [k for k, v in IP_HITS.items() if not v or now - v[-1] > 3600]:
+                IP_HITS.pop(k, None)
+    return True
+
+
+def token_hash(tok):
+    return mailer.hash_code(tok)
+
+
+def code_hash(email, code):
+    """
+    验证码连着邮箱一起哈希。
+
+    6 位数字只有一百万种，**光哈希挡不住手里有库的人** —— 一张彩虹表就还原了。
+    连邮箱一起哈希至少让这张表不能一次算好通吃所有人。真正挡住这件事的是
+    有效期 10 分钟、错 5 次作废、一码一用（见 store.check_login_code），
+    以及库能被读走的时候，对方本来就能直接往 sessions 里插一行。
+    """
+    return mailer.hash_code("%s:%s" % (store.norm_email(email), code))
+
+
+def current_user(request: Request):
+    """
+    这次请求是谁。没登录就 401 —— 除 /api/auth/* 外每个接口都挂着它。
+
+    不做「没登录就当匿名用户」的降级：那会让「忘了加鉴权」和「有意公开」
+    在代码里长得一模一样。要公开的接口自己不挂这个依赖，一眼能看出来。
+    """
+    u = store.session_user(token_hash(request.cookies.get(COOKIE, "")))
+    if not u:
+        raise HTTPException(401, "请先登录")
+    return u
+
+
+@app.post("/api/auth/code")
+def auth_code(request: Request, email: str = Body(..., embed=True)):
+    """
+    发一封验证码信。
+
+    **不管这个邮箱有没有注册过，回答都一样。** 分开回答的话，这个接口就成了
+    「查这个人有没有在用」的查询接口。注册和登录也因此是同一条路：
+    第一次验证成功时才建账号（见 /api/auth/verify）。
+    """
+    email = store.norm_email(email)
+    if not EMAIL_RE.match(email) or len(email) > 254:
+        raise HTTPException(400, "邮箱格式不对")
+    if not ip_allow(request.client.host if request.client else "?"):
+        raise HTTPException(429, "要得太频繁了，过一会儿再试")
+
+    code = "%06d" % secrets.randbelow(1000000)
+    if not store.put_login_code(email, code_hash(email, code), CODE_TTL_MIN):
+        raise HTTPException(429, "刚发过一封，60 秒后才能再要")
+    try:
+        delivered = mailer.send_code(email, code)
+    except Exception as e:
+        # 配了 SMTP 但发不出去 = 真故障，要说出来。这时候库里那个码已经写下了，
+        # 但没人拿得到它 —— 不算漏洞，只是这次登录得重来
+        print("[auth] 发信失败 %s：%s" % (email, e), flush=True)
+        raise HTTPException(502, "验证码发不出去（%s）" % str(e)[:120])
+    return {"sent": True, "delivered": delivered, "ttlMinutes": CODE_TTL_MIN,
+            # 没配 SMTP 时如实说清楚验证码在哪，别让人对着一个永远收不到的
+            # 输入框干等。**验证码本身不回传** —— 那等于没有登录
+            "hint": None if delivered else "后端还没配 SMTP，验证码打在服务端日志里"}
+
+
+@app.post("/api/auth/verify")
+def auth_verify(response: Response, email: str = Body(...), code: str = Body(...)):
+    """验证码换会话。这个邮箱第一次来就顺手建账号 —— 注册和登录是同一条路。"""
+    email = store.norm_email(email)
+    ok, why = store.check_login_code(email, code_hash(email, (code or "").strip()))
+    if not ok:
+        raise HTTPException(400, why)
+    user, fresh = store.create_user(email)
+    tok = secrets.token_urlsafe(32)
+    store.create_session(user["id"], token_hash(tok), SESSION_DAYS)
+    response.set_cookie(COOKIE, tok, max_age=SESSION_DAYS * 86400, httponly=True,
+                        samesite="lax", secure=COOKIE_SECURE, path="/")
+    return {"email": user["email"], "isNew": fresh}
+
+
+@app.post("/api/auth/logout")
+def auth_logout(request: Request, response: Response):
+    store.drop_session(token_hash(request.cookies.get(COOKIE, "")))
+    response.delete_cookie(COOKIE, path="/")
+    return {"ok": True}
+
+
+@app.get("/api/auth/me")
+def auth_me(user=Depends(current_user)):
+    return {"email": user["email"]}
+
+
+def mine(name, user):
+    """
+    这份卷子必须是这个账号的，否则 404。
+
+    **不存在**和**存在但不是你的**给同一个回答：分开回答的话，拿一批卷名
+    来试就能问出别人库里有什么。
+    """
+    check_name(name)
+    exists, owner = store.paper_owner(name)
+    if not exists or owner != user["id"]:
+        raise HTTPException(404, "没有这份试卷")
+    return name
 
 
 # ---------------------------------------------------------------- 任务
@@ -224,10 +375,21 @@ def finish_paper(jid, name):
                     timeout=600):
         job_log(jid, "  ⚠ ③b 没跑成，目录里这些题只显示题号，不显示标题")
 
-    # ④ 一题两次模型调用（spec + 参考实现），一卷十几题按二十分钟估。
-    # 超时按整卷给：卷子特别大时会撞上限，日志里会写明白是超时不是失败。
+    # ④c 动画选题，**排在 ④ 之前**。它只要一次调用 28 秒判完整卷，而写一份完整
+    # spec（spec + 参考实现两次调用）实测约 6 分钟一道 —— 便宜的筛子必须排在贵的前面。
+    # 实测重庆卷：原来的顺序让 ④ 对 10 道题写了完整 spec，最后只有 5 道真出了动画，
+    # 白跑约 30 分钟；海南卷 9 道全白跑。
+    phase("④c 动画选题")
+    if not run_step(jid, "④c 动画选题（哪些题值得做动画）",
+                    step_path("pick.py") + [name], timeout=600):
+        job_log(jid, "  ⚠ ④c 没跑成。没判过的题一律不写断言、不做动画 —— fail-closed")
+
+    # ④ 只给 ④c 选中的题写断言。没被选中的题在页面上标「无断言 · 未被检验」，
+    # 这是有意的取舍：那层校验只查 spec 内部自洽，查不出「理解错题但写得自洽」，
+    # 为它每卷多花半小时不划算。要给某道题补，随时 spec.py --only N。
     phase("④ 写断言")
-    if not run_step(jid, "④ 写断言", step_path("spec.py") + [name], timeout=3600):
+    if not run_step(jid, "④ 写断言（只做选中的题）",
+                    step_path("spec.py") + [name, "--picked"], timeout=3600):
         job_log(jid, "  ⚠ ④ 没跑完，受影响的题在页面上标「无断言 · 未被检验」")
 
     # ④b 纯计算，不调模型。它是 ⑤ 的准入闸门，所以即使 ④ 半途而废也要跑 ——
@@ -236,13 +398,6 @@ def finish_paper(jid, name):
     if not run_step(jid, "④b spec 自检（自洽才放行）",
                     step_path("speccheck.py") + [name, "--apply"], timeout=900):
         job_log(jid, "  ⚠ ④b 没跑成。没过自检的 spec 一律不进 ⑤ —— 宁可少几个动画")
-
-    # ④c 动画选题。⑤ 一题几分钟到几十分钟，全做等于把时间花在增量最低的题上 ——
-    # 「两个力求合力」做得了，但一段动画对理解它没有任何增量。这一步一次调用判整卷。
-    phase("④c 动画选题")
-    if not run_step(jid, "④c 动画选题（哪些题值得做动画）",
-                    step_path("pick.py") + [name], timeout=600):
-        job_log(jid, "  ⚠ ④c 没跑成。没判过的题一律不做动画 —— fail-closed，宁可少做")
 
     out = os.path.join(WORK, name, "out.html")
     # ⑦ 先装一次。⑤ 可能要跑一两个钟头，而 out.html 是这条链唯一的离线交付物 ——
@@ -271,7 +426,7 @@ def finish_paper(jid, name):
     job_log(jid, "✓ 全部完成 → %s" % out)
 
 
-def run_pipeline(jid, pdf_path, name):
+def run_pipeline(jid, pdf_path, name, owner_id=None):
     """
     网页上传走的整条链：
     ① 摄入 → ② 切分 → ②b 公式 → ②c 入库 → ③ 解题 → ③b 目录 → ④ 断言
@@ -306,7 +461,7 @@ def run_pipeline(jid, pdf_path, name):
         log("▸ 发布入库")
         with LOCK:
             JOBS[jid]["step"] = "发布入库"
-        r = store.publish(out, name)
+        r = store.publish(out, name, owner_id=owner_id)
         n_q = len(q["questions"])
         # 这里就把卷子标成可看了。解题一道要两三分钟，一卷十几道就是半小时，
         # 让人干等半小时才看到题目是不可接受的 —— 题先出来，解法逐题填进去。
@@ -323,7 +478,7 @@ def run_pipeline(jid, pdf_path, name):
 
 
 @app.post("/api/upload")
-async def upload(file: UploadFile = File(...)):
+async def upload(file: UploadFile = File(...), user=Depends(current_user)):
     data = await file.read()
     if len(data) > 80 * 1024 * 1024:
         raise HTTPException(413, "文件超过 80 MB")
@@ -334,12 +489,19 @@ async def upload(file: UploadFile = File(...)):
     path = os.path.join(UPLOADS, fn)
     open(path, "wb").write(data)
     name = re.sub(r"-?题目版$", "", fn[:-4]) or fn[:-4]
+    # 卷名同时是 `work/<卷名>/` 的目录名，全局唯一。自己重传同一份是「重跑」，
+    # 名字不变；撞上**别人**的卷子就自动加后缀，两条管线不会写进同一个目录
+    exists, owner = store.paper_owner(name)
+    if exists and owner != user["id"]:
+        name = store.free_name(name)
 
     jid = uuid.uuid4().hex[:12]
     with LOCK:
         JOBS[jid] = {"state": "running", "step": "排队中", "name": name,
+                     "owner_id": user["id"],
                      "log": ["收到 %s（%.1f MB）" % (fn, len(data) / 1048576)]}
-    threading.Thread(target=run_pipeline, args=(jid, path, name), daemon=True).start()
+    threading.Thread(target=run_pipeline, args=(jid, path, name, user["id"]),
+                     daemon=True).start()
     return {"job": jid, "name": name}
 
 
@@ -366,101 +528,160 @@ def active_job_for(name):
                 "last": (j["log"][-1] if j.get("log") else "")}
 
 
+def failed_job_for(name):
+    """
+    这份卷子最近一次任务是不是**失败**收场的，是的话给出原因。
+
+    只认得出这个进程里起过的任务 —— JOBS 是进程内的 dict，重启就空了，
+    命令行跑的也不在里面。所以「没报失败」不等于成功，那种情况一律显示
+    「已停止」。这是有意的：宁可少报一个失败，也不能把不知道的说成知道。
+    """
+    with LOCK:
+        mine = [j for j in JOBS.values() if j.get("name") == name]
+    if not mine or mine[-1].get("state") != "error":
+        return None
+    return mine[-1].get("err") or "未说明原因"
+
+
 # 管线脚本名。判「在不在跑」用它，比「多久没落库」可靠 ——
 # ④ 一题六分钟、⑤ 一道十几分钟，按时间阈值判必然误报「已停止」。
 PIPE_RE = r"pipeline/(solve|spec|scene|outline|pick|speccheck|assemble|ingest|segment|mathvlm)\.py"
 
 
-def pipeline_running():
-    """有没有管线进程在跑。命令行起的、服务起的，都算。"""
+def running_cmds():
+    """
+    在跑的管线进程的完整命令行。命令行起的、服务起的，都算。
+
+    要的是整行而不是「有没有」：**每个步骤脚本的参数里都带着卷名**，
+    所以一次 pgrep 就能判出「在跑的是哪几份卷子」。原来只判有没有进程，
+    于是任何一份卷子在跑的时候，列表里**所有**卷子都被标成在跑 ——
+    一份三天前就停了的卷子也会显示「解题中」。
+    """
     try:
-        r = subprocess.run(["pgrep", "-f", PIPE_RE], capture_output=True, text=True, timeout=5)
-        return bool((r.stdout or "").strip())
+        r = subprocess.run(["pgrep", "-fl", PIPE_RE], capture_output=True, text=True, timeout=5)
+        return [ln for ln in (r.stdout or "").splitlines() if ln.strip()]
     except Exception:
-        return False
+        return []
+
+
+def pipeline_running(name=None, cmds=None):
+    cmds = running_cmds() if cmds is None else cmds
+    return bool(cmds) if name is None else any(name in ln for ln in cmds)
 
 
 def stage_of(pg):
     """
-    从库里的计数反推「现在在哪一步」。
+    从库里的计数反推「现在在哪一步」，返回 (代号, 带编号的阶段名, 短状态词, 已完成, 总数)。
 
     没有谁上报状态 —— 这是**推断**出来的，所以按管线顺序找第一个没做完的环节。
     好处是命令行跑的、服务重启过的、别的进程跑的，一律看得见。
+
+    每一步的分母都要用**那一步自己的口径**
+    ------------------------------------
+    这里原来一律拿题数或上一步的行数当分母，于是 ④c 挪到 ④ 前面之后，
+    跑完的卷子在列表里永远显示「④ 写断言 6/16」—— ④ 只给 ④c 选中的 6 道题
+    写断言，剩下 10 道**本来就不该有** spec，可是分母写的是 16。
+    同样的坑还有两个：④b 自检的对象是 spec 不是题（而且 animatable=false 的
+    spec 根本不过自检），⑤ 的分子必须是「试过几道」而不是「绿灯几道」——
+    有一道怎么都过不了门禁的话，按绿灯数算就永远差一个，永远显示在跑。
+
+    两个短状态词是有区别的：`stage` 带编号，给试卷页的进度带用（和上面那排
+    ①②③ 标志对得上）；`short` 是给试卷库列表用的白话，那里没有编号可对照。
     """
-    if pg["solutions"] < pg["questions"]:
-        return "③ 解题", pg["solutions"], pg["questions"]
-    if pg["labels"] < pg["questions"]:
-        return "③b 目录", pg["labels"], pg["questions"]
-    if pg["specs"] < pg["solutions"]:
-        return "④ 写断言", pg["specs"], pg["solutions"]
-    if pg["judged"] < pg["specs"]:
-        return "④b 自检 / ④c 选题", pg["judged"], pg["specs"]
-    if pg["scenes"] < pg["worth"]:
-        return "⑤ 生成场景", pg["scenes"], pg["worth"]
-    if not pg["assembled"]:
-        return "⑦ 装配成页", 0, 1
-    return "完成", 1, 1
+    q, sol = pg["questions"], pg["solutions"]
+    if sol < q:
+        return "solve", "③ 解题", "解题中", sol, q
+    if pg["labels"] < q:
+        return "outline", "③b 目录", "生成目录", pg["labels"], q
+    # ④c 的候选是「解出来的题」，不是全部题 —— 没解出来的它压根不判
+    if pg["judged"] < sol:
+        return "pick", "④c 选题", "动画选题", pg["judged"], sol
+    if pg["specsWorth"] < pg["worth"]:
+        return "spec", "④ 写断言", "写断言", pg["specsWorth"], pg["worth"]
+    if pg["drafts"]:
+        return "check", "④b 自检", "断言自检", pg["specs"] - pg["drafts"], pg["specs"]
+    if pg["sceneTried"] < pg["ready"]:
+        return "scene", "⑤ 生成场景", "生成动画", pg["sceneTried"], pg["ready"]
+    if not pg["assembledFresh"]:
+        return "assemble", "⑦ 装配成页", "装配成页", 0, 1
+    return "done", "完成", "已完成", 1, 1
 
 
 @app.get("/api/papers/{name}/progress")
-def paper_progress(name: str):
+def paper_progress(name: str, user=Depends(current_user)):
     """
     轻量进度端点，供页面每隔几秒轮询。
 
     只做计数查询，不拉题目正文 —— 整卷数据有一两兆，拿来轮询太重。
     页面发现计数变了才去重新拉整卷。
     """
-    pg = store.progress(check_name(name))
+    pg = store.progress(mine(name, user))
     if not pg:
         raise HTTPException(404, "没有这份试卷")
-    label, cur, total = stage_of(pg)
+    code, label, short, cur, total = stage_of(pg)
     live = active_job_for(name)
-    return {**pg, "stage": label, "stageCur": cur, "stageTotal": total,
+    return {**pg, "stage": label, "stageCode": code, "stageShort": short,
+            "stageCur": cur, "stageTotal": total,
+            "done": code == "done", "failed": failed_job_for(name),
             # 网页上传的任务还能给出更细的信息（正在解哪道题），命令行跑的没有
             "step": (live or {}).get("step"), "last": (live or {}).get("last"),
-            "busy": bool(live) or pipeline_running() or pg["busy"]}
+            "busy": bool(live) or pipeline_running(name) or pg["busy"]}
 
 
 @app.get("/api/jobs/{jid}")
-def job(jid: str):
+def job(jid: str, user=Depends(current_user)):
+    """
+    任务日志。归属看**任务自己记的 owner**，不是去库里查这份卷子归谁 ——
+    上传后的头几分钟（① 摄入、② 切分）卷子还没入库，那时候查库只会得到
+    「没有这份试卷」，而这几分钟恰恰是上传页最需要日志的时候。
+    """
     with LOCK:
         j = JOBS.get(jid)
         if not j:
             raise HTTPException(404, "未知任务")
-        return dict(j)
+        j = dict(j)
+    if j.pop("owner_id", None) != user["id"]:
+        raise HTTPException(404, "未知任务")
+    return j
 
 
 # ---------------------------------------------------------------- 试卷
 @app.get("/api/papers")
-def papers():
+def papers(user=Depends(current_user)):
     """
     列表也带进度。**返回试卷库不等于任务停了** —— 后台照跑，
     所以列表这一屏也要能看出哪份还在跑、跑到哪一步，否则一退出详情页就等于瞎了。
     """
-    out = store.list_papers()
-    running = pipeline_running()     # 一次就够，别对每份卷子都 fork 一个 pgrep
+    out = store.list_papers(user["id"])
+    cmds = running_cmds()            # 一次就够，别对每份卷子都 fork 一个 pgrep
     for r in out:
         r["scenes"] = len(scenes_for(r["name"]))
         pg = store.progress(r["name"])
         if pg:
-            label, cur, total = stage_of(pg)
-            r["progress"] = {"stage": label, "cur": cur, "total": total,
-                             "busy": pg["busy"] or running,
+            code, label, short, cur, total = stage_of(pg)
+            # 一行只放得下一个状态词。跑完是「已完成」，在跑是「解题中 15/16」，
+            # 都不是就是「已停止」并说明停在哪 —— 光显示阶段名读不出它已经不动了
+            r["progress"] = {"stage": label, "short": short, "code": code,
+                             "cur": cur, "total": total,
+                             "busy": pg["busy"] or pipeline_running(r["name"], cmds)
+                                     or bool(active_job_for(r["name"])),
+                             "done": code == "done",
+                             "failed": failed_job_for(r["name"]),
                              "solved": pg["solutions"], "questions": pg["questions"],
                              "elapsedSeconds": pg["elapsedSeconds"]}
     return out
 
 
 @app.delete("/api/papers/{name}")
-def delete_paper(name: str):
-    r = store.delete_papers([check_name(name)])
+def delete_paper(name: str, user=Depends(current_user)):
+    r = store.delete_papers([check_name(name)], user["id"])
     if not r["deleted"]:
         raise HTTPException(404, "没有这份试卷")
     return r
 
 
 @app.post("/api/papers/delete")
-def delete_papers(names: list[str] = Body(..., embed=True)):
+def delete_papers(names: list[str] = Body(..., embed=True), user=Depends(current_user)):
     """
     批量删。一个事务删完，再清理没人引用的对象。
 
@@ -471,7 +692,9 @@ def delete_papers(names: list[str] = Body(..., embed=True)):
         raise HTTPException(400, "没有指定要删的试卷")
     if len(names) > 500:
         raise HTTPException(400, "一次最多删 500 份")
-    return store.delete_papers([check_name(n) for n in names])
+    # 归属过滤压在 SQL 里（见 store.delete_papers）：这是批量接口，
+    # 在这儿逐个 check 漏掉一个的代价是删掉别人的东西
+    return store.delete_papers([check_name(n) for n in names], user["id"])
 
 
 def scenes_for(name):
@@ -519,8 +742,8 @@ def scenes_for(name):
 
 
 @app.get("/api/papers/{name}")
-def paper(name: str):
-    q = store.get_paper(check_name(name))
+def paper(name: str, user=Depends(current_user)):
+    q = store.get_paper(mine(name, user))
     if not q:
         raise HTTPException(404, "没有这份试卷")
     sc = scenes_for(name)
@@ -639,8 +862,8 @@ def paper(name: str):
 
 
 @app.get("/api/papers/{name}/scene.js")
-def scene_js(name: str):
-    check_name(name)
+def scene_js(name: str, user=Depends(current_user)):
+    mine(name, user)
     # 只给场景工厂，不带 harness/_runtime.js —— 那份运行时是给静态页写的，
     # 挂在 DOMContentLoaded 上，SPA 里 figure 是后渲染的，时机对不上。
     # 帧循环 / 播放暂停 / 离屏暂停由前端的 SceneMount 组件实现。
@@ -668,24 +891,24 @@ def send(name, row):
 
 
 @app.get("/api/papers/{name}/page/{n}")
-def page_render(name: str, n: int):
+def page_render(name: str, n: int, user=Depends(current_user)):
     """整页渲染图。用来人工核对切分准不准——光看切出来的文本判断不了边界对没对。"""
-    return send(name, store.find_page(check_name(name), n))
+    return send(name, store.find_page(mine(name, user), n))
 
 
 @app.get("/api/papers/{name}/mathimg/{fn}")
-def math_image(name: str, fn: str):
+def math_image(name: str, fn: str, user=Depends(current_user)):
     """选项区与表格的原卷截图。模型也会错，错了必须能被看见。"""
     if "/" in fn or ".." in fn:
         raise HTTPException(400, "非法路径")
-    return send(name, store.find_asset(check_name(name), "mathimg/" + fn))
+    return send(name, store.find_asset(mine(name, user), "mathimg/" + fn))
 
 
 @app.get("/api/papers/{name}/img/{fn}")
-def image(name: str, fn: str):
+def image(name: str, fn: str, user=Depends(current_user)):
     if "/" in fn or ".." in fn:
         raise HTTPException(400, "非法路径")
-    return send(name, store.find_asset(check_name(name), "img/" + fn))
+    return send(name, store.find_asset(mine(name, user), "img/" + fn))
 
 
 # ---------------------------------------------------------------- 前端静态

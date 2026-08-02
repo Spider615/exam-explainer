@@ -145,13 +145,17 @@ def drop_objects(keys):
 
 
 # ---------------------------------------------------------------- 发布
-def publish(workdir, name=None, conn=None):
+def publish(workdir, name=None, conn=None, owner_id=None):
     """
     把一卷的构建产物导进库。**整卷替换**，在一个事务里。
 
     重跑 segment.py 会重写整份 questions.json，所以这里也是整卷替换语义：
     删掉旧的 questions（级联清掉 options/tables），重新插。
     papers 那一行保留 —— 它的 id 被 assets 引用，而且 created_at 有意义。
+
+    `owner_id` 只在这一行**还没有主**的时候才写进去。重新发布一份已有的卷子
+    不该改变它归谁 —— 否则谁最后重跑一遍谁就成了它的主人。命令行那条链
+    传不进 owner_id（没有登录态），落库就是无主的，见 schema.sql 的说明。
     """
     name = name or os.path.basename(os.path.abspath(workdir))
     qp = os.path.join(workdir, "questions.json")
@@ -163,19 +167,23 @@ def publish(workdir, name=None, conn=None):
         cur = c.cursor()
         cur.execute("""
             INSERT INTO papers (name, source_pdf, n_questions, sections, warnings,
-                                dropped_boilerplate, updated_at, run_started_at)
-            VALUES (%s,%s,%s,%s,%s,%s, now(), now())
+                                dropped_boilerplate, updated_at, run_started_at,
+                                owner_id)
+            VALUES (%s,%s,%s,%s,%s,%s, now(), now(), %s)
             ON CONFLICT (name) DO UPDATE SET
               source_pdf=EXCLUDED.source_pdf, n_questions=EXCLUDED.n_questions,
               sections=EXCLUDED.sections, warnings=EXCLUDED.warnings,
               dropped_boilerplate=EXCLUDED.dropped_boilerplate, updated_at=now(),
               -- 每次发布就是一轮新的处理，起点在这里重置
-              run_started_at=now()
+              run_started_at=now(),
+              -- 已经有主的不改主。谁最后重跑一遍谁就成主人是不对的
+              owner_id=COALESCE(papers.owner_id, EXCLUDED.owner_id)
             RETURNING id""",
             (name, data.get("source"), len(data["questions"]),
              json.dumps(data.get("sections", []), ensure_ascii=False),
              json.dumps(data.get("warnings", []), ensure_ascii=False),
-             json.dumps(data.get("dropped_boilerplate", []), ensure_ascii=False)))
+             json.dumps(data.get("dropped_boilerplate", []), ensure_ascii=False),
+             owner_id))
         pid = cur.fetchone()[0]
 
         # **不能整卷 DELETE 再重插。** questions 的主键被 solutions / specs 以
@@ -267,18 +275,24 @@ def publish(workdir, name=None, conn=None):
 
 
 # ---------------------------------------------------------------- 删除
-def delete_papers(names):
+def delete_papers(names, owner_id=None):
     """
     删卷。库里一个事务删干净，然后清掉没人再引用的对象。
 
     **vlm_cache 一律不动** —— 它按图片内容哈希存，跟卷子无关。
     删卷级联到它，等于每删一卷就把下次重跑的成本从 20 次模型调用推回 300 次。
+
+    `owner_id` 的过滤写在 SQL 里，不是在调用方检查一遍就算数：这是批量接口，
+    一次几十个卷名，漏掉一个的代价是删掉别人的东西。不是自己的卷子会被算进
+    `missing` —— 和「本来就不存在」一样对待，不告诉调用方它其实存在。
     """
     if not names:
         return {"deleted": [], "missing": [], "objects": 0}
     with connect() as c:
         cur = c.cursor()
-        cur.execute("SELECT name FROM papers WHERE name = ANY(%s)", (list(names),))
+        cur.execute("""SELECT name FROM papers
+                        WHERE name = ANY(%s) AND (%s::bigint IS NULL OR owner_id = %s)""",
+                    (list(names), owner_id, owner_id))
         found = [r[0] for r in cur.fetchall()]
         missing = [n for n in names if n not in found]
         if not found:
@@ -306,7 +320,12 @@ def delete_papers(names):
 
 
 # ---------------------------------------------------------------- 读取
-def list_papers():
+def list_papers(owner_id=None):
+    """
+    试卷列表。给了 owner_id 就**只给这个账号的** —— 试卷是按人隔离的。
+
+    owner_id=None 是给命令行和运维用的「全都要」，API 那条路一律带 owner_id。
+    """
     with connect() as c:
         cur = c.cursor()
         cur.execute("""
@@ -314,9 +333,51 @@ def list_papers():
                    p.updated_at,
                    (SELECT count(*) FROM assets a
                      WHERE a.paper_id=p.id AND a.kind IN ('img','mathimg'))
-              FROM papers p ORDER BY p.updated_at DESC""")
+              FROM papers p
+             WHERE %s::bigint IS NULL OR p.owner_id = %s
+             ORDER BY p.updated_at DESC""", (owner_id, owner_id))
         return [{"name": r[0], "n": r[1], "warnings": r[2],
                  "mtime": r[3].timestamp(), "figures": r[4]} for r in cur.fetchall()]
+
+
+def paper_owner(name):
+    """
+    这份卷子归谁。返回 (存在吗, owner_id)。
+
+    分成两个值是有意的：**「不存在」和「存在但不是你的」在 API 那边要给出
+    同一个 404** —— 不然拿一堆卷名去试，就能问出别人库里有什么。
+    但存储层不该替上层做这个决定，所以这里如实回报。
+    """
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("SELECT owner_id FROM papers WHERE name=%s", (name,))
+        r = cur.fetchone()
+        return (False, None) if not r else (True, r[0])
+
+
+def free_name(base):
+    """
+    挑一个还没被占用的卷名。
+
+    卷名全局唯一，因为 `work/<卷名>/` 是按它建目录的 —— 两个账号传同名卷子，
+    在磁盘上会写进同一个构建目录，两条管线互相覆盖。所以重名在上传时就避开：
+    `2023年高考福建卷物理真题` → `2023年高考福建卷物理真题 (2)`。
+
+    **不告诉后来的人「这个名字被谁占了」**，只是换一个名字继续 ——
+    否则卷名就成了一个能探测别人库存的接口。
+    """
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("SELECT name FROM papers WHERE name = %s OR name LIKE %s",
+                    (base, base.replace("\\", "\\\\").replace("%", "\\%")
+                             .replace("_", "\\_") + " (%)"))
+        taken = {r[0] for r in cur.fetchall()}
+    if base not in taken:
+        return base
+    k = 2
+    while "%s (%d)" % (base, k) in taken:
+        k += 1
+    return "%s (%d)" % (base, k)
 
 
 def get_paper(name):
@@ -416,6 +477,17 @@ def progress(name):
 
     `busy` 用「最近有没有新东西落库」判定，而不是去查进程 —— 进程可能在别的
     机器上、可能是命令行起的，但只要它在干活，库里就会有新行。
+
+    **计数要跟着管线口径走，不能只数「有几行」。** ④ 现在只给 ④c 选中的题写
+    断言，所以「specs 少于 solutions」是常态而不是没跑完 —— 按旧口径算，
+    一份跑完的卷子会永远停在「④ 写断言 6/16」。所以这里多给四个数，
+    每个都对着管线里真正的那道闸门：
+      specsWorth  选中的题里写了几份 spec        （④ 的分母是 worth，不是题数）
+      drafts      还没过 ④b 自检的 spec          （animatable=false 的不算，
+                                                  speccheck 根本不看它们）
+      ready       ⑤ 真正会做的题（自检通过 + 选中）
+      sceneTried  这些题里已经试过的（**不管过没过门禁** —— 试过就是做完了，
+                  一直数「绿灯几个」的话，有一道怎么都过不了就永远显示在跑）
     """
     with connect() as c:
         cur = c.cursor()
@@ -435,6 +507,17 @@ def progress(name):
                      WHERE q.paper_id=p.id AND q.anim_worth),
                    (SELECT count(*) FROM scenes sc JOIN questions q ON q.id=sc.question_id
                      WHERE q.paper_id=p.id AND sc.passed),
+                   (SELECT count(*) FROM specs sp JOIN questions q ON q.id=sp.question_id
+                     WHERE q.paper_id=p.id AND q.anim_worth),
+                   (SELECT count(*) FROM specs sp JOIN questions q ON q.id=sp.question_id
+                     WHERE q.paper_id=p.id AND sp.animatable AND sp.status='draft'),
+                   (SELECT count(*) FROM specs sp JOIN questions q ON q.id=sp.question_id
+                     WHERE q.paper_id=p.id AND sp.animatable AND sp.status='approved'
+                       AND q.anim_worth),
+                   (SELECT count(*) FROM specs sp JOIN questions q ON q.id=sp.question_id
+                      JOIN scenes sc ON sc.question_id = q.id
+                     WHERE q.paper_id=p.id AND sp.animatable AND sp.status='approved'
+                       AND q.anim_worth),
                    GREATEST(p.updated_at,
                      COALESCE((SELECT max(s.created_at) FROM solutions s
                                  JOIN questions q ON q.id=s.question_id
@@ -451,7 +534,7 @@ def progress(name):
     if not r:
         return None
     (_pid, _nq, asm_at, started, n_q, n_label, n_sol, n_spec, n_appr, n_judged,
-     n_worth, n_scene, last, now) = r
+     n_worth, n_scene, n_spec_worth, n_draft, n_ready, n_scene_try, last, now) = r
     idle = (now - last).total_seconds()
     # 总时长：跑完了就是 起点→装配完成，还在跑就是 起点→现在
     elapsed = ((asm_at or now) - started).total_seconds() if started else None
@@ -460,7 +543,12 @@ def progress(name):
             "elapsedSeconds": elapsed,
             "specs": n_spec, "approved": n_appr, "judged": n_judged,
             "worth": n_worth, "scenes": n_scene,
+            "specsWorth": n_spec_worth, "drafts": n_draft,
+            "ready": n_ready, "sceneTried": n_scene_try,
             "assembled": bool(asm_at),
+            # 装过 ≠ 装的是现在这份数据。解完题不重装的话，out.html 还是零解法的
+            # 那一版 —— 那不叫「完成」，所以「完成」判定要用这个，不是 assembled
+            "assembledFresh": bool(asm_at) and asm_at >= last,
             "lastChange": last.timestamp(), "idleSeconds": idle,
             # 三分钟没有新东西落库就当它停了。⑤ 一道题要跑几分钟，阈值不能太小；
             # 但也不能太大，否则跑完了还一直显示「进行中」
@@ -702,6 +790,163 @@ def approve_spec(qid, ok=True):
         c.commit()
 
 
+# ---------------------------------------------------------------- 账号与会话
+def norm_email(email):
+    """规范化：去空格 + 转小写。`Jerry@X.com` 和 `jerry@x.com ` 必须是同一个人。"""
+    return (email or "").strip().lower()
+
+
+def get_user_by_email(email):
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("SELECT id, email, created_at FROM users WHERE email=%s",
+                    (norm_email(email),))
+        r = cur.fetchone()
+        return None if not r else {"id": r[0], "email": r[1], "createdAt": r[2].timestamp()}
+
+
+def create_user(email):
+    """
+    建账号。返回 (账号, 是不是新建的)。
+
+    **第一个账号会把所有无主试卷认领走**。库里现存的卷子都是加登录之前跑的，
+    owner_id 是 NULL；不认领的话它们对谁都不可见 —— 数据还在，人却打不开，
+    这比「归属可能不对」糟得多。之后再有无主卷子（命令行跑的），
+    用 `store.py claim <邮箱>` 手动收。
+    """
+    email = norm_email(email)
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""INSERT INTO users (email) VALUES (%s)
+                       ON CONFLICT (email) DO NOTHING RETURNING id""", (email,))
+        r = cur.fetchone()
+        fresh = r is not None
+        if fresh:
+            uid = r[0]
+            cur.execute("SELECT count(*) FROM users")
+            if cur.fetchone()[0] == 1:
+                cur.execute("UPDATE papers SET owner_id=%s WHERE owner_id IS NULL", (uid,))
+        else:
+            cur.execute("SELECT id FROM users WHERE email=%s", (email,))
+            uid = cur.fetchone()[0]
+        cur.execute("UPDATE users SET last_login_at=now() WHERE id=%s", (uid,))
+        c.commit()
+    return {"id": uid, "email": email}, fresh
+
+
+def claim_orphans(email):
+    """把所有无主试卷收到某个账号名下。命令行跑的卷子靠它进到某个人的库里。"""
+    u = get_user_by_email(email)
+    if not u:
+        return -1
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("UPDATE papers SET owner_id=%s WHERE owner_id IS NULL", (u["id"],))
+        n = cur.rowcount
+        c.commit()
+    return n
+
+
+def put_login_code(email, code_hash, ttl_min):
+    """
+    写下这个邮箱当前的验证码。一个邮箱同时只有一个 —— 重新要码就覆盖，
+    上一个立刻作废。返回 False 表示**要得太频繁**，这一次不该发信。
+    """
+    email = norm_email(email)
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT sent_at > now() - interval '60 seconds'
+                         FROM login_codes WHERE email=%s""", (email,))
+        r = cur.fetchone()
+        if r and r[0]:
+            return False
+        cur.execute("""
+            INSERT INTO login_codes (email, code_sha256, expires_at, tries, sent_at)
+            VALUES (%s, %s, now() + make_interval(mins => %s), 0, now())
+            ON CONFLICT (email) DO UPDATE SET
+              code_sha256=EXCLUDED.code_sha256, expires_at=EXCLUDED.expires_at,
+              tries=0, sent_at=now()""", (email, code_hash, ttl_min))
+        c.commit()
+    return True
+
+
+MAX_TRIES = 5
+
+
+def check_login_code(email, code_hash):
+    """
+    核验验证码。返回 (通过吗, 说明)。通过就把这个码销掉 —— 一码一用。
+
+    试错次数写在库里而不是内存里：6 位数字只有一百万种，进程重启一次就把
+    计数清零的话，慢慢试是能试出来的。
+    """
+    email = norm_email(email)
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT code_sha256, expires_at < now(), tries
+                         FROM login_codes WHERE email=%s FOR UPDATE""", (email,))
+        r = cur.fetchone()
+        if not r:
+            return False, "还没给这个邮箱发过验证码"
+        want, expired, tries = r
+        if expired:
+            cur.execute("DELETE FROM login_codes WHERE email=%s", (email,))
+            c.commit()
+            return False, "验证码已过期，重新获取一个"
+        if tries >= MAX_TRIES:
+            cur.execute("DELETE FROM login_codes WHERE email=%s", (email,))
+            c.commit()
+            return False, "错太多次了，这个验证码已作废，重新获取一个"
+        if code_hash != want:
+            cur.execute("UPDATE login_codes SET tries=tries+1 WHERE email=%s", (email,))
+            c.commit()
+            return False, "验证码不对（还可以试 %d 次）" % (MAX_TRIES - tries - 1)
+        cur.execute("DELETE FROM login_codes WHERE email=%s", (email,))
+        c.commit()
+    return True, ""
+
+
+def create_session(user_id, token_hash, days=30):
+    with connect() as c:
+        c.execute("""INSERT INTO sessions (token_sha256, user_id, expires_at)
+                     VALUES (%s, %s, now() + make_interval(days => %s))""",
+                  (token_hash, user_id, days))
+        c.commit()
+
+
+def session_user(token_hash):
+    """
+    拿会话换账号。过期的当不存在，顺手删掉。
+
+    `last_seen_at` 每次都写 —— 一次 UPDATE 换来的是「这个会话还活着吗」
+    可查，对一个能烧模型额度的系统来说值这一次写。
+    """
+    if not token_hash:
+        return None
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT u.id, u.email, s.expires_at < now()
+                         FROM sessions s JOIN users u ON u.id = s.user_id
+                        WHERE s.token_sha256=%s""", (token_hash,))
+        r = cur.fetchone()
+        if not r:
+            return None
+        if r[2]:
+            cur.execute("DELETE FROM sessions WHERE token_sha256=%s", (token_hash,))
+            c.commit()
+            return None
+        cur.execute("UPDATE sessions SET last_seen_at=now() WHERE token_sha256=%s",
+                    (token_hash,))
+        c.commit()
+        return {"id": r[0], "email": r[1]}
+
+
+def drop_session(token_hash):
+    with connect() as c:
+        c.execute("DELETE FROM sessions WHERE token_sha256=%s", (token_hash,))
+        c.commit()
+
+
 def cache_get(sha):
     with connect() as c:
         cur = c.cursor()
@@ -725,11 +970,24 @@ def main():
         if STORAGE == "minio":
             ensure_bucket()
         print("建表完成；资产后端 = %s" % STORAGE)
+    elif cmd == "claim":
+        # 命令行跑的卷子落库时是无主的（没有登录态）。用这个把它们收进某个账号
+        if len(sys.argv) < 3:
+            print("用法：store.py claim <邮箱>")
+            return
+        n = claim_orphans(sys.argv[2])
+        print("没有这个账号（先在页面上登录一次）" if n < 0
+              else "%d 份无主试卷已归到 %s 名下" % (n, sys.argv[2]))
     elif cmd == "stat":
         with connect() as c:
             cur = c.cursor()
+            cur.execute("SELECT count(*) FROM papers WHERE owner_id IS NULL")
+            orphan = cur.fetchone()[0]
+            if orphan:
+                print("  ⚠ %d 份试卷无主，页面上谁都看不到（store.py claim <邮箱> 可以收）"
+                      % orphan)
             for t in ("papers", "questions", "q_options", "q_tables",
-                      "assets", "vlm_cache"):
+                      "assets", "users", "sessions", "vlm_cache"):
                 cur.execute("SELECT count(*) FROM " + t)
                 print("  %-10s %d" % (t, cur.fetchone()[0]))
             cur.execute("SELECT storage, count(*), pg_size_pretty(sum(bytes)) "
@@ -737,7 +995,7 @@ def main():
             for s, n, sz in cur.fetchall():
                 print("  资产 %s：%d 份，%s" % (s, n, sz))
     else:
-        print("用法：store.py [init|stat]")
+        print("用法：store.py [init|stat|claim <邮箱>]")
 
 
 if __name__ == "__main__":

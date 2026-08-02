@@ -2,6 +2,28 @@ import { useState } from 'react'
 import type { PaperSummary } from '../types'
 
 /**
+ * 进度列只放**一个状态**，不是一串阶段计数。
+ *
+ * 一行里放得下的信息很少，所以先答「它现在怎么样」：失败 / 在跑 / 已完成 /
+ * 已停止。在跑的时候才补上是哪一步、到第几题（`解题中 15/16`）；停下来的时候
+ * 也要说停在哪 —— 光写「已停止」，人无从知道是差一步还是差一半。
+ *
+ * 「已完成」的判据是 ⑦ 装的就是当前这份数据。装过但比库里的数据旧**不算**：
+ * 那种情况下手里那份 out.html 还是解法更少的旧版本，标成完成是骗人的。
+ */
+function Prog({ p }: { p: NonNullable<PaperSummary['progress']> }) {
+  const at = p.total > 1 ? ` ${p.cur}/${p.total}` : ''
+  if (p.failed) return <span className="pill w" title={p.failed}>失败</span>
+  if (p.busy) return <span className="run"><i />{p.short}{at}</span>
+  if (p.done) return <span className="pill g">已完成</span>
+  return (
+    <span className="pill" title={`没有进程在跑，停在「${p.stage}」`}>
+      已停止 · {p.short}{at}
+    </span>
+  )
+}
+
+/**
  * 试卷库。
  *
  * 删除是不可逆的，所以确认框里要写清**删的是哪几份**，不能只说「确定删除 3 份？」——
@@ -67,20 +89,7 @@ export default function PaperList({ rows, onOpen, onDelete, busy }: {
               </td>
               <td><button className="link" onClick={() => onOpen(r.name)}>{r.name}</button></td>
               {/* 返回试卷库不等于任务停了——这一列让「哪份还在跑」一眼可见 */}
-              <td className="prg">
-                {r.progress ? (
-                  r.progress.busy ? (
-                    <span className="run"><i />{r.progress.stage}
-                      {r.progress.total > 1 && ` ${r.progress.cur}/${r.progress.total}`}</span>
-                  ) : r.progress.stage === '完成' ? (
-                    <span className="pill g">完成</span>
-                  ) : (
-                    <span className="pill" title="没有进程在跑，停在这一步">
-                      {r.progress.stage} {r.progress.cur}/{r.progress.total}
-                    </span>
-                  )
-                ) : null}
-              </td>
+              <td className="prg">{r.progress ? <Prog p={r.progress} /> : null}</td>
               <td className="num">{r.n}</td>
               <td className="num">{r.figures}</td>
               <td>{r.scenes ? <span className="pill g">{r.scenes}</span>

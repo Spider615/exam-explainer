@@ -164,7 +164,99 @@ svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
 .btn:hover{border-color:var(--acc);color:var(--acc)}
 .btn:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
 .btn[aria-pressed=true]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.btn:disabled{opacity:.45;cursor:not-allowed;border-color:var(--line);color:var(--ink3)}
 .livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+/* 当前账号。试卷按人隔离，「现在是谁」必须一直看得见 */
+.who{font-family:var(--mono);font-size:11.5px;color:var(--ink3);margin:0 10px}
+
+/* ---------------------------------------------------------------- 登录页
+   整页接管，不套在试卷库那层壳里。左栏说这是个什么东西，右栏是唯一的动作 ——
+   没登录时页面上只该有一件事可做。 */
+.auth{min-height:100vh;display:flex;align-items:center;justify-content:center;
+      padding:48px 22px}
+.auth-grid{width:100%;max-width:940px;display:grid;gap:56px;
+           grid-template-columns:1fr minmax(340px,382px);align-items:center}
+/* 这三行少一行，窄屏上整张卡都会顶出视口右边。
+   `input` 自带一个约 20 字符的固有宽度，而验证码那个 26px 等宽 + 0.62em 字距的
+   输入框，固有宽度比手机屏还宽；网格轨道和 flex 子项默认都不肯窄过内容的
+   min-content，于是这个宽度**一层层往上顶**：input → 网格轨道 → .auth-grid
+   （flex 子项，min-width:auto）→ 被 justify-content:center 居中后两边一起溢出。
+   所以整条链上每一层都要显式允许收缩。 */
+.auth-grid{min-width:0}
+.auth-say,.auth-card{min-width:0}
+.auth-f input{min-width:0}
+
+/* 左栏：说清楚这是什么。留白比字多，别让它跟表单抢注意力 */
+.auth-brand{font-family:var(--mono);font-size:11px;letter-spacing:.22em;
+            text-transform:uppercase;color:var(--acc)}
+.auth-say h1{font-family:var(--song);font-size:38px;line-height:1.32;font-weight:600;
+             margin:18px 0 0;letter-spacing:.01em}
+.auth-say p{margin:16px 0 0;font-size:14.5px;line-height:1.85;color:var(--ink2);
+            max-width:30em}
+.auth-chain{list-style:none;display:flex;flex-wrap:wrap;gap:6px;margin:24px 0 0;padding:0}
+.auth-chain li{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+               color:var(--ink3);border:1px solid var(--hair);border-radius:2px;
+               padding:3px 8px;background:var(--panel)}
+.auth-fine{font-size:12.5px !important;color:var(--ink3) !important;
+           border-left:2px solid var(--hair);padding-left:11px;margin-top:22px !important}
+
+/* 右栏：表单卡。顶上那道 2px 实线呼应页头那条分割线 */
+.auth-card{background:var(--panel);border:1px solid var(--hair);border-top:2px solid var(--acc);
+           border-radius:3px;padding:30px 30px 24px}
+@media (prefers-reduced-motion:no-preference){
+  .auth-card{animation:auth-in .22s ease-out both}
+  @keyframes auth-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+}
+.auth-hd h2{font-family:var(--song);font-size:23px;font-weight:600;margin:0}
+.auth-hd p{margin:7px 0 0;font-size:13px;line-height:1.7;color:var(--ink2)}
+.auth-hd b{font-family:var(--mono);font-size:12.5px;color:var(--ink);word-break:break-all}
+.auth-link{background:none;border:0;padding:0 0 0 8px;font:inherit;font-size:12.5px;
+           color:var(--acc);cursor:pointer;text-decoration:underline;
+           text-underline-offset:2px}
+
+.auth-f{display:block;margin:22px 0 0}
+/* 字距只给拉丁字母。中文本来就是等宽方块，再拉开就散了 —— `6 位验证码`
+   在 .18em 下会读成「6  位 验 证 码」 */
+.auth-f span{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
+             color:var(--ink3);margin:0 0 7px}
+.auth-f input{width:100%;font:inherit;font-size:15px;height:44px;padding:0 13px;
+              border-radius:4px;border:1px solid var(--line);background:var(--paper);
+              color:var(--ink);transition:border-color .12s,box-shadow .12s}
+.auth-f input::placeholder{color:var(--ink3)}
+.auth-f input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px var(--acc2)}
+/* 验证码：一个输入框拉开字距，不做 6 个格子 —— 那种在粘贴、退格、
+   移动端输入法上各有各的坏法，而这里只是要 6 个数字 */
+.auth-code{text-align:center;font-family:var(--mono) !important;font-size:26px !important;
+           letter-spacing:.62em;text-indent:.62em;height:56px !important;
+           font-variant-numeric:tabular-nums}
+
+/* 提示与报错占一个固定行高：出现时不把按钮顶下去，人的手不必跟着挪 */
+.auth-msg{min-height:44px;display:flex;align-items:center;padding:11px 0 9px;
+          font-size:12.5px;line-height:1.6}
+.auth-err{color:var(--red)}
+.auth-hint{color:var(--ink2);border-left:2px solid var(--acc);padding-left:9px}
+
+.auth-go{width:100%;height:44px;border:0;border-radius:4px;background:var(--acc);color:#fff;
+         font-family:var(--cjk);font-size:14.5px;letter-spacing:.04em;cursor:pointer;
+         transition:filter .12s}
+.auth-go:hover:not(:disabled){filter:brightness(1.1)}
+.auth-go:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.auth-go:disabled{background:var(--hair);color:var(--ink3);cursor:not-allowed}
+.auth-resend{display:block;width:100%;margin:11px 0 0;background:none;border:0;
+             font:inherit;font-size:12.5px;color:var(--acc);cursor:pointer}
+.auth-resend:disabled{color:var(--ink3);cursor:default}
+
+.auth-ft{margin:24px 0 0;padding:14px 0 0;border-top:1px solid var(--hair);
+         font-size:12px;line-height:1.75;color:var(--ink3)}
+
+/* 窄屏：左栏收成一句话，表单占满 —— 手机上先让人能登进去 */
+@media (max-width:840px){
+  .auth{padding:34px 18px;align-items:flex-start}
+  .auth-grid{grid-template-columns:1fr;gap:28px;max-width:420px}
+  .auth-say h1{font-size:27px;margin-top:12px}
+  .auth-say p,.auth-chain,.auth-fine{display:none}
+  .auth-card{padding:24px 22px 20px}
+}
 input[type=range]{width:118px}
 .empty{color:var(--ink3);padding:20px;text-align:center}
 

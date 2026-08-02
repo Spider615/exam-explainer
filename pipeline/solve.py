@@ -395,6 +395,51 @@ def solve_one(name, q, tmp, force=False, crosscheck=False):
         "，⚠复核不一致" if disagree else "")
 
 
+# ③ 跑到一半时回头刷一次 ③b 目录，每 N 题一次。0 = 关掉。
+#
+# 为什么放在这儿而不是编排层：网页上传（api.py 直接调 solve_many）和命令行
+# （run.py 起 solve.py 子进程）都要经过这个函数，写在这里两条入口自动一致 ——
+# 两边各写一份，迟早有一条落下修复。
+OUTLINE_EVERY = int(os.environ.get("EXAM_OUTLINE_EVERY", "4"))
+
+
+class _Outliner:
+    """
+    在 ③ 进行中滚动刷新 ③b 目录。
+
+    「答案速览」和左边的目录读的是 ③b 的产出，而 ③b 原来只排在 ③ 之后 ——
+    于是解题那二三十分钟里，已经解出来的题在速览里也全写着「尚未生成」。
+
+    三条约束：**不能拖慢 ③**（所以另起线程，解题这边不等它）、**不能堆积**
+    （一次调用几十秒，上一次没回来就跳过这一次）、**失败必须无害**
+    （③b 挂了不该影响解题，异常一律吞掉，反正管线末尾还会正经跑一次）。
+    """
+
+    def __init__(self, name):
+        self.name = name
+        self.busy = False
+        self.lock = threading.Lock()
+
+    def kick(self):
+        with self.lock:
+            if self.busy:
+                return
+            self.busy = True
+        threading.Thread(target=self._run, daemon=True).start()
+
+    def _run(self):
+        try:
+            import outline
+            got = outline.refresh(self.name, verbose=False)
+            if got > 0:
+                print("   ③b 目录已刷新：%d 题有了短标题与短答案" % got, flush=True)
+        except Exception as e:
+            print("   ③b 顺带刷新没成（不影响解题）：%s" % str(e)[:100], flush=True)
+        finally:
+            with self.lock:
+                self.busy = False
+
+
 def solve_many(name, qs, jobs=4, force=False, on_done=None, on_start=None,
                crosscheck=False):
     """
@@ -411,6 +456,8 @@ def solve_many(name, qs, jobs=4, force=False, on_done=None, on_start=None,
     """
     lock = threading.Lock()
     out = []
+    # 最后一题不用刷：管线紧接着就会正经跑一次 ③b，两次挨着调没意义
+    outliner = _Outliner(name) if OUTLINE_EVERY > 0 and len(qs) > OUTLINE_EVERY else None
 
     def run(q):
         # 开跑就报一声。压轴题要十几分钟，只在解完时打印的话，
@@ -428,6 +475,9 @@ def solve_many(name, qs, jobs=4, force=False, on_done=None, on_start=None,
             out.append(r)
             if on_done:
                 on_done(r, len(out), len(qs))
+            done = len(out)
+        if outliner and done % OUTLINE_EVERY == 0 and done < len(qs):
+            outliner.kick()
         return r
 
     with cf.ThreadPoolExecutor(max(1, jobs)) as ex:

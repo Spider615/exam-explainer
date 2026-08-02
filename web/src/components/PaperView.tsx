@@ -28,9 +28,33 @@ function fmtDur(sec: number) {
   return `${Math.floor(m / 60)} 小时 ${m % 60} 分`
 }
 
-/** 速览/目录里那一格答案。③b 没给就留空 —— 不拿完整答案截一段来充数 */
-function shortOf(q: Question) {
-  return q.solution?.shortAnswer?.trim() || ''
+/** 一格答案放得下多少字。超过就不硬塞，点进去看完整解法 */
+const SHORT_MAX = 24
+
+/**
+ * 速览/目录里那一格答案，连同它是哪一种「有」或「没有」。
+ *
+ * 短答案由 ③b 压出来，而 ③b 是**整卷一次调用**，跑在 ③ 之后（现在也会在 ③
+ * 中途滚动跑）。所以必然有一段时间是「题已经解出来了，短答案还没压出来」——
+ * 那时候显示「尚未生成」是**错的**：它说的是这题还没解，而它已经解了。
+ *
+ * 所以分四种：
+ *   short    ③b 压好的一行答案
+ *   raw      还没压，但完整答案本身就短（选择题的 `D`、多空的 `小于,等于,小于`）
+ *            —— 整条显示，**不截断**。截一段得到的是「(1) α=30°，U_MN=3mv…」，
+ *            既不完整也不好看，不如不给
+ *   pending  已解出，但答案是一长串三问，等 ③b 压
+ *   none     真的还没解
+ */
+function shortOf(q: Question): { text: string; kind: 'short' | 'raw' | 'pending' | 'none' } {
+  const s = q.solution
+  if (!s) return { text: '尚未生成', kind: 'none' }
+  const short = s.shortAnswer?.trim()
+  if (short) return { text: short, kind: 'short' }
+  const full = (s.answer || '').trim()
+  if (full && !full.includes('\n') && full.length <= SHORT_MAX)
+    return { text: full, kind: 'raw' }
+  return { text: '已解出 · 待压缩', kind: 'pending' }
 }
 
 export default function PaperView({ name }: { name: string }) {
@@ -133,11 +157,14 @@ export default function PaperView({ name }: { name: string }) {
         ))}
       </div>
 
-      {pg && (pg.busy || !pg.assembled) && (
+      {pg && (pg.busy || !pg.done) && (
         <div className={`prog${pg.busy ? '' : ' idle'}`}>
           <div className="prog-hd">
             <span className="prog-dot" />
-            <b>{pg.busy ? pg.stage : `${pg.stage} · 已停止`}</b>
+            {/* 状态词在前，阶段在后。停下来的时候「停在哪」和「已停止」一样重要 */}
+            <b>{pg.failed ? `失败 · ${pg.stage}`
+              : pg.busy ? pg.stage
+                : `${pg.stage} · 已停止`}</b>
             {pct !== null && (
               <span className="prog-num">{pg.stageCur}/{pg.stageTotal}</span>
             )}
@@ -145,11 +172,15 @@ export default function PaperView({ name }: { name: string }) {
           {pct !== null && (
             <div className="prog-bar"><i style={{ width: `${pct}%` }} /></div>
           )}
+          {pg.failed && <code className="prog-last">{pg.failed}</code>}
+          {/* 每个分母都用那一步自己的口径：④ 只做 ④c 选中的题，⑤ 只做自检通过的题。
+              拿题数当分母的话，一份跑完的卷子会显示成「断言 6/16」，像是没做完 */}
           <div className="prog-sub">
             <span>解题 {pg.solutions}/{pg.questions}</span>
-            <span>断言 {pg.specs}</span>
-            <span>自检 {pg.judged}</span>
-            <span>动画 {pg.scenes}{pg.worth ? `/${pg.worth}` : ''}</span>
+            <span>选题 {pg.judged}/{pg.solutions}</span>
+            <span>断言 {pg.specsWorth}{pg.worth ? `/${pg.worth}` : ''}</span>
+            <span>自检 {pg.approved}/{pg.specs}</span>
+            <span>动画 {pg.scenes}{pg.ready ? `/${pg.ready}` : ''}</span>
             {pg.elapsedSeconds !== null && <span className="prog-t">
               {pg.assembled ? '总耗时' : '已用时'} {fmtDur(pg.elapsedSeconds)}
             </span>}
@@ -195,28 +226,24 @@ export default function PaperView({ name }: { name: string }) {
         </div>
       )}
 
-      <div className="note">
-        <b>这是一条竖切片，不是完整产品。</b>　上传一份 PDF 会自动跑完
-        ① 摄入 → ② 切分 → ③ 解题 → ③b 目录 → ④ 写断言 → ④b 自检 → ⑤ 生成场景 → ⑦ 呈现，
-        上面每个标志亮着才算真跑过（鼠标停上去能看到灭着的原因）。
-        <b>动画的准入靠的是计算，不是人审</b>：④b 拿 spec 自带的参考实现跑一遍，
-        满足不了它自己的断言就不进 ⑤。这只排除内部矛盾 ——
-        解法要是从一开始就理解错题、而断言写得自洽，这一关照样全绿。
-        所以解题与断言都请对照原卷判断。
-      </div>
-
       <div className="pgrid">
         <nav className="toc">
           {stats.groups.map(([sec, qs]) => (
             <div key={sec} className="toc-g">
               <h4>{sec.includes('、') ? sec.split('、').pop() : sec}</h4>
-              {qs.map((q) => (
-                <button key={q.n} className="toc-i" onClick={() => jumpTo(q.n)}>
-                  <span className="toc-n">{String(q.n).padStart(2, '0')}</span>
-                  <span className="toc-l">{q.label || ''}</span>
-                  <span className="toc-a">{shortOf(q)}</span>
-                </button>
-              ))}
+              {qs.map((q) => {
+                const a = shortOf(q)
+                return (
+                  <button key={q.n} className="toc-i" onClick={() => jumpTo(q.n)}>
+                    <span className="toc-n">{String(q.n).padStart(2, '0')}</span>
+                    <span className="toc-l">{q.label || ''}</span>
+                    {/* 目录这一列窄，只放真答案；「待压缩」「尚未生成」留白 */}
+                    <span className="toc-a">
+                      {a.kind === 'short' || a.kind === 'raw' ? a.text : ''}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           ))}
         </nav>
@@ -225,16 +252,20 @@ export default function PaperView({ name }: { name: string }) {
           <div className="quick">
             <h4>答案速览</h4>
             <div className="quick-g">
-              {paper.questions.map((q) => (
-                <button key={q.n} className="quick-c" onClick={() => jumpTo(q.n)}>
-                  <span className="quick-h">
-                    {String(q.n).padStart(2, '0')} {q.type}
-                  </span>
-                  <span className={`quick-a${shortOf(q) ? '' : ' none'}`}>
-                    {shortOf(q) || '尚未生成'}
-                  </span>
-                </button>
-              ))}
+              {paper.questions.map((q) => {
+                const a = shortOf(q)
+                return (
+                  <button key={q.n} className="quick-c" onClick={() => jumpTo(q.n)}>
+                    <span className="quick-h">
+                      {String(q.n).padStart(2, '0')} {q.type}
+                    </span>
+                    <span className={`quick-a${a.kind === 'short' || a.kind === 'raw' ? '' : ' none'}`}
+                          title={a.kind === 'pending' ? '③b 目录会把它压成一行，点开看完整解法' : ''}>
+                      {a.text}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </div>
 

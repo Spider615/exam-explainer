@@ -12,7 +12,8 @@ run.py —— 一条命令跑完管线
     store.publish ②c 构建产物 → 库（此后一切以库为准）
     solve.py      ③ 解题（DeepSeek 盲试 → 看不到图才升级视觉模型）
     outline.py    ③b 整卷一次调用 → 每题的短标题与短答案（目录/速览用）
-    spec.py       ④ 写 spec 与物理断言
+    pick.py       ④c 动画选题：一次调用判整卷「哪些题值得做动画」
+    spec.py       ④ 只给选中的题写 spec 与物理断言（--picked）
     speccheck.py  ④b 拿 spec 自己的参考实现验它自己的断言，自洽才放行进 ⑤
     scene.py      ⑤ 沙箱 agent 写动画，⑥ 门禁判定绿灯
     assemble.py   ⑦ → 自包含 out.html
@@ -84,10 +85,18 @@ def main():
     # ②b 公式识别：只对「选项区里有横线」的题调用视觉模型，按图哈希缓存。
     # 不能省 —— 缺了它选项只有被压平的一维文本，下游解题看不懂公式
     total += step("②b", "公式识别", [PY, os.path.join(HERE, "mathvlm.py"), work])
-    # 发布：构建产物 → 库。之后所有环节都以库为准，work/ 只是中间目录
+    # 发布：构建产物 → 库。之后所有环节都以库为准，work/ 只是中间目录。
+    #
+    # 命令行这条路没有登录态，卷子落库时是**无主**的 —— 而页面按账号隔离，
+    # 无主的卷子在页面上谁都看不到。所以 .env 里可以写 EXAM_OWNER_EMAIL
+    # 指定归谁；没写就先留着无主，之后 `store.py claim <邮箱>` 收。
     total += step("②c", "发布入库",
-                  [PY, "-c", "import sys;sys.path.insert(0,%r);import store;"
-                             "print(store.publish(%r))" % (HERE, work)])
+                  [PY, "-c", "import os,sys;sys.path.insert(0,%r);import store;"
+                             "u=store.get_user_by_email(os.environ.get('EXAM_OWNER_EMAIL',''));"
+                             "print(store.publish(%r, owner_id=u and u['id']));"
+                             "print('归属：' + (u['email'] if u else "
+                             "'无主（.env 里设 EXAM_OWNER_EMAIL，或事后 store.py claim）'))"
+                             % (HERE, work)])
 
     if not a.no_solve:
         total += step("③", "解题", [PY, os.path.join(HERE, "solve.py"), name,
@@ -95,14 +104,14 @@ def main():
                                    (["--crosscheck"] if a.crosscheck else []))
         total += step("③b", "目录（短标题与短答案）",
                       [PY, os.path.join(HERE, "outline.py"), name])
-        total += step("④", "写 spec 与断言", [PY, os.path.join(HERE, "spec.py"), name])
+        # ④c 在 ④ 之前：28 秒的筛子必须排在 6 分钟一道的活前面
+        total += step("④c", "动画选题", [PY, os.path.join(HERE, "pick.py"), name])
+        total += step("④", "写 spec 与断言（只做选中的题）",
+                      [PY, os.path.join(HERE, "spec.py"), name, "--picked"])
         # ④b 是 ⑤ 的准入闸门：纯计算，不调模型。自己的参考实现满足不了
         # 自己的断言就判 rejected，进不了 ⑤
         total += step("④b", "spec 自检",
                       [PY, os.path.join(HERE, "speccheck.py"), name, "--apply"])
-        # ④c 判「值不值得做动画」。和 ④ 的 animatable 是两件事：
-        # 那个答「做不做得了」，这个答「做了有没有增量」
-        total += step("④c", "动画选题", [PY, os.path.join(HERE, "pick.py"), name])
         if not a.no_scene:
             total += step("⑤", "生成场景（带反馈的循环，多题并行）",
                           [PY, os.path.join(HERE, "scene.py"), name])

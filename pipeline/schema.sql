@@ -195,3 +195,52 @@ ALTER TABLE questions ADD COLUMN IF NOT EXISTS anim_why   text;
 -- specs 上那两列留着只为兼容老数据，新代码不再写
 ALTER TABLE specs ADD COLUMN IF NOT EXISTS worth     boolean;
 ALTER TABLE specs ADD COLUMN IF NOT EXISTS worth_why text;
+
+-- ---------------------------------------------------------------- 账号
+-- 邮箱验证码登录，**没有密码**。没有密码就没有密码泄露、没有撞库、没有
+-- 「忘记密码」那一整套流程；代价是每次新设备登录要收一封信。
+-- 对这样一个每份卷子要烧掉几十分钟模型时间的东西来说，这个代价可以接受。
+CREATE TABLE IF NOT EXISTS users (
+  id            bigserial PRIMARY KEY,
+  email         text        NOT NULL UNIQUE,   -- 一律存小写去空格后的规范形式
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  last_login_at timestamptz
+);
+
+-- 登录验证码。存的是 sha256(邮箱 + ':' + 验证码)，不是明文。
+-- 6 位数字只有一百万种，**哈希本身挡不住手里有库的人**，连邮箱一起哈希只是
+-- 让彩虹表不能一次算好通吃所有账号；真正管用的是有效期、试错上限、一码一用。
+-- 一个邮箱同时只有一个有效验证码：重新要码就覆盖上一个，旧的立刻作废。
+CREATE TABLE IF NOT EXISTS login_codes (
+  email       text PRIMARY KEY,
+  code_sha256 text        NOT NULL,
+  expires_at  timestamptz NOT NULL,
+  -- 试错次数。6 位数字只有一百万种，不限次数的话在有效期内是可以穷举的
+  tries       int         NOT NULL DEFAULT 0,
+  sent_at     timestamptz NOT NULL DEFAULT now()
+);
+
+-- 会话。同样只存 token 的哈希，理由同上。
+CREATE TABLE IF NOT EXISTS sessions (
+  token_sha256 text PRIMARY KEY,
+  user_id      bigint      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  expires_at   timestamptz NOT NULL,
+  last_seen_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
+
+-- 试卷归属。**NULL = 无主**，不是「大家的」：命令行跑的卷子没有登录态，
+-- 落库时就是无主的。它们归第一个注册的账号（见 store.create_user），
+-- 之后想改用 `store.py claim <邮箱>`，或在 .env 里设 EXAM_OWNER_EMAIL
+-- 让命令行那条链直接落到某个账号名下。
+--
+-- name 仍然全局唯一，没有按人分命名空间：`work/<卷名>/` 是按卷名建目录的，
+-- 两个账号传同名卷子会写进同一个构建目录。所以重名在**上传时**就避开
+-- （自动加后缀），而不是让两份数据在磁盘上打架。
+--
+-- 删账号是 **SET NULL 而不是 CASCADE**：一份卷子是几十分钟的模型时间换来的，
+-- 删一个账号顺手把它的卷子全删掉，是那种「一条命令下去，重跑三个小时」的
+-- 不可逆操作。归属没了就退回无主，重新 claim 就能拿回来。
+ALTER TABLE papers ADD COLUMN IF NOT EXISTS owner_id bigint REFERENCES users(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS papers_owner_idx ON papers (owner_id);

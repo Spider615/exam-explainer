@@ -30,6 +30,13 @@ outline.py —— 阶段③b 整卷目录：短标题与短答案
 --------
 模型没给某题的标题就留 NULL，页面上目录那一行显示题号和答案，不显示标题。
 比编一个「某同学」这种从题干头部抽出来的假标题强。
+
+不是只在 ③ 之后跑一次
+---------------------
+「答案速览」和左边的目录读的就是这一步的产出。它原来只排在 ③ 全解完之后，
+于是 ③ 跑的那二三十分钟里，**已经解出来的题在速览里也全写着「尚未生成」**——
+明明解完好几道了。现在 `solve.py` 每解完几题就回头调一次 `refresh()`：
+一次调用几十秒、几分钱，换的是这段时间里速览一直在长。
 """
 import argparse, json, os, re, sys, urllib.request
 
@@ -37,7 +44,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import store
 
-for _l in open(os.path.join(ROOT, ".env"), encoding="utf-8"):
+for _l in (open(os.path.join(ROOT, ".env"), encoding="utf-8")
+           if os.path.exists(os.path.join(ROOT, ".env")) else []):
     if "=" in _l and not _l.strip().startswith("#"):
         _k, _v = _l.strip().split("=", 1)
         os.environ.setdefault(_k.strip(), _v.strip())
@@ -110,24 +118,24 @@ def ask(payload, tries=3):
     raise last
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("paper")
-    ap.add_argument("--force", action="store_true", help="已经有标题的题也重写")
-    a = ap.parse_args()
+def refresh(name, force=False, verbose=True):
+    """
+    跑一次 ③b，返回写了几题（-1 = 没跑成，跳过时为 0）。
 
-    name = os.path.basename(os.path.normpath(a.paper))
+    ③ 中途也会调它（见模块开头），所以**没解出来的题不是错误状态**：
+    payload 里那些题写的是「答案：（尚未解出）」，模型照样能从题干写出 label，
+    只是 short 会是空的。等它们解出来，下一次刷新再补上。
+    """
+    log = print if verbose else (lambda *a, **k: None)
     paper = store.get_paper(name)
     if not paper:
-        print("库里没有「%s」" % name)
-        return 1
+        log("库里没有「%s」" % name)
+        return -1
     if not KEY:
-        print("没有 DEEPSEEK_API_KEY（或 EXAM_OUTLINE_KEY），跳过 ③b")
-        return 1
-
-    missing = store.outline_missing(name)
-    if not missing and not a.force:
-        print("── 目录 %s：%d 题都有标题与短答案，跳过" % (name, len(paper["questions"])))
+        log("没有 DEEPSEEK_API_KEY（或 EXAM_OUTLINE_KEY），跳过 ③b")
+        return -1
+    if not store.outline_missing(name) and not force:
+        log("── 目录 %s：%d 题都有标题与短答案，跳过" % (name, len(paper["questions"])))
         return 0
 
     sols = store.paper_solutions(name)
@@ -149,17 +157,26 @@ def main():
             continue
         store.put_outline(by_n[n], label, short)
         got += 1
-        print("   第%2d题 %-8s %s" % (n, label or "（无标题）", short or ""))
+        log("   第%2d题 %-8s %s" % (n, label or "（无标题）", short or ""))
 
     miss = [q["n"] for q in paper["questions"] if q["n"] not in {int(r["n"]) for r in rows
                                                                 if str(r.get("n", "")).isdigit()}]
-    print("── 目录 %s（%s）" % (name, MODEL))
-    print("   写入 %d 题，模型给了空值 %d 题" % (got, skipped))
+    log("── 目录 %s（%s）" % (name, MODEL))
+    log("   写入 %d 题，模型给了空值 %d 题" % (got, skipped))
     if miss:
         # 缺了就说缺了。页面上这些题的目录行只有题号，没有标题 —— 不拿占位内容充数
-        print("   ⚠ 模型漏了 %d 题：%s（这些题目录里只显示题号）"
-              % (len(miss), "、".join("第%d题" % n for n in miss)))
-    return 0
+        log("   ⚠ 模型漏了 %d 题：%s（这些题目录里只显示题号）"
+            % (len(miss), "、".join("第%d题" % n for n in miss)))
+    return got
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("paper")
+    ap.add_argument("--force", action="store_true", help="已经有标题的题也重写")
+    a = ap.parse_args()
+    name = os.path.basename(os.path.normpath(a.paper))
+    return 1 if refresh(name, a.force) < 0 else 0
 
 
 if __name__ == "__main__":
