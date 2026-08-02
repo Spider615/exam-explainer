@@ -1,0 +1,229 @@
+{
+ "id": "q14-gen2",
+ "stem": "桌面上固定有半径为R的水平光滑圆轨道，M、N为轨道上同一直径两端的点，P为MN弧的中点。小球每次经过P点后速度大小增加v₀。质量为m的小球1从N处以初速度v₀沿轨道逆时针运动，与静止在M处的小球2发生第一次弹性碰撞，碰后瞬间两球速度大小相等。求：(1) 球1第一次经过P点后瞬间的向心力大小；(2) 球2的质量；(3) 两球从第一次碰撞到第二次碰撞所用时间。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "球1从N出发，与M处静止球2发生第一次碰撞，再运动至第二次碰撞"
+  }
+ ],
+ "title": "圆轨道加速器与两次弹性碰撞",
+ "units": "长度单位R=1；速度单位v0=1；质量单位m=1（球1质量）；力单位m v0²/R=1；时间单位R/v0=1；所有探针量均为在此归一化下的无量纲数值。",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式或碰撞规则。",
+  "equations": [
+   "N→P（1/4圆弧）：球1速度v0，用时 t_a=(πR/2)/v0",
+   "P→M（1/4圆弧）：球1速度2v0（过P后突增），用时 t_b=(πR/2)/(2v0)；第一次碰撞时刻 t_collision1=t_a+t_b=3πR/(4v0)",
+   "弹性碰撞：动量守恒 m·2v0 = m·vA' + mB·vB'；能量守恒 (1/2)m(2v0)² = (1/2)m vA'² + (1/2)mB vB'²；附加条件|vA'|=|vB'|，解得 mB=3m，vA'=-v0，vB'=+v0",
+   "碰后M→P（1/4圆弧）：球1速度-v0，用时 t_c=(πR/2)/v0；球2速度+v0（离开P方向），此过程中球2未到达P",
+   "球1第二次经过P后速度变为-2v0，再经时间 t_d=πR/(3v0) 与球2相遇，发生第二次碰撞；t_collision2=t_collision1+t_c+t_d=19πR/(12v0)",
+   "θA(t)、θB(t) 由上述分段速度对时间积分得到（分段线性），θA(0)=0（N点），θB(t<t_collision1)=π（M点）",
+   "过程进度u与物理时间线性对应：t(u)=u·t_collision2（因为u定义为按物理时间等比例的过程进度，u=0为球1离开N，u=1为第二次碰撞时刻）"
+  ],
+  "definitions": [
+   "θA、θB：球1、球2在圆周上的角位置（弧度，逆时针为正）",
+   "vA、vB：球1、球2沿圆周切线方向的带符号速度（逆时针为正，单位v0）",
+   "FA = m·vA²/R：球1所受的向心力大小",
+   "mB：球2的质量（待解出，单位m）",
+   "t：从球1离开N点开始经过的物理时间（单位R/v0）",
+   "t_collision1、t_collision2：第一次、第二次碰撞发生的物理时刻"
+  ],
+  "given_facts": [
+   "F1 · 球1从N出发速度v0，逆时针经过P点（N→P为1/4圆弧），过P后速度增大到2v0",
+   "F2 · 球1以2v0经过M与静止球2发生弹性碰撞，碰后两球速度大小相等、方向相反：球1变为-v0，球2变为+v0",
+   "F3 · 由动量守恒与动能守恒（弹性碰撞）联立解得 m₂=3m",
+   "F4 · 碰后球1先到达P点（M→P为1/4圆弧，速度v0），到达P后速度增大到2v0；此过程中球2始终以v0逆时针运动且未到达P点",
+   "F5 · 第一次碰撞后经过时间5πR/(6v0)，两球在圆周上相遇，发生第二次碰撞",
+   "F6 · 球1第一次经过P点后瞬间的向心力 F=m(2v0)²/R=4mv0²/R"
+  ],
+  "normalization": "取球1质量m=1，初速度v0=1，圆轨道半径R=1；力的单位为m v0²/R=1，时间单位为R/v0=1，质量单位为m=1。角度采用弧度制，以N为0，逆时针为正方向，则P=π/2，M=π。",
+  "free_parameters": "球2质量m₂/m（题面未给，需由碰撞条件解出，答案为3）；各阶段时间断点t_collision1、t_collision2以及第二次碰撞发生的角度位置（需由几何关系与速度分段解出，不能直接抄答案）"
+ },
+ "constants": {
+  "R": 1,
+  "m": 1,
+  "v0": 1
+ },
+ "invariants": [
+  {
+   "id": "c1-force-after-P1",
+   "why": "F6：球1第一次经过P点后瞬间向心力应为4mv0²/R",
+   "case": "c1",
+   "expr": "abs(max(FA) - 4.0) <= 0.04",
+   "report": "max(FA)"
+  },
+  {
+   "id": "c1-mB-value",
+   "why": "F3：由弹性碰撞方程解出球2质量应为3m",
+   "case": "c1",
+   "expr": "abs(mB[0] - 3.0) <= 0.03",
+   "report": "mB[0]"
+  },
+  {
+   "id": "c1-t-collision1",
+   "why": "F1/F2：N→P→M共用时3πR/(4v0)，为第一次碰撞时刻",
+   "case": "c1",
+   "expr": "abs(t_collision1[0] - 3*pi/4) <= 0.05",
+   "report": "t_collision1[0]"
+  },
+  {
+   "id": "c1-t-collision2",
+   "why": "F4/F5：第二次碰撞时刻应为19πR/(12v0)",
+   "case": "c1",
+   "expr": "abs(t_collision2[0] - 19*pi/12) <= 0.1",
+   "report": "t_collision2[0]"
+  },
+  {
+   "id": "c1-dt-collisions",
+   "why": "F5：两次碰撞间隔应为5πR/(6v0)",
+   "case": "c1",
+   "expr": "abs((t_collision2[0] - t_collision1[0]) - 5*pi/6) <= 0.08",
+   "report": "t_collision2[0]-t_collision1[0]"
+  },
+  {
+   "id": "c1-vA-pre-c1",
+   "why": "F1：球1过P后速度增大到2v0，此为碰前速度",
+   "case": "c1",
+   "expr": "abs(vA_pre_c1[0] - 2.0) <= 0.04",
+   "report": "vA_pre_c1[0]"
+  },
+  {
+   "id": "c1-vA-post-c1",
+   "why": "F2：碰后球1速度应为-v0（方向反转）",
+   "case": "c1",
+   "expr": "abs(vA_post_c1[0] + 1.0) <= 0.04",
+   "report": "vA_post_c1[0]"
+  },
+  {
+   "id": "c1-vB-post-c1",
+   "why": "F2：碰后球2速度应为+v0",
+   "case": "c1",
+   "expr": "abs(vB_post_c1[0] - 1.0) <= 0.04",
+   "report": "vB_post_c1[0]"
+  },
+  {
+   "id": "c1-equal-speed-post",
+   "why": "F2：碰后瞬间两球速度大小相等",
+   "case": "c1",
+   "expr": "abs(abs(vA_post_c1[0]) - abs(vB_post_c1[0])) <= 0.03",
+   "report": "abs(|vA_post_c1|-|vB_post_c1|)"
+  },
+  {
+   "id": "c1-momentum-conservation",
+   "why": "F2/F3：碰撞过程动量守恒，用以推导m2",
+   "case": "c1",
+   "expr": "abs(vA_pre_c1[0] - (vA_post_c1[0] + mB[0]*vB_post_c1[0])) <= 0.05",
+   "report": "动量差"
+  },
+  {
+   "id": "c1-energy-conservation",
+   "why": "F3：弹性碰撞动能守恒，用以推导m2",
+   "case": "c1",
+   "expr": "abs(vA_pre_c1[0]**2 - (vA_post_c1[0]**2 + mB[0]*vB_post_c1[0]**2)) <= 0.05",
+   "report": "动能差"
+  },
+  {
+   "id": "c1-force-velocity-consistency",
+   "why": "F6：FA与vA须在每一时刻满足F=m v²/R的代数关系，防止两者各算各的相互矛盾",
+   "case": "c1",
+   "expr": "max(abs(FA - vA**2)) <= 0.05",
+   "report": "max|FA-vA^2|"
+  },
+  {
+   "id": "c1-thetaA-vA-derivative",
+   "why": "vA理论上是thetaA对t的导数（角速度），二者须自洽",
+   "case": "c1",
+   "expr": "mean(abs(diff(thetaA)/diff(t) - vA[:-1])) <= 0.1",
+   "report": "mean|dθA/dt - vA|"
+  },
+  {
+   "id": "c1-thetaB-vB-derivative",
+   "why": "vB理论上是thetaB对t的导数（角速度），二者须自洽",
+   "case": "c1",
+   "expr": "mean(abs(diff(thetaB)/diff(t) - vB[:-1])) <= 0.1",
+   "report": "mean|dθB/dt - vB|"
+  },
+  {
+   "id": "c1-thetaB-monotonic",
+   "why": "F4：碰后球2一直逆时针运动，从不反向，角位置应单调不减",
+   "case": "c1",
+   "expr": "min(diff(thetaB)) >= -1e-6",
+   "report": "min(diff(thetaB))"
+  },
+  {
+   "id": "c1-vB-constant-after-move",
+   "why": "F4：光滑轨道上球2未经过P点，速度大小应保持不变",
+   "case": "c1",
+   "expr": "std(vB[vB > 0.5]) <= 0.03",
+   "report": "std(vB when moving)"
+  },
+  {
+   "id": "c1-collision2-position-sin",
+   "why": "F5：第二次碰撞时两球必须处于同一位置",
+   "case": "c1",
+   "expr": "abs(sin(thetaA[-1]) - sin(thetaB[-1])) <= 0.05",
+   "report": "sin(thetaA[-1])-sin(thetaB[-1])"
+  },
+  {
+   "id": "c1-collision2-position-cos",
+   "why": "F5：第二次碰撞时两球必须处于同一位置",
+   "case": "c1",
+   "expr": "abs(cos(thetaA[-1]) - cos(thetaB[-1])) <= 0.05",
+   "report": "cos(thetaA[-1])-cos(thetaB[-1])"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "t",
+  "thetaA",
+  "thetaB",
+  "vA",
+  "vB",
+  "FA",
+  "mB",
+  "t_collision1",
+  "t_collision2",
+  "vA_pre_c1",
+  "vA_post_c1",
+  "vB_post_c1"
+ ],
+ "disclosures": [
+  {
+   "why": "对应given_facts F3，需要在画面上明确展示解出的球2质量，便于门禁核验第二小问",
+   "must_contain": "解出的球2质量 m2=3m 的数值标注"
+  },
+  {
+   "why": "对应F6，第一小问答案需要在画面中直接呈现，避免仅靠动画无法核验数值",
+   "must_contain": "第一次过P后向心力数值 4mv0²/R 的标注"
+  },
+  {
+   "why": "保证门禁按probe_keys数值与题目物理量单位理解一致",
+   "must_contain": "归一化单位说明 (R=v0=m=1)"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "t": "球1离开N点后经过的物理时间（单位R/v0），t(u)=u·t_collision2",
+  "u": "归一化过程进度，等于传入的u",
+  "FA": "球1所受向心力大小 FA=m·vA²/R（单位m v0²/R）",
+  "mB": "球2的质量（单位m，理论上为常数3，各u处取值相同）",
+  "vA": "球1沿圆周切线方向的带符号速度（单位v0）",
+  "vB": "球2沿圆周切线方向的带符号速度（单位v0）",
+  "thetaA": "球1的角位置（弧度，N=0，逆时针为正）",
+  "thetaB": "球2的角位置（弧度，同一角度约定；碰撞前恒为π，即静止在M）",
+  "vA_pre_c1": "第一次碰撞前瞬间球1的速度（常数，理论值2v0）",
+  "vA_post_c1": "第一次碰撞后瞬间球1的速度（常数，理论值-v0）",
+  "vB_post_c1": "第一次碰撞后瞬间球2的速度（常数，理论值+v0）",
+  "t_collision1": "第一次碰撞发生的物理时刻（常数，各u处取值相同）",
+  "t_collision2": "第二次碰撞发生的物理时刻（常数，各u处取值相同）"
+ },
+ "process_endpoints": "u=0 对应球1以速度v0从N点出发的时刻（球2静止于M点）；u=1 对应两球发生第二次碰撞的瞬间。",
+ "scene_requirements": [
+  "画出半径为R的水平圆轨道，标出M、N（同一直径两端）、P（MN弧中点）三点位置",
+  "在P点标注“加速器”图标，每次球经过P时高亮/闪烁并显示速度突变（v0→2v0 或 v0→2v0 的对应关系）",
+  "球1、球2为轨道上两个可视小球，随u变化沿圆周运动，位置分别由thetaA、thetaB驱动",
+  "实时显示球1、球2的速度大小与方向（数值或箭头）",
+  "在t≈t_collision1、t≈t_collision2附近显示碰撞高亮效果",
+  "屏幕上显示归一化单位说明（m=v0=R=1）、解出的m2数值、以及第一次碰后瞬间的向心力数值"
+ ]
+}

@@ -1,0 +1,112 @@
+{
+  "id": "q12",
+  "title": "2023 福建卷 第12题 · 斜面双光电门测动摩擦因数",
+  "difficulty": "medium",
+
+  "stem": "把带遮光片的滑块从倾角为 θ 的斜面顶端由静止释放，滑块沿斜面下滑，先后通过安装在斜面上的两个光电门 A、B。已知遮光片沿运动方向的宽度 d（由游标卡尺测得 d = 5.25 mm），A 门距释放点 s_A = 0.25 m，A、B 两门间距 L = 0.50 m。测出滑块经过两门的遮光时间 Δt_A、Δt_B，求滑块与斜面间的动摩擦因数 μ。",
+
+  "physics": {
+    "note": "以下为权威解法，实现必须与之一致。",
+    "definitions": [
+      "沿斜面向下为正方向；重力加速度 g = 9.8 m/s²",
+      "真实动摩擦因数 μ_true = 0.30（本场景用来正向生成数据，再由公式反算验证）",
+      "遮光片宽度 d = 5.25×10⁻³ m"
+    ],
+    "equations": [
+      "牛顿第二定律：mg sinθ − μ mg cosθ = ma  ⟹  a = g(sinθ − μ cosθ)，与质量无关",
+      "由静止下滑：v² = 2as，故 v_A = √(2a·s_A)，v_B = √(2a·(s_A + L))",
+      "遮光片宽度极小，可用平均速度代替瞬时速度：v = d/Δt，故 Δt_A = d/v_A、Δt_B = d/v_B",
+      "反算式：μ = tanθ − (v_B² − v_A²)/(2gL cosθ)"
+    ],
+    "given_facts": [
+      "F1 · 反算得到的 μ 必须严格等于真值 0.30，且与倾角 θ 无关——这正是本题设计双光电门的意义。",
+      "F2 · v_B > v_A，故 Δt_B < Δt_A。",
+      "F3 · 遮光时间与速度之积恒等于遮光片宽度 d。"
+    ],
+    "free_parameters": "无。所有物理量均由 spec 给定，你只需正确实现。"
+  },
+
+  "scene_requirements": [
+    "斜面随所选倾角真实倾斜（用 SVG transform rotate，不要预先画死一个角度）。",
+    "滑块从顶端由静止下滑，位置随时间按 s = ½at² 推进；经过 A、B 两门时门体给出遮挡反馈。",
+    "实时读数：θ、a、Δt_A（含 v_A）、Δt_B（含 v_B）、反算出的 μ。",
+    "右侧一幅 μ−θ 图：横轴倾角、纵轴反算 μ，每跑完一个倾角就打一个点，用来直观呈现「μ 与 θ 无关」是一条水平线。",
+    "提供一个倾角滑块（range 控件）让读者切换 θ。"
+  ],
+
+  "units": "国际单位制。长度 m，时间 s，加速度 m/s²，遮光时间以毫秒(ms)报出。",
+
+  "cases": [
+    { "id": "th20", "label": "θ = 20°" },
+    { "id": "th30", "label": "θ = 30°" },
+    { "id": "th45", "label": "θ = 45°" },
+    { "id": "th60", "label": "θ = 60°" }
+  ],
+
+  "probe_keys": ["u", "theta_deg", "a", "s", "vA", "vB", "dtA_ms", "dtB_ms", "mu_calc"],
+  "probe_key_meaning": {
+    "u": "归一化进度，等于传入的 u",
+    "theta_deg": "本 case 的倾角（度）。常量。",
+    "a": "沿斜面的加速度 m/s²。常量。",
+    "s": "滑块自释放点起沿斜面走过的位移 m，随 u 增加",
+    "vA": "经过 A 门时的速度 m/s。常量。",
+    "vB": "经过 B 门时的速度 m/s。常量。",
+    "dtA_ms": "A 门的遮光时间，单位毫秒。常量。",
+    "dtB_ms": "B 门的遮光时间，单位毫秒。常量。",
+    "mu_calc": "用反算式 μ = tanθ − (v_B²−v_A²)/(2gL cosθ) 算出的动摩擦因数。常量。"
+  },
+  "process_endpoints": "u = 0 对应滑块在释放点静止（s = 0）；u = 1 对应滑块已通过 B 门并到达行程终点（s ≥ s_A + L）。",
+  "sample_points": 401,
+
+  "disclosures": [],
+
+  "constants": { "G": 9.8, "MU_TRUE": 0.30, "D_WIDTH": 0.00525, "SA": 0.25, "L": 0.50 },
+
+  "invariants": [
+    { "id": "th20-mu", "case": "th20", "expr": "abs(mu_calc[-1] - MU_TRUE) <= 0.004",
+      "report": "mu_calc[-1]", "why": "F1：θ=20° 反算 μ 必须为 0.30" },
+    { "id": "th30-mu", "case": "th30", "expr": "abs(mu_calc[-1] - MU_TRUE) <= 0.004",
+      "report": "mu_calc[-1]", "why": "F1：θ=30° 反算 μ 必须为 0.30" },
+    { "id": "th45-mu", "case": "th45", "expr": "abs(mu_calc[-1] - MU_TRUE) <= 0.004",
+      "report": "mu_calc[-1]", "why": "F1：θ=45° 反算 μ 必须为 0.30" },
+    { "id": "th60-mu", "case": "th60", "expr": "abs(mu_calc[-1] - MU_TRUE) <= 0.004",
+      "report": "mu_calc[-1]", "why": "F1：θ=60° 反算 μ 必须为 0.30——四个倾角同为 0.30 才叫「与 θ 无关」" },
+
+    { "id": "th30-accel", "case": "th30",
+      "expr": "abs(a[-1] - G * (sin(theta_deg[-1]*pi/180) - MU_TRUE*cos(theta_deg[-1]*pi/180))) <= 0.01",
+      "report": "[a[-1], theta_deg[-1]]",
+      "why": "牛顿第二定律：a = g(sinθ − μcosθ)" },
+    { "id": "th60-accel", "case": "th60",
+      "expr": "abs(a[-1] - G * (sin(theta_deg[-1]*pi/180) - MU_TRUE*cos(theta_deg[-1]*pi/180))) <= 0.01",
+      "report": "[a[-1], theta_deg[-1]]",
+      "why": "牛顿第二定律在大倾角下同样成立" },
+
+    { "id": "th30-vA", "case": "th30", "expr": "abs(vA[-1]**2 - 2*a[-1]*SA) <= 0.01",
+      "report": "[vA[-1], sqrt(2*a[-1]*SA)]",
+      "why": "由静止下滑到 A 门：v_A² = 2a·s_A" },
+    { "id": "th30-vB", "case": "th30", "expr": "abs(vB[-1]**2 - vA[-1]**2 - 2*a[-1]*L) <= 0.01",
+      "report": "[vB[-1]**2 - vA[-1]**2, 2*a[-1]*L]",
+      "why": "A→B 段：v_B² − v_A² = 2a·L" },
+
+    { "id": "th45-gateA-width", "case": "th45",
+      "expr": "abs(dtA_ms[-1]*1e-3*vA[-1] - D_WIDTH) <= 2e-5",
+      "report": "dtA_ms[-1]*1e-3*vA[-1]",
+      "why": "F3：Δt_A × v_A 必须等于遮光片宽度 5.25 mm（这条直接检验 ms 与 s 的单位换算）" },
+    { "id": "th45-gateB-width", "case": "th45",
+      "expr": "abs(dtB_ms[-1]*1e-3*vB[-1] - D_WIDTH) <= 2e-5",
+      "report": "dtB_ms[-1]*1e-3*vB[-1]",
+      "why": "F3：Δt_B × v_B 必须等于遮光片宽度" },
+    { "id": "th45-gateB-faster", "case": "th45",
+      "expr": "dtB_ms[-1] < dtA_ms[-1] - 0.01",
+      "report": "[dtA_ms[-1], dtB_ms[-1]]",
+      "why": "F2：B 门处更快，遮光时间必须更短——写反是这类题最常见的低级错误" },
+
+    { "id": "th30-s-monotone", "case": "th30",
+      "expr": "(min(diff(s)) >= -1e-12) and (abs(s[0]) <= 1e-9) and (s[-1] >= SA + L - 1e-6)",
+      "report": "[s[0], s[-1], SA+L]",
+      "why": "位移必须从 0 开始、单调不减、并且确实走完了 B 门（u=1 的定义）" },
+    { "id": "th20-slides", "case": "th20", "expr": "a[-1] > 0.05",
+      "report": "a[-1]",
+      "why": "θ=20° 时 tan20°=0.364 > μ=0.30，滑块确实会下滑；a 必须为正" }
+  ]
+}

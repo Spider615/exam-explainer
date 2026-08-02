@@ -1,0 +1,74 @@
+<figure data-scene="q4-gen2"><svg viewBox="0 0 560 320" role="img" aria-label="密封气缸内理想气体经ab(等压)→bc(等温)→cd(等容)三过程从状态a到状态d，同步展示活塞气缸、V-T图与对应的p-T图">
+
+<text class="u" x="16" y="16">归一化单位：取nR=1，使p·V=T恒成立；T、V、p为无量纲相对值</text>
+<text class="u" x="16" y="32">状态：a(T=1,V=1,p=1) b(T=2,V=2,p=1) c(T=2,V=4,p=0.5) d(T=4,V=4,p=1)</text>
+
+<!-- 气缸活塞 -->
+<text x="205" y="54" text-anchor="middle">T</text>
+<line class="sk" x1="24" y1="60" x2="24" y2="140"/>
+<line class="sh" x1="24" y1="64" x2="195" y2="64"/>
+<line class="sh" x1="24" y1="136" x2="195" y2="136"/>
+<rect id="q4-gen2-heatGlow" class="wash-r" x="27" y="67" width="13" height="66" opacity="0"/>
+<rect id="q4-gen2-gasFill" class="wash-a" x="27" y="67" width="13" height="66"/>
+<g id="q4-gen2-pistonGroup" transform="translate(40,0)">
+<line class="sh" x1="3" y1="98" x2="21" y2="98"/>
+<rect class="fk" x="-3" y="58" width="6" height="84"/>
+</g>
+<rect class="sh" x="201" y="64" width="8" height="74"/>
+<circle class="sh" cx="205" cy="145" r="7"/>
+<circle class="fr" cx="205" cy="145" r="5.5"/>
+<rect id="q4-gen2-thermoFill" class="fr" x="202" y="138" width="6" height="0"/>
+
+<text id="q4-gen2-lblPhase" class="u" x="235" y="72">过程：a→b（等压，p恒定=1）</text>
+<text id="q4-gen2-lblTVP" class="n" x="235" y="90">T=1.00  V=1.00  p=1.00</text>
+<text id="q4-gen2-lblU" class="n" x="235" y="108">u=0.00</text>
+
+<!-- 图例 -->
+<line class="sa" x1="20" y1="158" x2="36" y2="158"/>
+<text class="u a" x="40" y="162">ab－等压</text>
+<line class="sr" x1="118" y1="158" x2="134" y2="158"/>
+<text class="u r" x="138" y="162">bc－等温</text>
+<line class="sk" x1="216" y1="158" x2="232" y2="158"/>
+<text class="u" x="236" y="162">cd－等容</text>
+<line class="sc" x1="330" y1="158" x2="346" y2="158"/>
+<text class="u c" x="350" y="162">延长线过原点</text>
+
+<!-- V-T 图 -->
+<text x="272" y="300">T</text>
+<text x="48" y="164">V</text>
+<line class="sh" x1="60" y1="296" x2="266" y2="296" marker-end="url(#ak)"/>
+<line class="sh" x1="60" y1="296" x2="60" y2="166" marker-end="url(#ak)"/>
+<line id="q4-gen2-vtAB" class="sa" x1="100" y1="271.2" x2="140" y2="246.4"/>
+<line id="q4-gen2-vtBC" class="sr" x1="140" y1="246.4" x2="140" y2="196.8"/>
+<line id="q4-gen2-vtCD" class="sk" x1="140" y1="196.8" x2="220" y2="196.8"/>
+<circle class="sh" cx="100" cy="271.2" r="2.6"/>
+<circle class="sh" cx="140" cy="246.4" r="2.6"/>
+<circle class="sh" cx="140" cy="196.8" r="2.6"/>
+<circle class="sh" cx="220" cy="196.8" r="2.6"/>
+<text class="u" x="90" y="264">a</text>
+<text class="u" x="144" y="242">b</text>
+<text class="u" x="122" y="194">c</text>
+<text class="u" x="224" y="192">d</text>
+<circle id="q4-gen2-vtMarker" class="fa" cx="100" cy="271.2" r="4"/>
+
+<!-- p-T 图 -->
+<text x="532" y="300">T</text>
+<text x="308" y="164">p</text>
+<line class="sh" x1="320" y1="296" x2="526" y2="296" marker-end="url(#ak)"/>
+<line class="sh" x1="320" y1="296" x2="320" y2="166" marker-end="url(#ak)"/>
+<line id="q4-gen2-ptOrigin" class="sc" x1="320" y1="296" x2="504" y2="177.17"/>
+<line id="q4-gen2-ptAB" class="sa" x1="360" y1="192.67" x2="400" y2="192.67"/>
+<line id="q4-gen2-ptBC" class="sr" x1="400" y1="192.67" x2="400" y2="244.33"/>
+<line id="q4-gen2-ptCD" class="sk" x1="400" y1="244.33" x2="480" y2="192.67"/>
+<circle class="sh" cx="360" cy="192.67" r="2.6"/>
+<circle class="sh" cx="400" cy="192.67" r="2.6"/>
+<circle class="sh" cx="400" cy="244.33" r="2.6"/>
+<circle class="sh" cx="480" cy="192.67" r="2.6"/>
+<text class="u" x="350" y="186">a</text>
+<text class="u" x="404" y="188">b</text>
+<text class="u" x="382" y="242">c</text>
+<text class="u" x="484" y="188">d</text>
+<circle id="q4-gen2-ptMarker" class="fa" cx="360" cy="192.67" r="4"/>
+
+</svg>
+<figcaption>密封于气缸中的理想气体从状态a依次经ab、bc、cd三过程到达状态d（取nR=1，pV=T恒成立）。ab段标注'等压'，图中p保持水平不变（p=1，T由1增至2，V由1增至2）；bc段标注'等温'，图中p随V增大而下降（竖直线向下）（T恒为2，V由2增至4，p由1降至0.5）；cd段标注'等容'，并画出过原点的虚线以显示cd线段共线于该虚线（V恒为4，T由2增至4，p=T/4由0.5升至1，沿过原点的直线）。活塞气缸示意图中，气体区域宽度对应V、温度计液柱高度对应T，随过程同步变化。</figcaption></figure>

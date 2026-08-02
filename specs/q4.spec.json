@@ -1,0 +1,141 @@
+{
+ "id": "q4",
+ "stem": "密封于气缸中的理想气体，从状态a依次经过ab、bc和cd三个热力学过程达到状态d。V−T图像中：ab段为过原点的倾斜直线，bc段为竖直向上直线（T不变V增大），cd段为水平向右直线（V不变T增大）。对应的p−T图像正确的是选项C（ab等压、bc等温、cd等容且延长线过原点）。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "正确情形：ab等压，bc等温，cd等容（对应选项C的p-T图特征）"
+  }
+ ],
+ "title": "理想气体V-T图到p-T图的动态过程验证",
+ "units": "p、V、T均以状态a的值为单位1，无量纲。",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。",
+  "equations": [
+   "理想气体状态方程: pV = T (nR=1)",
+   "ab段: 由V-T图过原点及a(1,1)得V = T, 因此p = 1 (等压过程)",
+   "bc段: T = T_b (>1) 为常数, V从V_b = T_b增大到V_c (>T_b), p = T_b / V (等温过程)",
+   "cd段: V = V_c 为常数, T从T_b增大到T_d (>T_b), p = T / V_c (等容过程)"
+  ],
+  "definitions": [
+   "u: 归一化过程进度，范围[0,1]",
+   "p: 气体压强（无量纲）",
+   "V: 气体体积（无量纲）",
+   "T: 热力学温度（无量纲）"
+  ],
+  "given_facts": [
+   "F1: ab段V与T成正比，由初始条件得V=T，p=1不变（等压）",
+   "F2: bc段T不变，为等温过程，pV=T_b恒定",
+   "F3: cd段V不变，为等容过程，p/T=1/V_c恒定",
+   "F4: 整个过程满足pV=T，nR恒为1"
+  ],
+  "normalization": "取状态a的温度T_a=1，体积V_a=1，并设nR=1，从而压强p_a=1。整个过程均用无量纲量。",
+  "free_parameters": "T_b (>1)、V_c (>T_b)、T_d (>T_b)的具体值，由实现方自行选取，只要满足大小关系。"
+ },
+ "constants": {},
+ "reference": "def probe(u, case):\n    T_b = 2.0\n    V_c = 4.0\n    T_d = 8.0\n\n    if u <= 1/3:\n        T = 1 + 3*(T_b - 1)*u\n        V = T\n        p = 1.0\n    elif u <= 2/3:\n        V = T_b + 3*(V_c - T_b)*(u - 1/3)\n        T = T_b\n        p = T_b / V\n    else:\n        T = T_b + 3*(T_d - T_b)*(u - 2/3)\n        V = V_c\n        p = T / V_c\n\n    return {\"u\": u, \"p\": p, \"V\": V, \"T\": T}",
+ "invariants": [
+  {
+   "id": "c1-pVT-const-end",
+   "why": "F4: 理想气体nR始终为1",
+   "case": "c1",
+   "expr": "abs(p[-1]*V[-1]/T[-1] - p[0]*V[0]/T[0]) <= 1e-6",
+   "report": "p[-1]*V[-1]/T[-1]"
+  },
+  {
+   "id": "c1-pVT-const-all",
+   "why": "F4: pV/T全过程守恒",
+   "case": "c1",
+   "expr": "max(abs(diff(p*V/T))) <= 1e-6",
+   "report": "max(abs(diff(p*V/T)))"
+  },
+  {
+   "id": "c1-ab-p-const",
+   "why": "F1: ab段为等压过程，压强不变",
+   "case": "c1",
+   "expr": "max(abs(diff(p[(u >= 0) & (u <= 1/3)]))) <= 1e-6",
+   "report": "max(abs(diff(p[(u>=0)&(u<=1/3)])))"
+  },
+  {
+   "id": "c1-bc-T-const",
+   "why": "F2: bc段为等温过程，温度不变",
+   "case": "c1",
+   "expr": "max(abs(diff(T[(u > 1/3) & (u <= 2/3)]))) <= 1e-6",
+   "report": "max(abs(diff(T[(u>1/3)&(u<=2/3)])))"
+  },
+  {
+   "id": "c1-cd-V-const",
+   "why": "F3: cd段为等容过程，体积不变",
+   "case": "c1",
+   "expr": "max(abs(diff(V[(u > 2/3) & (u <= 1)]))) <= 1e-6",
+   "report": "max(abs(diff(V[(u>2/3)&(u<=1)])))"
+  },
+  {
+   "id": "c1-ab-VT-ratio",
+   "why": "F1: ab段V/T为常数",
+   "case": "c1",
+   "expr": "max(abs(diff(V[(u >= 0) & (u <= 1/3)] / T[(u >= 0) & (u <= 1/3)]))) <= 1e-6",
+   "report": "max(abs(diff(V_ab/T_ab)))"
+  },
+  {
+   "id": "c1-bc-pV-const",
+   "why": "F2: bc段等温，pV为常数",
+   "case": "c1",
+   "expr": "max(abs(diff(p[(u > 1/3) & (u <= 2/3)] * V[(u > 1/3) & (u <= 2/3)]))) <= 1e-6",
+   "report": "max(abs(diff(p_bc*V_bc)))"
+  },
+  {
+   "id": "c1-cd-pT-ratio",
+   "why": "F3: cd段等容，p/T为常数",
+   "case": "c1",
+   "expr": "max(abs(diff(p[(u > 2/3) & (u <= 1)] / T[(u > 2/3) & (u <= 1)]))) <= 1e-6",
+   "report": "max(abs(diff(p_cd/T_cd)))"
+  },
+  {
+   "id": "c1-cont-p",
+   "why": "过程准静态，p在ab与bc交界处连续",
+   "case": "c1",
+   "expr": "abs(p[argmin(abs(u - 1/3))] - p[argmin(abs(u - 1/3)) - 1]) <= 0.02",
+   "report": "abs(p_left - p_right) at u=1/3"
+  },
+  {
+   "id": "c1-cont-V",
+   "why": "过程准静态，V在ab与bc交界处连续",
+   "case": "c1",
+   "expr": "abs(V[argmin(abs(u - 1/3))] - V[argmin(abs(u - 1/3)) - 1]) <= 0.02",
+   "report": "abs(V_left - V_right) at u=1/3"
+  },
+  {
+   "id": "c1-cont-T",
+   "why": "过程准静态，T在ab与bc交界处连续",
+   "case": "c1",
+   "expr": "abs(T[argmin(abs(u - 1/3))] - T[argmin(abs(u - 1/3)) - 1]) <= 0.02",
+   "report": "abs(T_left - T_right) at u=1/3"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "p",
+  "V",
+  "T"
+ ],
+ "disclosures": [
+  {
+   "why": "所有物理量已无量纲化，观察者需理解坐标数值含义",
+   "must_contain": "无量纲说明：图中数值均为以状态a为基准的相对值"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "T": "无量纲温度",
+  "V": "无量纲体积",
+  "p": "无量纲压强",
+  "u": "归一化进度，等于传入的u"
+ },
+ "process_endpoints": "u=0对应状态a；u=1对应状态d。u∈[0, 1/3]为ab段，u∈(1/3, 2/3]为bc段，u∈(2/3, 1]为cd段。",
+ "scene_requirements": [
+  "画面上必须出现p-T图，随u从0到1动态绘制p-T曲线",
+  "可在旁边或下方显示V-T图作为参考",
+  "明确标注状态点a、b、c、d及其坐标"
+ ]
+}

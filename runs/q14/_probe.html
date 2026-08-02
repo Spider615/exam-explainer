@@ -1,0 +1,470 @@
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --stem:#FAFBFC;
+  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
+  --line:#C9D2DE; --hair:#E4E9F0;
+  --acc:#2B5490; --acc2:#E9EFF8;
+  --cy:#0C8CAE; --cy2:#E2F2F6;
+  --red:#AE3B2B; --red2:#FBEBE7;
+  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"Times New Roman",Georgia,serif;
+  --song:Songti SC,SimSun,serif;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk)}
+figure{margin:0;background:var(--panel);border:1px solid var(--line)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px solid var(--hair)}
+svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
+svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
+svg text.n{font-family:var(--mono);font-style:normal;font-size:11px;fill:var(--ink2)}
+svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
+.sk{stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.sh{stroke:var(--line);fill:none;stroke-width:1}
+.sa{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sr{stroke:var(--red);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sc{stroke:var(--cy);fill:none;stroke-width:1.5;stroke-dasharray:5 4}
+.fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
+.wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}.wash-c{fill:var(--cy);opacity:.16}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-top:1px solid var(--hair)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+input[type=range]{width:120px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--acc)"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cy)"/></marker>
+</defs></svg>
+
+<figure data-scene="q14"><svg viewBox="0 0 560 328" role="img" aria-label="质谱仪中两种氖离子从边界上同一点垂直射入匀强磁场，各走恰好半个圆，比荷大的先打在 M 点，比荷小的半径更大、后打在 N 点">
+<defs>
+<pattern id="q14-dots" x="0" y="0" width="46" height="42" patternUnits="userSpaceOnUse">
+<circle class="sh" cx="23" cy="21" r="3.4"/>
+<circle class="fk" cx="23" cy="21" r="1.2" fill-opacity=".55"/>
+</pattern>
+</defs>
+
+<text class="u" x="16" y="18">磁场 B = 0.1 T 垂直纸面向外；两离子以相同速率 v = 9.6×10⁴ m/s 垂直 PP′ 同时从 O 射入</text>
+
+<rect class="fa" x="16" y="35" width="9" height="9"/>
+<text class="n a" x="32" y="43">① 打在 M：(q/m)₁ = 4.80×10⁶ C/kg，r₁ = 0.200 m</text>
+<text class="n a" id="q14-th1" x="362" y="43">θ₁ = 0.0°</text>
+<text class="n a" id="q14-st1" x="452" y="43">飞行中</text>
+
+<rect class="fr" x="16" y="57" width="9" height="9"/>
+<text class="n r" x="32" y="65">② 打在 N：(q/m)₂ = 4.36×10⁶ C/kg，r₂ = 0.220 m</text>
+<text class="n r" id="q14-th2" x="362" y="65">θ₂ = 0.0°</text>
+<text class="n r" id="q14-st2" x="452" y="65">飞行中</text>
+
+<text class="u" x="16" y="86">真实时间</text>
+<text class="n" id="q14-time" x="68" y="86">t = 0.00 μs（慢放 5×10⁵ 倍）</text>
+<text class="u" x="272" y="86">→ v 速度　→ F 洛伦兹力（指向圆心）</text>
+
+<rect class="wash-a" x="18" y="94" width="524" height="178"/>
+<rect x="18" y="94" width="524" height="178" fill="url(#q14-dots)"/>
+
+<path class="sh" stroke-dasharray="5 5" d="M112 272 A150 150 0 0 1 412 272"/>
+<path class="sh" stroke-dasharray="5 5" d="M112 272 A165 165 0 0 1 442 272"/>
+
+<line class="sk" x1="14" y1="272" x2="546" y2="272"/>
+<text x="16" y="290">P</text>
+<text x="530" y="290">P′</text>
+
+<line id="q14-rad1" class="sh" x1="262" y1="272" x2="112" y2="272"/>
+<line id="q14-rad2" class="sh" x1="277" y1="272" x2="112" y2="272"/>
+<circle class="fk" cx="262" cy="272" r="2"/>
+<circle class="fk" cx="277" cy="272" r="2"/>
+<text class="u" x="258" y="290">圆心</text>
+
+<path id="q14-arc2" class="sr" d="M112 272"/>
+<path id="q14-arc1" class="sa" d="M112 272"/>
+
+<circle class="fa" cx="412" cy="272" r="3"/>
+<circle class="fr" cx="442" cy="272" r="3"/>
+<circle class="fk" cx="112" cy="272" r="3.4"/>
+<text x="106" y="290">O</text>
+<text class="a" x="406" y="290">M</text>
+<text class="r" x="438" y="290">N</text>
+
+<line id="q14-f2" class="sk" marker-end="url(#ak)" x1="112" y1="272" x2="138" y2="272"/>
+<line id="q14-f1" class="sk" marker-end="url(#ak)" x1="112" y1="272" x2="138" y2="272"/>
+<line id="q14-v2" class="sr" marker-end="url(#ar)" x1="112" y1="272" x2="112" y2="242"/>
+<line id="q14-v1" class="sa" marker-end="url(#aa)" x1="112" y1="272" x2="112" y2="242"/>
+<circle id="q14-ion2" class="fr" cx="112" cy="272" r="5"/>
+<circle id="q14-ion1" class="fa" cx="112" cy="272" r="5"/>
+<text class="n r" id="q14-lb2" x="120" y="238">v₂</text>
+<text class="n a" id="q14-lb1" x="120" y="238">v₁</text>
+
+<text class="u" x="16" y="306">OM = 2r₁ = 0.40 m　　ON = 2r₂ = 0.44 m = 1.1 OM</text>
+<text class="u" x="16" y="322">两圆心都落在 PP′ 上 ⟹ 各走恰好半个圆；比荷小 ⟹ 半径大、周期长 ⟹ ② 后到达</text>
+</svg>
+<figcaption>垂直边界入射 ⟹ 洛伦兹力沿边界方向 ⟹ 圆心落在 PP′ 上，两离子都恰好走半个圆，落点到 O 的距离等于直径。由 ON = 1.1 OM 得 r₂ = 1.1 r₁ = 0.22 m，故 (q/m)₂ = v/(r₂B) = (q/m)₁/1.1 ≈ 4.36×10⁶ C/kg。半圆用时 t = π/[(q/m)B] 与速率无关，比荷小者周期长 1.1 倍，因此打在 N 的离子后到达边界。</figcaption></figure>
+
+
+<script>window.Scenes = {};</script>
+<script>window.Scenes["q14"] = function (fig) {
+  /* ---------------- 物理常量（国际单位制） ---------------- */
+  var B = 0.1;                 /* T */
+  var V = 96000.0;             /* m/s, 即 9.6e4 */
+  var QM1 = 4800000.0;         /* C/kg, 即 4.8e6 —— 打在 M 的离子 */
+  var K = 1.1;                 /* ON / OM */
+
+  /* qvB = mv^2/r  ->  r = v / [(q/m)B] */
+  var R1 = V / (QM1 * B);                 /* 0.20 m */
+  /* 垂直边界入射 -> 圆心在边界上 -> 落点距 O 等于直径；ON = 1.1 OM -> r2 = 1.1 r1 */
+  var R2 = K * R1;                        /* 0.22 m */
+  var QM2 = V / (R2 * B);                 /* = QM1/1.1 约 4.36e6 C/kg，比荷更小 */
+
+  var W1 = QM1 * B;                       /* 回旋角速度 rad/s */
+  var W2 = QM2 * B;
+  var TH1 = Math.PI / W1;                 /* 半圆用时 s，与速率无关 */
+  var TH2 = Math.PI / W2;                 /* 比荷小者周期长 1.1 倍 -> 后到达 */
+  var PI = Math.PI;
+
+  /* ---------------- 屏幕几何 ---------------- */
+  var YB = 272;                /* 边界 PP' 的 y */
+  var XO = 112;                /* 入射点 O 的 x */
+  var PXM = 750;               /* px per meter */
+  var P1 = R1 * PXM;           /* 150 px */
+  var P2 = R2 * PXM;           /* 165 px */
+  var C1 = XO + P1;            /* 圆心 1 在边界上 */
+  var C2 = XO + P2;
+  var VLEN = 30;               /* 速度矢量画长 px */
+  var FLEN = 26;               /* 洛伦兹力矢量画长 px */
+
+  /* ---------------- 动画节奏（step 用，不影响 probe） ---------------- */
+  var SLOW = 500000;                 /* 慢放倍数 5e5 */
+  var DUR = SLOW * TH2;              /* 弧段时长约 3.60 s */
+  var HOLD = 1.6;                    /* 走完后定格 */
+  var CYC = DUR + HOLD;
+
+  /* ---------------- DOM 引用 ---------------- */
+  var arc1 = fig.querySelector('#q14-arc1');
+  var arc2 = fig.querySelector('#q14-arc2');
+  var ion1 = fig.querySelector('#q14-ion1');
+  var ion2 = fig.querySelector('#q14-ion2');
+  var vv1 = fig.querySelector('#q14-v1');
+  var vv2 = fig.querySelector('#q14-v2');
+  var ff1 = fig.querySelector('#q14-f1');
+  var ff2 = fig.querySelector('#q14-f2');
+  var rd1 = fig.querySelector('#q14-rad1');
+  var rd2 = fig.querySelector('#q14-rad2');
+  var lb1 = fig.querySelector('#q14-lb1');
+  var lb2 = fig.querySelector('#q14-lb2');
+  var tx1 = fig.querySelector('#q14-th1');
+  var tx2 = fig.querySelector('#q14-th2');
+  var sx1 = fig.querySelector('#q14-st1');
+  var sx2 = fig.querySelector('#q14-st2');
+  var txT = fig.querySelector('#q14-time');
+
+  /* ---------------- 纯物理内核 ---------------- */
+  /* u = 0 两离子同时射入；u = 1 较慢的 2 号离子刚好到达边界 N。
+     故 t(u) = u * TH2；1 号离子在 u = 1/1.1 就已到达 M，之后角度保持 PI。 */
+  function core(u) {
+    var uu = u;
+    if (!(uu > 0)) uu = 0;
+    if (uu > 1) uu = 1;
+    var t = uu * TH2;
+    var a1 = W1 * t;
+    var a2 = W2 * t;
+    if (a1 > PI) a1 = PI;
+    if (a2 > PI) a2 = PI;
+    return { u: uu, t: t, a1: a1, a2: a2 };
+  }
+
+  function px(cx, rr, a) { return cx - rr * Math.cos(a); }
+  function py(rr, a) { return YB - rr * Math.sin(a); }
+
+  function arcPath(cx, rr, a) {
+    var n = 72, i, th, s = '';
+    for (i = 0; i <= n; i++) {
+      th = a * i / n;
+      s += (i === 0 ? 'M' : ' L') + px(cx, rr, th).toFixed(2) + ' ' + py(rr, th).toFixed(2);
+    }
+    return s;
+  }
+
+  function seg(el, x1, y1, x2, y2) {
+    el.setAttribute('x1', x1.toFixed(2));
+    el.setAttribute('y1', y1.toFixed(2));
+    el.setAttribute('x2', x2.toFixed(2));
+    el.setAttribute('y2', y2.toFixed(2));
+  }
+
+  /* 一个离子的全部图元更新 */
+  function one(a, cx, rr, arc, dot, vel, frc, rad, lab, ldx, ldy) {
+    var x = px(cx, rr, a), y = py(rr, a);
+    /* 切向单位矢量（屏幕坐标，y 向下） */
+    var vx = Math.sin(a), vy = -Math.cos(a);
+    /* 指向圆心的单位矢量 */
+    var fx = Math.cos(a), fy = Math.sin(a);
+    var landed = a >= PI - 1e-12;
+
+    arc.setAttribute('d', arcPath(cx, rr, a));
+    dot.setAttribute('cx', x.toFixed(2));
+    dot.setAttribute('cy', y.toFixed(2));
+    seg(vel, x, y, x + vx * VLEN, y + vy * VLEN);
+    seg(frc, x, y, x + fx * FLEN, y + fy * FLEN);
+    seg(rad, cx, YB, x, y);
+    frc.setAttribute('opacity', landed ? '0' : '1');
+    lab.setAttribute('x', (x + vx * VLEN + ldx).toFixed(2));
+    lab.setAttribute('y', (y + vy * VLEN + ldy).toFixed(2));
+  }
+
+  function deg(a) { return a * 180 / PI; }
+
+  function draw(u) {
+    var c = core(u);
+    one(c.a1, C1, P1, arc1, ion1, vv1, ff1, rd1, lb1, 8, 1);
+    one(c.a2, C2, P2, arc2, ion2, vv2, ff2, rd2, lb2, -24, -3);
+    tx1.textContent = 'θ₁ = ' + deg(c.a1).toFixed(1) + '°';
+    tx2.textContent = 'θ₂ = ' + deg(c.a2).toFixed(1) + '°';
+    sx1.textContent = (c.a1 >= PI - 1e-12) ? '已到达 M' : '飞行中';
+    sx2.textContent = (c.a2 >= PI - 1e-12) ? '已到达 N' : '飞行中';
+    txT.textContent = 't = ' + (c.t * 1e6).toFixed(2) + ' μs（慢放 5×10⁵ 倍）';
+  }
+
+  return {
+    step: function (t) {
+      var tt = t - Math.floor(t / CYC) * CYC;
+      if (!(tt >= 0)) tt = 0;
+      var u = tt / DUR;
+      if (u > 1) u = 1;
+      draw(u);
+    },
+    reset: function () {
+      draw(0);
+    },
+    probe: function (u, caseId) {
+      var c = core(u);
+      return {
+        u: c.u,
+        t_us: c.t * 1e6,
+        th1_deg: deg(c.a1),
+        th2_deg: deg(c.a2),
+        r1: R1,
+        r2: R2,
+        qm1: QM1,
+        qm2: QM2
+      };
+    }
+  };
+};
+</script>
+<script>/* ===== 动画运行时 ===== */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var live = [];
+
+  function build(fig) {
+    var id = fig.getAttribute('data-scene');
+    var factory = window.Scenes[id];
+    if (typeof factory !== 'function') return null;
+    var api;
+    try { api = factory(fig); } catch (e) { console.error('[scene ' + id + '] setup failed', e); return null; }
+    if (!api || typeof api.step !== 'function') { console.error('[scene ' + id + '] bad contract'); return null; }
+
+    var bar = document.createElement('div');
+    bar.className = 'ctlbar';
+    var pp = document.createElement('button');
+    pp.type = 'button'; pp.className = 'btn pp';
+    var rp = document.createElement('button');
+    rp.type = 'button'; rp.className = 'btn'; rp.textContent = '重播';
+    var tag = document.createElement('span');
+    tag.className = 'livebadge'; tag.textContent = 'LIVE';
+    bar.appendChild(pp); bar.appendChild(rp); bar.appendChild(tag);
+    var own = fig.querySelector('.ctl');
+    if (own) bar.appendChild(own);
+    var cap = fig.querySelector('figcaption');
+    fig.insertBefore(bar, cap);
+
+    window.__api = window.__api || {}; window.__api[id] = api;
+    var s = { id: id, api: api, t: 0, playing: !reduce, visible: true, fig: fig, pp: pp };
+    function paint() {
+      pp.textContent = s.playing ? '暂停' : '播放';
+      pp.setAttribute('aria-pressed', s.playing ? 'true' : 'false');
+      pp.setAttribute('aria-label', (s.playing ? '暂停' : '播放') + '动画');
+      tag.style.opacity = s.playing ? '.9' : '.3';
+    }
+    pp.addEventListener('click', function () { s.playing = !s.playing; paint(); });
+    rp.addEventListener('click', function () {
+      s.t = 0;
+      try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] reset', e); }
+    });
+    paint();
+    try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] first frame', e); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { s.visible = es[0].isIntersecting; },
+        { rootMargin: '120px' }).observe(fig);
+    }
+    return s;
+  }
+
+  function boot() {
+    var figs = document.querySelectorAll('figure[data-scene]');
+    for (var i = 0; i < figs.length; i++) {
+      var s = build(figs[i]);
+      if (s) live.push(s);
+    }
+    var g = document.getElementById('gswitch');
+    if (g) {
+      g.addEventListener('click', function () {
+        var anyOn = live.some(function (s) { return s.playing; });
+        live.forEach(function (s) { if (s.playing === anyOn) s.pp.click(); });
+        g.textContent = anyOn ? '▶ 全部播放' : '⏸ 全部暂停';
+      });
+      g.textContent = reduce ? '▶ 全部播放' : '⏸ 全部暂停';
+    }
+    var last = 0;
+    function frame(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 0;
+      last = now;
+      for (var i = 0; i < live.length; i++) {
+        var s = live[i];
+        if (!s.playing || !s.visible) continue;
+        s.t += dt;
+        try { s.api.step(s.t); }
+        catch (e) { console.error('[scene ' + s.id + '] step', e); s.playing = false; }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<script>
+function __runProbe(){
+  var out = {ok:false, errors:[], render:[], scenes:[], series:{}, notes:[]};
+  function rec(e){ out.errors.push(String(e && e.stack || e)); }
+  window.onerror = function(m,s,l,c,e){ rec(m + " @" + l + ":" + c); };
+  var _ce = console.error; console.error = function(){ rec([].join.call(arguments," ")); _ce.apply(console, arguments); };
+  try {
+    var SID = "q14", SPEC = {"id": "q14", "title": "2023 福建卷 第14题 · 质谱仪中两种氖离子的分离", "difficulty": "medium", "stem": "质谱仪的真空室中存在方向垂直纸面向外的匀强磁场，磁感应强度 B = 0.1 T。两种氖离子以相同速率 v = 9.6×10⁴ m/s 沿垂直于边界 PP′ 的方向、从边界上同一点 O 同时射入磁场区。已知其中一种离子的比荷 (q/m)₁ = 4.8×10⁶ C/kg，它打在边界上的位置为 M；另一种离子打在 N 点，且 ON = 1.1 OM。求第二种离子的比荷，并说明两者到达边界的先后。", "physics": {"note": "以下为权威解法，实现必须与之一致。", "definitions": ["离子垂直边界射入 ⟹ 洛伦兹力沿边界方向 ⟹ 圆心落在边界 PP′ 上 ⟹ 离子在磁场中恰好走半个圆", "落点到入射点 O 的距离等于圆的直径 2r"], "equations": ["qvB = mv²/r  ⟹  r = v / [(q/m)·B]", "回旋角速度 ω = (q/m)·B，回旋周期 T = 2π/ω = 2πm/(qB)", "走半圆用时 t_half = π/ω = π m /(qB)，与速率无关", "OM = 2r₁，ON = 2r₂；由 ON = 1.1 OM 得 r₂ = 1.1 r₁ ⟹ (q/m)₂ = v/(r₂B) = (q/m)₁/1.1"], "given_facts": ["F1 · r₁ = v/[(q/m)₁·B] = 0.20 m，OM = 0.40 m。", "F2 · r₂ = 1.1 r₁ = 0.22 m，ON = 0.44 m，(q/m)₂ = (q/m)₁/1.1 ≈ 4.36×10⁶ C/kg。", "F3 · 半圆用时 t_half = π/[(q/m)B]，比荷小的那个周期长 1.1 倍，因此**后**到达边界。这是本题最容易答反的一处。", "F4 · 两离子速率相同，任意同一时刻已转过的圆心角之比恒为 ω₁:ω₂ = 1.1:1。"], "free_parameters": "无。所有物理量均由 spec 给定。"}, "scene_requirements": ["磁场区用「向外」的点阵表示，边界 PP′ 为一条水平直线，入射点 O 在边界上。", "两个离子同时从 O 出发，各自沿半圆轨迹前进；已走过的弧用实线画出，全程轨迹用虚线预示。", "每个离子实时画出速度矢量（切向）与洛伦兹力矢量（始终指向各自圆心）。", "实时读数：两离子各自的已转过角度 θ、半径 r、比荷、飞行/已落地状态、真实时间（微秒，并标注慢放倍数）。", "必须让读者一眼看出比荷小的那个「半径大 且 后到达」。"], "units": "国际单位制。长度 m，比荷 C/kg，角度以度(°)报出，时间以微秒(μs)报出。", "cases": [{"id": "run", "label": "两离子同时入射"}], "probe_keys": ["u", "t_us", "th1_deg", "th2_deg", "r1", "r2", "qm1", "qm2"], "probe_key_meaning": {"u": "归一化进度，等于传入的 u", "t_us": "自入射起的真实飞行时间，单位微秒", "th1_deg": "比荷大的离子（打在 M）已转过的圆心角，单位度，到达边界后保持 180", "th2_deg": "比荷小的离子（打在 N）已转过的圆心角，单位度，到达边界后保持 180", "r1": "第一种离子的轨道半径 m。常量。", "r2": "第二种离子的轨道半径 m。常量。", "qm1": "第一种离子的比荷 C/kg。常量。", "qm2": "第二种离子的比荷 C/kg。常量。"}, "process_endpoints": "u = 0 对应两离子同时从 O 射入；u = 1 对应**较慢的**那个离子（打在 N）刚好到达边界。较快的那个在 u ≈ 1/1.1 时就已到达，之后角度保持 180°。", "sample_points": 401, "disclosures": [], "constants": {"V": 96000.0, "B": 0.1, "QM1": 4800000.0}, "invariants": [{"id": "r1-value", "case": "run", "expr": "abs(r1[-1] - V/(QM1*B)) <= 1e-4", "report": "[r1[-1], V/(QM1*B)]", "why": "F1：r₁ = v/[(q/m)₁B] = 0.20 m"}, {"id": "r2-ratio", "case": "run", "expr": "abs(r2[-1]/r1[-1] - 1.1) <= 2e-3", "report": "r2[-1]/r1[-1]", "why": "F2：ON = 1.1 OM 且落点距离等于直径 ⟹ r₂ = 1.1 r₁"}, {"id": "r2-value", "case": "run", "expr": "abs(r2[-1] - 0.22) <= 5e-4", "report": "r2[-1]", "why": "F2：r₂ = 0.22 m，故 ON = 0.44 m"}, {"id": "qm2-value", "case": "run", "expr": "abs(qm2[-1] - V/(r2[-1]*B)) <= 2e4", "report": "[qm2[-1], V/(r2[-1]*B)]", "why": "F2：(q/m)₂ = v/(r₂B) ≈ 4.36×10⁶ C/kg"}, {"id": "qm2-smaller", "case": "run", "expr": "qm2[-1] < qm1[-1] - 1e5", "report": "[qm1[-1], qm2[-1]]", "why": "半径大的那个比荷必须更小——把两者写反会让整道题的结论翻转"}, {"id": "half-circle-1", "case": "run", "expr": "abs(th1_deg[-1] - 180.0) <= 0.5", "report": "th1_deg[-1]", "why": "垂直边界入射 ⟹ 圆心在边界上 ⟹ 恰好半圆，终态角度必须是 180°"}, {"id": "half-circle-2", "case": "run", "expr": "abs(th2_deg[-1] - 180.0) <= 0.5", "report": "th2_deg[-1]", "why": "第二个离子同样恰好半圆；u=1 的定义就是它到达边界"}, {"id": "omega-ratio", "case": "run", "expr": "abs(th1_deg[100]/th2_deg[100] - 1.1) <= 0.01", "report": "[th1_deg[100], th2_deg[100], th1_deg[100]/th2_deg[100]]", "why": "F4：同一时刻转过角度之比等于回旋角速度之比 ω₁:ω₂ = 1.1:1（取 u=0.25 处，两者都还在飞）"}, {"id": "M-lands-first", "case": "run", "expr": "(th1_deg[380] >= 179.5) and (th2_deg[380] <= 176.0)", "report": "[th1_deg[380], th2_deg[380]]", "why": "F3：在 u=0.95 时，比荷大的离子早已落到 M，比荷小的还在飞——这是本题最易答反的结论"}, {"id": "angles-monotone", "case": "run", "expr": "(min(diff(th1_deg)) >= -1e-9) and (min(diff(th2_deg)) >= -1e-9) and (th1_deg[0] <= 1e-6) and (th2_deg[0] <= 1e-6)", "report": "[th1_deg[0], th2_deg[0], min(diff(th1_deg)), min(diff(th2_deg))]", "why": "角度必须从 0 起单调不减（到边界后停在 180 而不是回绕）"}, {"id": "time-consistent", "case": "run", "expr": "abs(t_us[-1]*1e-6 - pi/(qm2[-1]*B)) <= 2e-8", "report": "[t_us[-1]*1e-6, pi/(qm2[-1]*B)]", "why": "F3：u=1 的真实时刻必须等于慢离子的半周期 π/[(q/m)₂B]（这条检验 μs 单位换算）"}]};
+    out.scenes = Object.keys(window.Scenes || {});
+    var fig = document.querySelector('figure[data-scene="' + SID + '"]');
+    if (!fig) { out.errors.push("DOM 里找不到 figure[data-scene=" + SID + "]"); throw 0; }
+    var api = (window.__api || {})[SID];
+    if (!api) { out.errors.push("运行时未能构造该场景（工厂抛错或契约不符）"); throw 0; }
+    ["step","reset","probe"].forEach(function(k){
+      if (typeof api[k] !== "function") out.errors.push("api." + k + " 不是函数");
+    });
+    if (out.errors.length) throw 0;
+
+    var svg = fig.querySelector("svg");
+
+    // --- 渲染压力：跑 451 帧 step()，抓异常与脏数值 ---
+    try {
+      api.reset(); api.step(0);
+      for (var t = 0; t <= 18.0001; t += 0.04) api.step(t);
+    } catch (e) { rec("step() 抛异常: " + e); }
+    var dom = svg.outerHTML;
+    ["NaN","Infinity","undefined","null"].forEach(function(w){
+      var n = (dom.match(new RegExp(w, "g")) || []).length;
+      if (n) out.errors.push("渲染后 SVG 中出现 " + w + " ×" + n);
+    });
+
+    /* --- L3.5 渲染覆盖 ---
+       断言只跑 probe，看不见渲染。历史教训：把 translate(cx,cy) rotate(θ)
+       误写成 rotate(θ cx cy)，整组元素飞出画布，四层门禁 13/13 全绿放行。
+       这里补上：每个带 id 的 SVG 元素，必须在某一采样时刻真的画在 viewBox 内。
+       只查「位置」不查「可见性」—— opacity=0 的元素 getBBox 依然有效，
+       所以合法隐藏的结论框不会被误伤，而「整组飞出画布」是全时段的，必然被抓。*/
+    try {
+      api.reset();
+      var vb = svg.viewBox.baseVal;
+      var els = svg.querySelectorAll("[id]");
+      var ids = [], everOK = {}, everDrawn = {}, snaps = [];
+      for (var q0 = 0; q0 < els.length; q0++) ids.push(els[q0].getAttribute("id"));
+      /* 注意：不能用 el.getCTM() —— 它含 viewBox 缩放，返回的是渲染像素坐标，
+         拿去和 viewBox 数值比会把右下方的元素全部误判出界。
+         正确做法是经 svg 根的 screenCTM 求逆，换回 viewBox 用户单位。 */
+      for (var tq = 0; tq <= 20.0001; tq += 0.5) {
+        api.step(tq);
+        snaps.push(svg.innerHTML);
+        var rootM = svg.getScreenCTM();
+        if (!rootM) continue;
+        var invM = rootM.inverse();
+        for (var q1 = 0; q1 < els.length; q1++) {
+          var idq = ids[q1];
+          if (everOK[idq]) continue;
+          var bb, mm;
+          try { bb = els[q1].getBBox(); mm = els[q1].getScreenCTM(); } catch (err0) { continue; }
+          if (!mm) continue;
+          if (bb.width <= 0 && bb.height <= 0) continue;   /* 退化元素不判位置 */
+          everDrawn[idq] = true;
+          mm = invM.multiply(mm);                          /* → viewBox 用户单位 */
+          var cxq = bb.x + bb.width / 2, cyq = bb.y + bb.height / 2;
+          var XQ = mm.a * cxq + mm.c * cyq + mm.e;
+          var YQ = mm.b * cxq + mm.d * cyq + mm.f;
+          if (XQ >= vb.x - 2 && XQ <= vb.x + vb.width + 2 &&
+              YQ >= vb.y - 2 && YQ <= vb.y + vb.height + 2)
+            everOK[idq] = true;
+        }
+      }
+      var off = [], dead = [];
+      for (var q2 = 0; q2 < ids.length; q2++) {
+        if (!everDrawn[ids[q2]]) dead.push(ids[q2]);
+        else if (!everOK[ids[q2]]) off.push(ids[q2]);
+      }
+      if (off.length)
+        out.render.push("这些元素在全部 41 个采样时刻都画在 viewBox 之外（画面上看不到）：" + off.join(", "));
+      var moved = false;
+      for (var q3 = 1; q3 < snaps.length; q3++) if (snaps[q3] !== snaps[0]) { moved = true; break; }
+      if (!moved)
+        out.render.push("采样了 " + snaps.length + " 个不同时刻，SVG 内容完全没有变化——动画没有动");
+      out.notes.push("渲染覆盖：" + ids.length + " 个带 id 元素，" +
+                     Object.keys(everOK).length + " 个曾正常出现在画面内" +
+                     (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
+    } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
+
+    // --- probe 采样 ---
+    var N = SPEC.sample_points || 401;
+    for (var ci = 0; ci < SPEC.cases.length; ci++) {
+      var cid = SPEC.cases[ci].id;
+      var cols = {}; SPEC.probe_keys.forEach(function(k){ cols[k] = []; });
+
+      // 纯度 + 无副作用
+      var before = svg.outerHTML;
+      var a1 = api.probe(0.37, cid), a2 = api.probe(0.37, cid);
+      if (svg.outerHTML !== before) out.errors.push("[" + cid + "] probe() 修改了 DOM（必须是纯函数）");
+      SPEC.probe_keys.forEach(function(k){
+        if (!(k in a1)) out.errors.push("[" + cid + "] probe 返回值缺少键 " + k);
+        else if (a1[k] !== a2[k]) out.errors.push("[" + cid + "] probe 不纯：同一 u 两次调用 " + k + " 不同（" + a1[k] + " vs " + a2[k] + "）");
+      });
+
+      var nbad = 0;
+      for (var i = 0; i < N; i++) {
+        var u = i / (N - 1);
+        var r;
+        try { r = api.probe(u, cid); }
+        catch (e) { out.errors.push("[" + cid + "] probe(" + u.toFixed(3) + ") 抛异常: " + e); break; }
+        for (var ki = 0; ki < SPEC.probe_keys.length; ki++) {
+          var k = SPEC.probe_keys[ki], v = r ? r[k] : undefined;
+          if (typeof v !== "number" || !isFinite(v)) { nbad++; v = null; }
+          cols[k].push(v);
+        }
+      }
+      if (nbad) out.errors.push("[" + cid + "] probe 返回了 " + nbad + " 个非有限数值");
+      out.series[cid] = cols;
+    }
+    out.ok = out.errors.length === 0 && out.render.length === 0;
+  } catch (e) { if (e) rec(e); }
+  document.getElementById("TESTOUT").textContent = "@@" + JSON.stringify(out) + "@@";
+}
+/* 必须等运行时 boot 完（它也挂在 DOMContentLoaded 上，且注册在前），
+   同时保证 <pre id="TESTOUT"> 已经存在 */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", __runProbe);
+else __runProbe();
+</script>
+<pre id="TESTOUT"></pre>

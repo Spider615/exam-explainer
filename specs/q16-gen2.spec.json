@@ -1,0 +1,251 @@
+{
+ "id": "q16-gen2",
+ "stem": "粗糙绝缘水平面上，两个质量均为 m 的小滑块 A（+q） 和 B（−q），其间存在水平向右的匀强电场 E。A 右端固定轻质光滑绝缘细杆和轻质绝缘弹簧，弹簧原长。A、B 与水平面间的最大静摩擦力等于滑动摩擦力，大小均为 2qE。t=0 时 A 以初速度 v₀ 向右，B 静止。在 t₁ 时刻 A 到达位置 S，速度为 v₁，弹簧未与 B 相碰；t₂ 时刻 A 的速度最大，弹簧弹力大小为 3qE；细杆与 B 碰前瞬间 A 的速度为 2v₁。A、B 在同一直线上，电荷量不变，库仑力按真空点电荷静电力。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "原过程：A 到达 S 时速度为 v₁=1"
+  },
+  {
+   "id": "c2",
+   "label": "新过程：A 到达 S 时速度为 2v₁=2"
+  }
+ ],
+ "title": "带电滑块弹簧碰撞与电场",
+ "units": "全部使用无量纲数值，长度以 r₁=1 为单位，速度以 v₁=1 为单位，m=1, q=1, E=1, k=1",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。",
+  "equations": [
+   "A 受力: F_netA = qE - fA·sign(vA) + Fc + Fs  （当 vA>0，fA=2，故 F_netA = 1 - 2 + Fc + Fs = Fc + Fs - 1）",
+   "B 受力: F_netB = -qE + fB·sign(vB) - Fc - Fs （当 vB<0，fB=2，故 F_netB = -1 + 2 - Fc - Fs = 1 - Fc - Fs）",
+   "运动方程: aA = F_netA / m, aB = F_netB / m, m=1",
+   "弹簧接触条件: 当 s < L₀ 时弹簧压缩，弹力 Fs = k_spring * (L₀ - s)；当 s ≥ L₀ 时 Fs = 0",
+   "B 开始运动条件: 当 vB = 0 且 |F_netB| > 最大静摩擦 2 时，B 开始运动；否则保持静止",
+   "系统合外力: 因电场力之和为零，当两物体均运动时摩擦力之和为零，系统动量在 B 运动期间守恒"
+  ],
+  "definitions": [
+   "t: 时间",
+   "xA, xB: A, B 的位置坐标，向右为正",
+   "vA, vB: A, B 的速度",
+   "aA, aB: A, B 的加速度",
+   "s = xB - xA: A 与 B 之间的距离（s > 0）",
+   "Fc = k q² / s² = 1 / s²: 库仑力大小（吸引力）",
+   "Fs: 弹簧弹力大小，仅当 s < L₀ 时非零，Fs = k_spring * (L₀ - s)",
+   "fA = 2qE = 2: A 所受滑动摩擦力，方向与 vA 相反（vA > 0 时向左）",
+   "fB = 2qE = 2: B 所受滑动摩擦力，方向与 vB 相反（vB < 0 时向右，vB = 0 时为静摩擦，最大 2）"
+  ],
+  "given_facts": [
+   "F1: t₁ 时刻 A 速度最小，加速度为零，库仑力等于 qE",
+   "F2: t₂ 时刻 A 速度最大，弹簧弹力为 3qE",
+   "F3: 细杆与 B 碰前瞬间 A 的速度为 2v₁，B 的速度为 −v₁（原过程）",
+   "F4: 从位置 S 到碰前，系统动能增量恒为 2mv₁²，与初速度无关",
+   "F5: 在 B 向左运动期间，满足 vA + vB = v₁（原过程）；新过程为 vA + vB = 2v₁"
+  ],
+  "normalization": "取 m=1, q=1, E=1, v₁=1，则长度单位 r₁=√(kq/E) 归一化为 1，由此得 k=1。时间单位由运动自然导出。",
+  "free_parameters": "弹簧原长 L₀，劲度系数 k_spring，初始距离 s₀，c1 的初速度 v₀，c2 的初速度 v₀'（使得到达 S 时速度为 2v₁）。这些参数需由实现者通过打靶或解析求解确定，以满足所有给定事实。"
+ },
+ "constants": {
+  "E": 1.0,
+  "k": 1.0,
+  "m": 1.0,
+  "q": 1.0,
+  "v1": 1.0
+ },
+ "invariants": [
+  {
+   "id": "c1-end-vA",
+   "why": "对应 F3：碰前 A 速度应为 2v₁=2",
+   "case": "c1",
+   "expr": "abs(vA[-1] - 2.0) <= 0.04",
+   "report": "vA[-1]"
+  },
+  {
+   "id": "c1-end-vB",
+   "why": "对应 F3：碰前 B 速度应为 −v₁=−1",
+   "case": "c1",
+   "expr": "abs(vB[-1] + 1.0) <= 0.04",
+   "report": "vB[-1]"
+  },
+  {
+   "id": "c1-dist-monotonic",
+   "why": "A、B 不断靠近，距离 s 单调递减",
+   "case": "c1",
+   "expr": "all(diff(s) <= 1e-6)",
+   "report": "diff(s)"
+  },
+  {
+   "id": "c1-aA-self-consistency",
+   "why": "自洽性：A 的加速度应等于合力除以 m，合力 = Fc + Fs - qE",
+   "case": "c1",
+   "expr": "max(abs(aA - (Fc + Fs - 1.0))) <= 0.02",
+   "report": "aA - (Fc + Fs - 1)"
+  },
+  {
+   "id": "c1-aB-self-consistency",
+   "why": "自洽性：B 向左运动时受摩擦力向右 2qE，加速度 aB = 1 - Fc - Fs",
+   "case": "c1",
+   "expr": "max(abs(aB[vB < -1e-6] - (1.0 - Fc[vB < -1e-6] - Fs[vB < -1e-6]))) <= 0.02",
+   "report": "aB - (1 - Fc - Fs) when vB<0"
+  },
+  {
+   "id": "c1-momentum-const",
+   "why": "对应 F5：B 运动期间系统动量守恒，vA+vB 恒等于 v₁=1",
+   "case": "c1",
+   "expr": "max(abs((vA+vB)[vB < -1e-6] - 1.0)) <= 0.05",
+   "report": "(vA+vB)[vB<0]"
+  },
+  {
+   "id": "c1-S-point-dist",
+   "why": "位置 S 对应距离 r₁=1（t₁ 时刻）",
+   "case": "c1",
+   "expr": "abs(s[argmin(abs(s - 1.0))] - 1.0) <= 0.02",
+   "report": "s at S"
+  },
+  {
+   "id": "c1-S-point-Fc",
+   "why": "对应 F1：在 S 点库仑力等于 qE=1",
+   "case": "c1",
+   "expr": "abs(Fc[argmin(abs(s - 1.0))] - 1.0) <= 0.02",
+   "report": "Fc at S"
+  },
+  {
+   "id": "c1-S-point-Fs",
+   "why": "弹簧未与 B 接触，弹力为 0",
+   "case": "c1",
+   "expr": "abs(Fs[argmin(abs(s - 1.0))]) <= 0.01",
+   "report": "Fs at S"
+  },
+  {
+   "id": "c1-S-point-vB",
+   "why": "B 在 t₁ 时刻仍静止",
+   "case": "c1",
+   "expr": "abs(vB[argmin(abs(s - 1.0))]) <= 0.02",
+   "report": "vB at S"
+  },
+  {
+   "id": "c1-S-point-vA",
+   "why": "A 在 S 点速度为 v₁=1",
+   "case": "c1",
+   "expr": "abs(vA[argmin(abs(s - 1.0))] - 1.0) <= 0.03",
+   "report": "vA at S"
+  },
+  {
+   "id": "c1-t2-aA-zero",
+   "why": "t₂ 时刻速度最大，加速度为零",
+   "case": "c1",
+   "expr": "abs(aA[argmax(vA)]) <= 0.02",
+   "report": "aA at vA max"
+  },
+  {
+   "id": "c1-t2-Fs",
+   "why": "对应 F2：t₂ 时刻弹簧弹力为 3qE=3",
+   "case": "c1",
+   "expr": "abs(Fs[argmax(vA)] - 3.0) <= 0.06",
+   "report": "Fs at vA max"
+  },
+  {
+   "id": "c1-t2-Fc",
+   "why": "t₂ 时刻库仑力为 4qE=4（距离减半至 0.5）",
+   "case": "c1",
+   "expr": "abs(Fc[argmax(vA)] - 4.0) <= 0.08",
+   "report": "Fc at vA max"
+  },
+  {
+   "id": "c1-t2-dist",
+   "why": "t₂ 时刻距离应等于 r₁/2 = 0.5",
+   "case": "c1",
+   "expr": "abs(s[argmax(vA)] - 0.5) <= 0.01",
+   "report": "s at vA max"
+  },
+  {
+   "id": "c1-energy-increment",
+   "why": "对应 F4：从 S 到碰前系统动能增量恒为 2mv₁²=2",
+   "case": "c1",
+   "expr": "abs((0.5*(vA[-1]**2 + vB[-1]**2) - 0.5*(vA[argmin(abs(s - 1.0))]**2 + vB[argmin(abs(s - 1.0))]**2)) - 2.0) <= 0.08",
+   "report": "ΔK from S to end"
+  },
+  {
+   "id": "c2-end-vA",
+   "why": "新过程碰前 A 速度应为 1+√3",
+   "case": "c2",
+   "expr": "abs(vA[-1] - (1.0 + sqrt(3.0))) <= 0.06",
+   "report": "vA[-1]"
+  },
+  {
+   "id": "c2-end-vB",
+   "why": "新过程碰前 B 速度应为 1−√3",
+   "case": "c2",
+   "expr": "abs(vB[-1] - (1.0 - sqrt(3.0))) <= 0.06",
+   "report": "vB[-1]"
+  },
+  {
+   "id": "c2-momentum-const",
+   "why": "对应 F5：新过程 B 运动期间 vA+vB = 2v₁=2",
+   "case": "c2",
+   "expr": "max(abs((vA+vB)[vB < -1e-6] - 2.0)) <= 0.05",
+   "report": "(vA+vB)[vB<0]"
+  },
+  {
+   "id": "c2-S-point-vA",
+   "why": "新过程 A 到达 S 时速度为 2v₁=2",
+   "case": "c2",
+   "expr": "abs(vA[argmin(abs(s - 1.0))] - 2.0) <= 0.06",
+   "report": "vA at S"
+  },
+  {
+   "id": "c2-S-point-vB",
+   "why": "在 S 点 B 仍静止",
+   "case": "c2",
+   "expr": "abs(vB[argmin(abs(s - 1.0))]) <= 0.02",
+   "report": "vB at S"
+  },
+  {
+   "id": "c2-energy-increment",
+   "why": "对应 F4：动能增量仍为 2",
+   "case": "c2",
+   "expr": "abs((0.5*(vA[-1]**2 + vB[-1]**2) - 0.5*(vA[argmin(abs(s - 1.0))]**2 + vB[argmin(abs(s - 1.0))]**2)) - 2.0) <= 0.08",
+   "report": "ΔK from S to end"
+  }
+ ],
+ "probe_keys": [
+  "t",
+  "xA",
+  "xB",
+  "vA",
+  "vB",
+  "s",
+  "Fc",
+  "Fs",
+  "aA",
+  "aB"
+ ],
+ "disclosures": [
+  {
+   "why": "使观测值与题目符号关系对应清晰",
+   "must_contain": "无量纲化约定：m=1, q=1, E=1, k=1, v₁=1，长度单位 r₁=1"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "s": "A 与 B 的距离，s = xB - xA",
+  "t": "时间",
+  "u": "归一化进度，u=0 为 t=0，u=1 为碰前瞬间",
+  "Fc": "库仑力大小 = 1/s²",
+  "Fs": "弹簧弹力大小",
+  "aA": "A 的加速度",
+  "aB": "B 的加速度",
+  "vA": "A 的速度",
+  "vB": "B 的速度",
+  "xA": "A 的位置",
+  "xB": "B 的位置"
+ },
+ "process_endpoints": "u=0 对应 t=0 时刻 A 开始向右运动；u=1 对应细杆与 B 碰撞的瞬间",
+ "scene_requirements": [
+  "水平面，粗糙示意",
+  "电场方向水平向右的箭头",
+  "滑块 A（左，带“+q”标注）和 B（右，带“−q”标注）",
+  "A 右端连接弹簧和细杆，弹簧原长时未触及 B",
+  "A 和 B 的运动箭头（速度矢量）",
+  "距离标注 s 和库仑力、弹簧弹力示意"
+ ]
+}

@@ -1,0 +1,151 @@
+{
+ "id": "q8-gen3",
+ "stem": "某实验小组测得在竖直方向飞行的无人机飞行高度y随时间t的变化曲线如图所示，E、F、M、N为曲线上的点，EF、MN段可视为两段直线，其方程分别为y=4t-26和y=-2t+140。无人机及其载物的总质量为2kg，取竖直向上为正方向。判断：A. EF段无人机的速度大小为4m/s；B. FM段无人机的货物处于失重状态；C. FN段无人机和装载物总动量变化量大小为4kg·m/s；D. MN段无人机机械能守恒。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "完整过程E→F→M→N，含EF匀速上升、FM过渡减速（含失重）、MN匀速下降三段"
+  }
+ ],
+ "title": "无人机竖直飞行高度-时间曲线的运动学与动力学分析",
+ "units": "时间t：秒(s)；高度y：米(m)；速度v：米/秒(m/s)；加速度a：米/秒²(m/s²)；动量p：千克·米/秒(kg·m/s)；质量m：千克(kg)",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。EF段和MN段为给定直线运动（恒速），FM段为速度从+4m/s连续变化到-2m/s的过渡段，速度单调递减（加速度恒为负，即失重）。probe以u∈[0,1]参数化整个E→N的时间过程。",
+  "equations": [
+   "EF段(10<=t<=20): y = 4t - 26, v = 4 (恒定)",
+   "FM段(20<=t<=40): y为光滑过渡曲线，v从+4连续单调变化到-2，具体形式为v(t) = 4 - 0.3*(t-20)（线性插值近似，仅需满足端点值v(20)=4, v(40)=-2且单调，实现方可自行选择满足这些约束的连续可导函数）",
+   "MN段(40<=t<=53): y = -2t + 140, v = -2 (恒定)",
+   "a = diff(v)/diff(t)（数值微分）",
+   "p = m * v, m = 2kg"
+  ],
+  "definitions": [
+   "t: 时间，单位s，t(u) = t_E + u*(t_N - t_E)，其中t_E=10, t_N=53",
+   "y: 高度，单位m，由分段函数给出",
+   "v: 速度 dy/dt，单位m/s",
+   "a: 加速度 dv/dt，单位m/s^2",
+   "p: 动量 = m*v，单位kg·m/s",
+   "t_E=10, t_F=20, t_M=40, t_N=53（由直线方程反推的近似分段时刻，仅用于分段判断，不代表精确读数）"
+  ],
+  "given_facts": [
+   "F1 · EF段速度恒为4 m/s（向上）",
+   "F2 · MN段速度恒为2 m/s（向下）",
+   "F3 · F点速度为+4 m/s，M、N点速度均为−2 m/s",
+   "F4 · FN段动量变化大小为12 kg·m/s（非4 kg·m/s）",
+   "F5 · MN段加速度为0，机械能不守恒（因存在非重力做功，如螺旋桨阻力）"
+  ],
+  "normalization": "以时间t（单位s）为自变量，用u线性映射整个E到N的过程；取质量m=2kg，重力加速度g=10 m/s^2（仅用于失重/超重判断参考，不直接出现在方程中）",
+  "free_parameters": "E、F、M、N四点的精确时间坐标题面未给，根据两直线方程及FM段连续性假设反推近似值：t_E=10, t_F=20, t_M=40, t_N=53；FM段的具体速度-时间函数形式题面未给，只要求满足端点连续（v(F)=4, v(M)=-2）且单调递减，实现方可自行选择插值函数"
+ },
+ "constants": {
+  "g": 10,
+  "m": 2,
+  "t_E": 10,
+  "t_F": 20,
+  "t_M": 40,
+  "t_N": 53
+ },
+ "reference": "def probe(u, case):\n    t_E = 10.0\n    t_F = 20.0\n    t_M = 40.0\n    t_N = 53.0\n    m = 2.0\n\n    def y_of_t(t):\n        if t <= t_F:\n            return 4.0 * t - 26.0\n        elif t <= t_M:\n            dt = t - t_F\n            return 54.0 + 4.0 * dt - 0.15 * dt * dt\n        else:\n            return -2.0 * t + 140.0\n\n    def v_of_t(t):\n        if t <= t_F:\n            return 4.0\n        elif t <= t_M:\n            return 4.0 - 0.3 * (t - t_F)\n        else:\n            return -2.0\n\n    t = t_E + u * (t_N - t_E)\n\n    y = y_of_t(t)\n    v = v_of_t(t)\n    p = m * v\n\n    h = 1e-4\n    t_minus = t - h\n    t_plus = t + h\n    if t_minus < t_E:\n        t_minus = t_E\n    if t_plus > t_N:\n        t_plus = t_N\n\n    if t_plus > t_minus:\n        a = (v_of_t(t_plus) - v_of_t(t_minus)) / (t_plus - t_minus)\n    else:\n        a = 0.0\n\n    return {\n        \"u\": u,\n        \"t\": t,\n        \"y\": y,\n        \"v\": v,\n        \"a\": a,\n        \"p\": p\n    }",
+ "invariants": [
+  {
+   "id": "c1-ef-speed",
+   "why": "F1 · EF段速度恒为4 m/s",
+   "case": "c1",
+   "expr": "abs(mean(v[(t>=10.5) & (t<=19.5)]) - 4.0) <= 0.08",
+   "report": "mean(v) in EF segment"
+  },
+  {
+   "id": "c1-mn-speed",
+   "why": "F2 · MN段速度恒为2 m/s（向下）",
+   "case": "c1",
+   "expr": "abs(mean(v[(t>=40.5) & (t<=52.5)]) - (-2.0)) <= 0.08",
+   "report": "mean(v) in MN segment"
+  },
+  {
+   "id": "c1-ef-monotonic",
+   "why": "F1 · EF段为匀速直线运动，高度单调上升",
+   "case": "c1",
+   "expr": "max(diff(y[(t>=10) & (t<=20)])) > 0 and max(abs(diff(v[(t>=10) & (t<=20)]))) <= 0.05",
+   "report": "y increasing and v constant in EF"
+  },
+  {
+   "id": "c1-fm-monotonic-decrease",
+   "why": "F3 · FM段速度从+4连续单调减小到-2，说明加速度恒为负（失重）",
+   "case": "c1",
+   "expr": "max(diff(v[(t>=20) & (t<=40)])) <= 1e-6",
+   "report": "diff(v) in FM segment (should be <=0)"
+  },
+  {
+   "id": "c1-fm-acceleration-negative",
+   "why": "F5 · FM段加速度方向向下（失重状态）",
+   "case": "c1",
+   "expr": "max(a[(t>=21) & (t<=39)]) <= -0.05",
+   "report": "max(a) in FM segment interior"
+  },
+  {
+   "id": "c1-mn-acceleration-zero",
+   "why": "F5 · MN段加速度为0",
+   "case": "c1",
+   "expr": "abs(mean(a[(t>=41) & (t<=52)])) <= 0.1",
+   "report": "mean(a) in MN segment"
+  },
+  {
+   "id": "c1-f-point-velocity",
+   "why": "F3 · F点速度为+4 m/s",
+   "case": "c1",
+   "expr": "abs(interp(20, t, v) - 4.0) <= 0.08",
+   "report": "v at t=20 (F point)"
+  },
+  {
+   "id": "c1-n-point-velocity",
+   "why": "F3 · N点速度为-2 m/s",
+   "case": "c1",
+   "expr": "abs(v[-1] - (-2.0)) <= 0.08",
+   "report": "v[-1] (N point)"
+  },
+  {
+   "id": "c1-momentum-change-fn",
+   "why": "F4 · FN段动量变化大小为12 kg·m/s，非4 kg·m/s",
+   "case": "c1",
+   "expr": "abs(abs(p[-1] - interp(20, t, p)) - 12.0) <= 0.5",
+   "report": "abs(p[-1] - p at F)"
+  },
+  {
+   "id": "c1-momentum-mass-consistency",
+   "why": "F4 · 动量定义p=mv必须在probe内部自洽，避免p与v各算各的",
+   "case": "c1",
+   "expr": "max(abs(p - 2*v)) <= 1e-6",
+   "report": "max abs(p - m*v)"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "t",
+  "y",
+  "v",
+  "a",
+  "p"
+ ],
+ "disclosures": [
+  {
+   "why": "对应F1、F5，判断ABD选项需要这些信息在画面上明确可见",
+   "must_contain": "EF段速度恒为4m/s，FM段加速度为负（失重），MN段加速度为0"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "a": "无人机加速度，单位m/s^2（由v数值微分得到）",
+  "p": "无人机总动量，单位kg·m/s，p = 2*v",
+  "t": "物理时间，单位s",
+  "u": "归一化进度，等于传入的u，对应t从t_E=10线性映射到t_N=53",
+  "v": "无人机速度，单位m/s",
+  "y": "无人机高度，单位m"
+ },
+ "process_endpoints": "u=0对应E点（t=10s，无人机在EF直线段起点，速度4m/s），u=1对应N点（t=53s，MN直线段终点，速度-2m/s）",
+ "scene_requirements": [
+  "画面显示y-t曲线，标注E、F、M、N四点位置",
+  "EF段与MN段以直线（虚线延长可选）显示，FM段以光滑曲线显示",
+  "显示速度v随时间变化的辅助图或数值",
+  "显示无人机图标沿曲线运动，实时高度与速度数值可见",
+  "标注EF段速度恒为4m/s、MN段速度恒为-2m/s"
+ ]
+}

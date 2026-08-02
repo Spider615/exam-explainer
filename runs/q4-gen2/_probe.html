@@ -1,0 +1,478 @@
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --stem:#FAFBFC;
+  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
+  --line:#C9D2DE; --hair:#E4E9F0;
+  --acc:#2B5490; --acc2:#E9EFF8;
+  --cy:#0C8CAE; --cy2:#E2F2F6;
+  --red:#AE3B2B; --red2:#FBEBE7;
+  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"Times New Roman",Georgia,serif;
+  --song:Songti SC,SimSun,serif;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk)}
+figure{margin:0;background:var(--panel);border:1px solid var(--line)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px solid var(--hair)}
+svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
+svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
+svg text.n{font-family:var(--mono);font-style:normal;font-size:11px;fill:var(--ink2)}
+svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
+.sk{stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.sh{stroke:var(--line);fill:none;stroke-width:1}
+.sa{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sr{stroke:var(--red);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sc{stroke:var(--cy);fill:none;stroke-width:1.5;stroke-dasharray:5 4}
+.fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
+.wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}.wash-c{fill:var(--cy);opacity:.16}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-top:1px solid var(--hair)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+input[type=range]{width:120px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--acc)"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cy)"/></marker>
+</defs></svg>
+
+<figure data-scene="q4-gen2"><svg viewBox="0 0 560 320" role="img" aria-label="密封气缸内理想气体经ab(等压)→bc(等温)→cd(等容)三过程从状态a到状态d，同步展示活塞气缸、V-T图与对应的p-T图">
+
+<text class="u" x="16" y="16">归一化单位：取nR=1，使p·V=T恒成立；T、V、p为无量纲相对值</text>
+<text class="u" x="16" y="32">状态：a(T=1,V=1,p=1) b(T=2,V=2,p=1) c(T=2,V=4,p=0.5) d(T=4,V=4,p=1)</text>
+
+<!-- 气缸活塞 -->
+<text x="205" y="54" text-anchor="middle">T</text>
+<line class="sk" x1="24" y1="60" x2="24" y2="140"/>
+<line class="sh" x1="24" y1="64" x2="195" y2="64"/>
+<line class="sh" x1="24" y1="136" x2="195" y2="136"/>
+<rect id="q4-gen2-heatGlow" class="wash-r" x="27" y="67" width="13" height="66" opacity="0"/>
+<rect id="q4-gen2-gasFill" class="wash-a" x="27" y="67" width="13" height="66"/>
+<g id="q4-gen2-pistonGroup" transform="translate(40,0)">
+<line class="sh" x1="3" y1="98" x2="21" y2="98"/>
+<rect class="fk" x="-3" y="58" width="6" height="84"/>
+</g>
+<rect class="sh" x="201" y="64" width="8" height="74"/>
+<circle class="sh" cx="205" cy="145" r="7"/>
+<circle class="fr" cx="205" cy="145" r="5.5"/>
+<rect id="q4-gen2-thermoFill" class="fr" x="202" y="138" width="6" height="0"/>
+
+<text id="q4-gen2-lblPhase" class="u" x="235" y="72">过程：a→b（等压，p恒定=1）</text>
+<text id="q4-gen2-lblTVP" class="n" x="235" y="90">T=1.00  V=1.00  p=1.00</text>
+<text id="q4-gen2-lblU" class="n" x="235" y="108">u=0.00</text>
+
+<!-- 图例 -->
+<line class="sa" x1="20" y1="158" x2="36" y2="158"/>
+<text class="u a" x="40" y="162">ab－等压</text>
+<line class="sr" x1="118" y1="158" x2="134" y2="158"/>
+<text class="u r" x="138" y="162">bc－等温</text>
+<line class="sk" x1="216" y1="158" x2="232" y2="158"/>
+<text class="u" x="236" y="162">cd－等容</text>
+<line class="sc" x1="330" y1="158" x2="346" y2="158"/>
+<text class="u c" x="350" y="162">延长线过原点</text>
+
+<!-- V-T 图 -->
+<text x="272" y="300">T</text>
+<text x="48" y="164">V</text>
+<line class="sh" x1="60" y1="296" x2="266" y2="296" marker-end="url(#ak)"/>
+<line class="sh" x1="60" y1="296" x2="60" y2="166" marker-end="url(#ak)"/>
+<line id="q4-gen2-vtAB" class="sa" x1="100" y1="271.2" x2="140" y2="246.4"/>
+<line id="q4-gen2-vtBC" class="sr" x1="140" y1="246.4" x2="140" y2="196.8"/>
+<line id="q4-gen2-vtCD" class="sk" x1="140" y1="196.8" x2="220" y2="196.8"/>
+<circle class="sh" cx="100" cy="271.2" r="2.6"/>
+<circle class="sh" cx="140" cy="246.4" r="2.6"/>
+<circle class="sh" cx="140" cy="196.8" r="2.6"/>
+<circle class="sh" cx="220" cy="196.8" r="2.6"/>
+<text class="u" x="90" y="264">a</text>
+<text class="u" x="144" y="242">b</text>
+<text class="u" x="122" y="194">c</text>
+<text class="u" x="224" y="192">d</text>
+<circle id="q4-gen2-vtMarker" class="fa" cx="100" cy="271.2" r="4"/>
+
+<!-- p-T 图 -->
+<text x="532" y="300">T</text>
+<text x="308" y="164">p</text>
+<line class="sh" x1="320" y1="296" x2="526" y2="296" marker-end="url(#ak)"/>
+<line class="sh" x1="320" y1="296" x2="320" y2="166" marker-end="url(#ak)"/>
+<line id="q4-gen2-ptOrigin" class="sc" x1="320" y1="296" x2="504" y2="177.17"/>
+<line id="q4-gen2-ptAB" class="sa" x1="360" y1="192.67" x2="400" y2="192.67"/>
+<line id="q4-gen2-ptBC" class="sr" x1="400" y1="192.67" x2="400" y2="244.33"/>
+<line id="q4-gen2-ptCD" class="sk" x1="400" y1="244.33" x2="480" y2="192.67"/>
+<circle class="sh" cx="360" cy="192.67" r="2.6"/>
+<circle class="sh" cx="400" cy="192.67" r="2.6"/>
+<circle class="sh" cx="400" cy="244.33" r="2.6"/>
+<circle class="sh" cx="480" cy="192.67" r="2.6"/>
+<text class="u" x="350" y="186">a</text>
+<text class="u" x="404" y="188">b</text>
+<text class="u" x="382" y="242">c</text>
+<text class="u" x="484" y="188">d</text>
+<circle id="q4-gen2-ptMarker" class="fa" cx="360" cy="192.67" r="4"/>
+
+</svg>
+<figcaption>密封于气缸中的理想气体从状态a依次经ab、bc、cd三过程到达状态d（取nR=1，pV=T恒成立）。ab段标注'等压'，图中p保持水平不变（p=1，T由1增至2，V由1增至2）；bc段标注'等温'，图中p随V增大而下降（竖直线向下）（T恒为2，V由2增至4，p由1降至0.5）；cd段标注'等容'，并画出过原点的虚线以显示cd线段共线于该虚线（V恒为4，T由2增至4，p=T/4由0.5升至1，沿过原点的直线）。活塞气缸示意图中，气体区域宽度对应V、温度计液柱高度对应T，随过程同步变化。</figcaption></figure>
+
+
+<script>window.Scenes = {};</script>
+<script>window.Scenes["q4-gen2"] = function (fig) {
+  var svg = fig.querySelector('svg');
+
+  /* ---------------- 权威解（归一化 nR=1，p·V=T） ----------------
+     与 spec.physics.equations / spec.reference 完全一致：
+     ab(等压) s=3u,        T=1+s, V=T,       p=1
+     bc(等温) s=3u-1,      T=2,   V=2+2s,    p=T/V
+     cd(等容) s=3u-2,      V=4,   T=2+2s,    p=T/V
+  */
+  function clamp01(x) { if (!(x > 0)) return 0; if (x > 1) return 1; return x; }
+
+  function core(u) {
+    var uu = clamp01(u);
+    var s, T, V, p;
+    if (uu <= 1 / 3) {
+      s = 3 * uu;
+      T = 1 + s;
+      V = T;
+      p = 1.0;
+    } else if (uu <= 2 / 3) {
+      s = 3 * uu - 1;
+      T = 2.0;
+      V = 2 + 2 * s;
+      p = T / V;
+    } else {
+      s = 3 * uu - 2;
+      V = 4.0;
+      T = 2 + 2 * s;
+      p = T / V;
+    }
+    return { u: u, T: T, V: V, p: p };
+  }
+
+  /* ---------------- 屏幕几何（仅渲染用，不影响 probe） ---------------- */
+  var TX0 = 60, TY0 = 296, SCALE_T = 40, SCALE_V = 24.8;      /* V-T 图 */
+  var PX0 = 320, PY0 = 296, SCALE_P = 124 / 1.2;              /* p-T 图（T 轴与 V-T 图共用比例尺）*/
+
+  var PISTON_MIN = 40, PISTON_MAX = 170;                       /* V=1 -> 40px, V=4 -> 170px */
+  var GAS_X0 = 27;
+  var THERMO_BOTTOM = 138, THERMO_MAXH = 70;
+
+  function vtX(T) { return TX0 + SCALE_T * T; }
+  function vtY(V) { return TY0 - SCALE_V * V; }
+  function ptX(T) { return PX0 + SCALE_T * T; }
+  function ptY(p) { return PY0 - SCALE_P * p; }
+
+  function segLen(x1, y1, x2, y2) { var dx = x2 - x1, dy = y2 - y1; return Math.sqrt(dx * dx + dy * dy); }
+
+  var VT_AB = { x1: vtX(1), y1: vtY(1), x2: vtX(2), y2: vtY(2) };
+  var VT_BC = { x1: vtX(2), y1: vtY(2), x2: vtX(2), y2: vtY(4) };
+  var VT_CD = { x1: vtX(2), y1: vtY(4), x2: vtX(4), y2: vtY(4) };
+  var PT_AB = { x1: ptX(1), y1: ptY(1), x2: ptX(2), y2: ptY(1) };
+  var PT_BC = { x1: ptX(2), y1: ptY(1), x2: ptX(2), y2: ptY(0.5) };
+  var PT_CD = { x1: ptX(2), y1: ptY(0.5), x2: ptX(4), y2: ptY(1) };
+
+  var LEN_VT_AB = segLen(VT_AB.x1, VT_AB.y1, VT_AB.x2, VT_AB.y2);
+  var LEN_VT_BC = segLen(VT_BC.x1, VT_BC.y1, VT_BC.x2, VT_BC.y2);
+  var LEN_VT_CD = segLen(VT_CD.x1, VT_CD.y1, VT_CD.x2, VT_CD.y2);
+  var LEN_PT_AB = segLen(PT_AB.x1, PT_AB.y1, PT_AB.x2, PT_AB.y2);
+  var LEN_PT_BC = segLen(PT_BC.x1, PT_BC.y1, PT_BC.x2, PT_BC.y2);
+  var LEN_PT_CD = segLen(PT_CD.x1, PT_CD.y1, PT_CD.x2, PT_CD.y2);
+
+  /* ---------------- DOM 引用 ---------------- */
+  var pistonGroup = fig.querySelector('#q4-gen2-pistonGroup');
+  var gasFill = fig.querySelector('#q4-gen2-gasFill');
+  var heatGlow = fig.querySelector('#q4-gen2-heatGlow');
+  var thermoFill = fig.querySelector('#q4-gen2-thermoFill');
+  var lblPhase = fig.querySelector('#q4-gen2-lblPhase');
+  var lblTVP = fig.querySelector('#q4-gen2-lblTVP');
+  var lblU = fig.querySelector('#q4-gen2-lblU');
+  var vtAB = fig.querySelector('#q4-gen2-vtAB');
+  var vtBC = fig.querySelector('#q4-gen2-vtBC');
+  var vtCD = fig.querySelector('#q4-gen2-vtCD');
+  var vtMarker = fig.querySelector('#q4-gen2-vtMarker');
+  var ptAB = fig.querySelector('#q4-gen2-ptAB');
+  var ptBC = fig.querySelector('#q4-gen2-ptBC');
+  var ptCD = fig.querySelector('#q4-gen2-ptCD');
+  var ptMarker = fig.querySelector('#q4-gen2-ptMarker');
+
+  function setReveal(el, len, frac) {
+    el.setAttribute('stroke-dasharray', len.toFixed(3));
+    el.setAttribute('stroke-dashoffset', (len * (1 - frac)).toFixed(3));
+  }
+
+  function phaseText(uu) {
+    if (uu <= 1 / 3) return '过程：a→b（等压，p恒定=1）';
+    if (uu <= 2 / 3) return '过程：b→c（等温，T恒定=2）';
+    return '过程：c→d（等容，V恒定=4）';
+  }
+
+  function draw(u) {
+    var uu = clamp01(u);
+    var c = core(uu);
+
+    var pistonX = PISTON_MIN + (c.V - 1) / 3 * (PISTON_MAX - PISTON_MIN);
+    var gasW = pistonX - GAS_X0; if (gasW < 0) gasW = 0;
+    pistonGroup.setAttribute('transform', 'translate(' + pistonX.toFixed(2) + ',0)');
+    gasFill.setAttribute('width', gasW.toFixed(2));
+    heatGlow.setAttribute('width', gasW.toFixed(2));
+    var heatOp = clamp01((c.T - 1) / 3) * 0.55;
+    heatGlow.setAttribute('opacity', heatOp.toFixed(3));
+
+    var fillH = clamp01((c.T - 1) / 3) * THERMO_MAXH;
+    thermoFill.setAttribute('y', (THERMO_BOTTOM - fillH).toFixed(2));
+    thermoFill.setAttribute('height', fillH.toFixed(2));
+
+    lblPhase.textContent = phaseText(uu);
+    lblTVP.textContent = 'T=' + c.T.toFixed(2) + '  V=' + c.V.toFixed(2) + '  p=' + c.p.toFixed(2);
+    lblU.textContent = 'u=' + uu.toFixed(2);
+
+    var fracAB = clamp01(3 * uu);
+    var fracBC = clamp01(3 * uu - 1);
+    var fracCD = clamp01(3 * uu - 2);
+    setReveal(vtAB, LEN_VT_AB, fracAB);
+    setReveal(vtBC, LEN_VT_BC, fracBC);
+    setReveal(vtCD, LEN_VT_CD, fracCD);
+    setReveal(ptAB, LEN_PT_AB, fracAB);
+    setReveal(ptBC, LEN_PT_BC, fracBC);
+    setReveal(ptCD, LEN_PT_CD, fracCD);
+
+    vtMarker.setAttribute('cx', vtX(c.T).toFixed(2));
+    vtMarker.setAttribute('cy', vtY(c.V).toFixed(2));
+    ptMarker.setAttribute('cx', ptX(c.T).toFixed(2));
+    ptMarker.setAttribute('cy', ptY(c.p).toFixed(2));
+  }
+
+  /* ---------------- 播放节奏（仅 step 用，不影响 probe） ---------------- */
+  var ANIM = 9.0, HOLD = 2.0, CYC = ANIM + HOLD;
+
+  return {
+    step: function (t) {
+      var tt = t - Math.floor(t / CYC) * CYC;
+      if (!(tt >= 0)) tt = 0;
+      var u = tt <= ANIM ? tt / ANIM : 1;
+      draw(u);
+    },
+    reset: function () {
+      draw(0);
+    },
+    probe: function (u, caseId) {
+      var c = core(u);
+      return { u: c.u, T: c.T, V: c.V, p: c.p };
+    }
+  };
+};
+</script>
+<script>/* ===== 动画运行时 ===== */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var live = [];
+
+  function build(fig) {
+    var id = fig.getAttribute('data-scene');
+    var factory = window.Scenes[id];
+    if (typeof factory !== 'function') return null;
+    var api;
+    try { api = factory(fig); } catch (e) { console.error('[scene ' + id + '] setup failed', e); return null; }
+    if (!api || typeof api.step !== 'function') { console.error('[scene ' + id + '] bad contract'); return null; }
+
+    var bar = document.createElement('div');
+    bar.className = 'ctlbar';
+    var pp = document.createElement('button');
+    pp.type = 'button'; pp.className = 'btn pp';
+    var rp = document.createElement('button');
+    rp.type = 'button'; rp.className = 'btn'; rp.textContent = '重播';
+    var tag = document.createElement('span');
+    tag.className = 'livebadge'; tag.textContent = 'LIVE';
+    bar.appendChild(pp); bar.appendChild(rp); bar.appendChild(tag);
+    var own = fig.querySelector('.ctl');
+    if (own) bar.appendChild(own);
+    var cap = fig.querySelector('figcaption');
+    fig.insertBefore(bar, cap);
+
+    window.__api = window.__api || {}; window.__api[id] = api;
+    var s = { id: id, api: api, t: 0, playing: !reduce, visible: true, fig: fig, pp: pp };
+    function paint() {
+      pp.textContent = s.playing ? '暂停' : '播放';
+      pp.setAttribute('aria-pressed', s.playing ? 'true' : 'false');
+      pp.setAttribute('aria-label', (s.playing ? '暂停' : '播放') + '动画');
+      tag.style.opacity = s.playing ? '.9' : '.3';
+    }
+    pp.addEventListener('click', function () { s.playing = !s.playing; paint(); });
+    rp.addEventListener('click', function () {
+      s.t = 0;
+      try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] reset', e); }
+    });
+    paint();
+    try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] first frame', e); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { s.visible = es[0].isIntersecting; },
+        { rootMargin: '120px' }).observe(fig);
+    }
+    return s;
+  }
+
+  function boot() {
+    var figs = document.querySelectorAll('figure[data-scene]');
+    for (var i = 0; i < figs.length; i++) {
+      var s = build(figs[i]);
+      if (s) live.push(s);
+    }
+    var g = document.getElementById('gswitch');
+    if (g) {
+      g.addEventListener('click', function () {
+        var anyOn = live.some(function (s) { return s.playing; });
+        live.forEach(function (s) { if (s.playing === anyOn) s.pp.click(); });
+        g.textContent = anyOn ? '▶ 全部播放' : '⏸ 全部暂停';
+      });
+      g.textContent = reduce ? '▶ 全部播放' : '⏸ 全部暂停';
+    }
+    var last = 0;
+    function frame(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 0;
+      last = now;
+      for (var i = 0; i < live.length; i++) {
+        var s = live[i];
+        if (!s.playing || !s.visible) continue;
+        s.t += dt;
+        try { s.api.step(s.t); }
+        catch (e) { console.error('[scene ' + s.id + '] step', e); s.playing = false; }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<script>
+function __runProbe(){
+  var out = {ok:false, errors:[], render:[], scenes:[], series:{}, notes:[]};
+  function rec(e){ out.errors.push(String(e && e.stack || e)); }
+  window.onerror = function(m,s,l,c,e){ rec(m + " @" + l + ":" + c); };
+  var _ce = console.error; console.error = function(){ rec([].join.call(arguments," ")); _ce.apply(console, arguments); };
+  try {
+    var SID = "q4-gen2", SPEC = {"id": "q4-gen2", "stem": "密封于气缸中的理想气体，从状态a依次经过ab、bc、cd三个热力学过程达到状态d。已知V-T图中：a→b为过原点的直线（V∝T，V、T均增大）；b→c为竖直线段（T不变，V增大）；c→d为水平线段（V不变，T增大）。求对应的p-T图像。", "cases": [{"id": "c1", "label": "气体经ab(等压)→bc(等温)→cd(等容)从状态a到状态d的完整过程"}], "title": "密封气体a→b→c→d三过程的p-T图像匹配", "units": "采用归一化单位制：取nR=1，使得p*V=T恒成立；T、V、p均为无量纲相对值", "physics": {"note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。密封气缸内气体的量n不变，理想气体状态方程pV=nRT在全过程任意时刻均成立。", "equations": ["全程：p*V = T（因为nR归一化为1，气体量不变）", "ab段（等压）：s=3u, s∈[0,1]；T=1+s，V=T，p=1（常数）", "bc段（等温）：s=3u-1, s∈[0,1]；T=2（常数），V=2+2s，p=T/V=2/V", "cd段（等容）：s=3u-2, s∈[0,1]；V=4（常数），T=2+2s，p=T/V=T/4"], "definitions": ["T：热力学温度", "V：气体体积", "p：气体压强，p=nRT/V", "u：无量纲过程进度，0→1对应a→b→c→d整个过程，其中u∈[0,1/3]对应ab，u∈[1/3,2/3]对应bc，u∈[2/3,1]对应cd"], "given_facts": ["F1 · ab过程压强p保持不变（等压）", "F2 · bc过程温度T保持不变、压强p减小（等温、体积增大）", "F3 · cd过程体积V保持不变、压强p与温度T成正比增大（等容）", "F4 · 正确p-T图中cd线段的延长线应通过坐标原点（因为等容过程p=T/V，是过原点的直线的一段）", "F5 · 理想气体状态方程pV=nRT在全过程任意时刻均成立，且n不变（密封气缸）"], "normalization": "取nR=1（即取p、V、T的单位使得pV=T恒成立），并取状态a为T_a=1, V_a=1, 故p_a=1", "free_parameters": "题面V-T图只给出定性形状（ab过原点直线、bc竖直增大、cd水平增大），未给具体数值。为可动画化，选取具体数值：T_a=1,V_a=1(p_a=1)；T_b=2,V_b=2(p_b=1)；T_c=2,V_c=4(p_c=0.5)；T_d=4,V_d=4(p_d=1)，满足V/T在ab段恒为1、T在bc段恒为2、V在cd段恒为4，且cd段p=T/4过原点。这些具体数值不改变各段过程的定性性质（等压/等温/等容及单调方向）。"}, "constants": {"nR": 1, "T_a": 1, "T_b": 2, "T_c": 2, "T_d": 4, "V_a": 1, "V_b": 2, "V_c": 4, "V_d": 4, "p_a": 1, "p_b": 1, "p_c": 0.5, "p_d": 1}, "reference": "def probe(u, case):\n    if u <= 1/3:\n        s = 3*u\n        T = 1 + s\n        V = T\n        p = 1.0\n    elif u <= 2/3:\n        s = 3*u - 1\n        T = 2.0\n        V = 2 + 2*s\n        p = T / V\n    else:\n        s = 3*u - 2\n        V = 4.0\n        T = 2 + 2*s\n        p = T / V\n    return {\"u\": u, \"T\": T, \"V\": V, \"p\": p}", "invariants": [{"id": "c1-a-T", "why": "对应state a定义，T_a=1", "case": "c1", "expr": "abs(T[0]-1.0) <= 0.02", "report": "T[0]"}, {"id": "c1-a-V", "why": "对应state a定义，V_a=1", "case": "c1", "expr": "abs(V[0]-1.0) <= 0.02", "report": "V[0]"}, {"id": "c1-a-p", "why": "对应F5及state a定义，p_a=1", "case": "c1", "expr": "abs(p[0]-1.0) <= 0.02", "report": "p[0]"}, {"id": "c1-b-T", "why": "对应F1终点，ab等压过程结束于state b, T_b=2", "case": "c1", "expr": "abs(interp(1/3, u, T) - 2.0) <= 0.04", "report": "T(u=1/3)"}, {"id": "c1-b-V", "why": "对应F1终点，ab过程V_b=2", "case": "c1", "expr": "abs(interp(1/3, u, V) - 2.0) <= 0.04", "report": "V(u=1/3)"}, {"id": "c1-b-p", "why": "对应F1，ab过程p恒为1，b点p_b=1", "case": "c1", "expr": "abs(interp(1/3, u, p) - 1.0) <= 0.02", "report": "p(u=1/3)"}, {"id": "c1-c-T", "why": "对应F2终点，bc等温过程T_c=2", "case": "c1", "expr": "abs(interp(2/3, u, T) - 2.0) <= 0.04", "report": "T(u=2/3)"}, {"id": "c1-c-V", "why": "对应F2终点，bc过程V_c=4", "case": "c1", "expr": "abs(interp(2/3, u, V) - 4.0) <= 0.08", "report": "V(u=2/3)"}, {"id": "c1-c-p", "why": "对应F2终点，bc过程p_c=0.5", "case": "c1", "expr": "abs(interp(2/3, u, p) - 0.5) <= 0.02", "report": "p(u=2/3)"}, {"id": "c1-d-T", "why": "对应F3终点，cd等容过程T_d=4", "case": "c1", "expr": "abs(T[-1]-4.0) <= 0.08", "report": "T[-1]"}, {"id": "c1-d-V", "why": "对应F3终点，cd过程V恒为4", "case": "c1", "expr": "abs(V[-1]-4.0) <= 0.08", "report": "V[-1]"}, {"id": "c1-d-p", "why": "对应F3终点，cd过程p_d=1", "case": "c1", "expr": "abs(p[-1]-1.0) <= 0.02", "report": "p[-1]"}, {"id": "c1-ab-p-const", "why": "对应F1，ab过程压强恒定", "case": "c1", "expr": "max(p[u<=1/3]) - min(p[u<=1/3]) <= 0.02", "report": "max-min of p over ab segment"}, {"id": "c1-ab-V-increasing", "why": "对应V-T图ab方向单调递增（V∝T）", "case": "c1", "expr": "min(diff(V[u<=1/3])) >= -1e-6", "report": "min diff(V) over ab segment"}, {"id": "c1-bc-T-const", "why": "对应F2，bc过程温度恒定", "case": "c1", "expr": "max(T[(u>1/3)&(u<=2/3)]) - min(T[(u>1/3)&(u<=2/3)]) <= 0.02", "report": "max-min of T over bc segment"}, {"id": "c1-bc-p-decreasing", "why": "对应F2，bc过程压强随体积增大而单调下降", "case": "c1", "expr": "max(diff(p[(u>1/3)&(u<=2/3)])) <= 1e-6", "report": "max diff(p) over bc segment"}, {"id": "c1-cd-V-const", "why": "对应F3，cd过程体积恒定", "case": "c1", "expr": "max(V[u>2/3]) - min(V[u>2/3]) <= 0.04", "report": "max-min of V over cd segment"}, {"id": "c1-cd-p-increasing", "why": "对应F3，cd过程压强随温度增大而单调上升", "case": "c1", "expr": "min(diff(p[u>2/3])) >= -1e-6", "report": "min diff(p) over cd segment"}, {"id": "c1-cd-through-origin", "why": "对应F4，cd段p与T成正比且直线过原点（p=T/4）", "case": "c1", "expr": "max(abs(p[u>2/3]*4.0 - T[u>2/3])) <= 0.16", "report": "max abs(4p - T) over cd segment"}, {"id": "c1-ideal-gas-consistency", "why": "对应F5，pV=nRT在全过程任意时刻均须自洽成立，防止probe内p、V、T各自独立计算而互不匹配", "case": "c1", "expr": "max(abs(p*V/T - 1.0)) <= 0.03", "report": "max abs(pV/T - 1)"}], "probe_keys": ["u", "T", "V", "p"], "disclosures": [{"why": "对应F1，是判断正确p-T图的关键特征", "must_contain": "ab段标注'等压'，图中p保持水平不变"}, {"why": "对应F2，用于排除bc方向画反（p增大）的错误选项", "must_contain": "bc段标注'等温'，图中p随V增大而下降（竖直线向下）"}, {"why": "对应F4，是区分正确选项与形似选项（cd斜率对但不过原点）的关键", "must_contain": "cd段标注'等容'，并画出过原点的虚线以显示cd线段共线于该虚线"}], "sample_points": 401, "probe_key_meaning": {"T": "热力学温度（归一化单位）", "V": "气体体积（归一化单位）", "p": "气体压强（归一化单位），恒满足p=T/V", "u": "归一化过程进度，0→1/3为ab段，1/3→2/3为bc段，2/3→1为cd段"}, "process_endpoints": "u=0对应状态a(T=1,V=1,p=1)；u=1/3对应状态b(T=2,V=2,p=1)；u=2/3对应状态c(T=2,V=4,p=0.5)；u=1对应状态d(T=4,V=4,p=1)", "scene_requirements": ["气缸活塞示意图，随过程推进显示活塞位置（体积V变化）与气体温度指示", "同步绘制V-T图，展示a→b→c→d轨迹随u推进逐段画出", "同步绘制p-T图，展示对应的a→b→c→d轨迹随u推进逐段画出", "标注每段过程类型：ab-等压，bc-等温，cd-等容", "在p-T图上用虚线标出cd段延长线经过坐标原点"]};
+    out.scenes = Object.keys(window.Scenes || {});
+    var fig = document.querySelector('figure[data-scene="' + SID + '"]');
+    if (!fig) { out.errors.push("DOM 里找不到 figure[data-scene=" + SID + "]"); throw 0; }
+    var api = (window.__api || {})[SID];
+    if (!api) { out.errors.push("运行时未能构造该场景（工厂抛错或契约不符）"); throw 0; }
+    ["step","reset","probe"].forEach(function(k){
+      if (typeof api[k] !== "function") out.errors.push("api." + k + " 不是函数");
+    });
+    if (out.errors.length) throw 0;
+
+    var svg = fig.querySelector("svg");
+
+    // --- 渲染压力：跑 451 帧 step()，抓异常与脏数值 ---
+    try {
+      api.reset(); api.step(0);
+      for (var t = 0; t <= 18.0001; t += 0.04) api.step(t);
+    } catch (e) { rec("step() 抛异常: " + e); }
+    var dom = svg.outerHTML;
+    ["NaN","Infinity","undefined","null"].forEach(function(w){
+      var n = (dom.match(new RegExp(w, "g")) || []).length;
+      if (n) out.errors.push("渲染后 SVG 中出现 " + w + " ×" + n);
+    });
+
+    /* --- L3.5 渲染覆盖 ---
+       断言只跑 probe，看不见渲染。历史教训：把 translate(cx,cy) rotate(θ)
+       误写成 rotate(θ cx cy)，整组元素飞出画布，四层门禁 13/13 全绿放行。
+       这里补上：每个带 id 的 SVG 元素，必须在某一采样时刻真的画在 viewBox 内。
+       只查「位置」不查「可见性」—— opacity=0 的元素 getBBox 依然有效，
+       所以合法隐藏的结论框不会被误伤，而「整组飞出画布」是全时段的，必然被抓。*/
+    try {
+      api.reset();
+      var vb = svg.viewBox.baseVal;
+      var els = svg.querySelectorAll("[id]");
+      var ids = [], everOK = {}, everDrawn = {}, snaps = [];
+      for (var q0 = 0; q0 < els.length; q0++) ids.push(els[q0].getAttribute("id"));
+      /* 注意：不能用 el.getCTM() —— 它含 viewBox 缩放，返回的是渲染像素坐标，
+         拿去和 viewBox 数值比会把右下方的元素全部误判出界。
+         正确做法是经 svg 根的 screenCTM 求逆，换回 viewBox 用户单位。 */
+      for (var tq = 0; tq <= 20.0001; tq += 0.5) {
+        api.step(tq);
+        snaps.push(svg.innerHTML);
+        var rootM = svg.getScreenCTM();
+        if (!rootM) continue;
+        var invM = rootM.inverse();
+        for (var q1 = 0; q1 < els.length; q1++) {
+          var idq = ids[q1];
+          if (everOK[idq]) continue;
+          var bb, mm;
+          try { bb = els[q1].getBBox(); mm = els[q1].getScreenCTM(); } catch (err0) { continue; }
+          if (!mm) continue;
+          if (bb.width <= 0 && bb.height <= 0) continue;   /* 退化元素不判位置 */
+          everDrawn[idq] = true;
+          mm = invM.multiply(mm);                          /* → viewBox 用户单位 */
+          var cxq = bb.x + bb.width / 2, cyq = bb.y + bb.height / 2;
+          var XQ = mm.a * cxq + mm.c * cyq + mm.e;
+          var YQ = mm.b * cxq + mm.d * cyq + mm.f;
+          if (XQ >= vb.x - 2 && XQ <= vb.x + vb.width + 2 &&
+              YQ >= vb.y - 2 && YQ <= vb.y + vb.height + 2)
+            everOK[idq] = true;
+        }
+      }
+      var off = [], dead = [];
+      for (var q2 = 0; q2 < ids.length; q2++) {
+        if (!everDrawn[ids[q2]]) dead.push(ids[q2]);
+        else if (!everOK[ids[q2]]) off.push(ids[q2]);
+      }
+      if (off.length)
+        out.render.push("这些元素在全部 41 个采样时刻都画在 viewBox 之外（画面上看不到）：" + off.join(", "));
+      var moved = false;
+      for (var q3 = 1; q3 < snaps.length; q3++) if (snaps[q3] !== snaps[0]) { moved = true; break; }
+      if (!moved)
+        out.render.push("采样了 " + snaps.length + " 个不同时刻，SVG 内容完全没有变化——动画没有动");
+      out.notes.push("渲染覆盖：" + ids.length + " 个带 id 元素，" +
+                     Object.keys(everOK).length + " 个曾正常出现在画面内" +
+                     (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
+    } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
+
+    // --- probe 采样 ---
+    var N = SPEC.sample_points || 401;
+    for (var ci = 0; ci < SPEC.cases.length; ci++) {
+      var cid = SPEC.cases[ci].id;
+      var cols = {}; SPEC.probe_keys.forEach(function(k){ cols[k] = []; });
+
+      // 纯度 + 无副作用
+      var before = svg.outerHTML;
+      var a1 = api.probe(0.37, cid), a2 = api.probe(0.37, cid);
+      if (svg.outerHTML !== before) out.errors.push("[" + cid + "] probe() 修改了 DOM（必须是纯函数）");
+      SPEC.probe_keys.forEach(function(k){
+        if (!(k in a1)) out.errors.push("[" + cid + "] probe 返回值缺少键 " + k);
+        else if (a1[k] !== a2[k]) out.errors.push("[" + cid + "] probe 不纯：同一 u 两次调用 " + k + " 不同（" + a1[k] + " vs " + a2[k] + "）");
+      });
+
+      var nbad = 0;
+      for (var i = 0; i < N; i++) {
+        var u = i / (N - 1);
+        var r;
+        try { r = api.probe(u, cid); }
+        catch (e) { out.errors.push("[" + cid + "] probe(" + u.toFixed(3) + ") 抛异常: " + e); break; }
+        for (var ki = 0; ki < SPEC.probe_keys.length; ki++) {
+          var k = SPEC.probe_keys[ki], v = r ? r[k] : undefined;
+          if (typeof v !== "number" || !isFinite(v)) { nbad++; v = null; }
+          cols[k].push(v);
+        }
+      }
+      if (nbad) out.errors.push("[" + cid + "] probe 返回了 " + nbad + " 个非有限数值");
+      out.series[cid] = cols;
+    }
+    out.ok = out.errors.length === 0 && out.render.length === 0;
+  } catch (e) { if (e) rec(e); }
+  document.getElementById("TESTOUT").textContent = "@@" + JSON.stringify(out) + "@@";
+}
+/* 必须等运行时 boot 完（它也挂在 DOMContentLoaded 上，且注册在前），
+   同时保证 <pre id="TESTOUT"> 已经存在 */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", __runProbe);
+else __runProbe();
+</script>
+<pre id="TESTOUT"></pre>

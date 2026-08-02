@@ -1,0 +1,449 @@
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --stem:#FAFBFC;
+  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
+  --line:#C9D2DE; --hair:#E4E9F0;
+  --acc:#2B5490; --acc2:#E9EFF8;
+  --cy:#0C8CAE; --cy2:#E2F2F6;
+  --red:#AE3B2B; --red2:#FBEBE7;
+  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"Times New Roman",Georgia,serif;
+  --song:Songti SC,SimSun,serif;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk)}
+figure{margin:0;background:var(--panel);border:1px solid var(--line)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px solid var(--hair)}
+svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
+svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
+svg text.n{font-family:var(--mono);font-style:normal;font-size:11px;fill:var(--ink2)}
+svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
+.sk{stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.sh{stroke:var(--line);fill:none;stroke-width:1}
+.sa{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sr{stroke:var(--red);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sc{stroke:var(--cy);fill:none;stroke-width:1.5;stroke-dasharray:5 4}
+.fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
+.wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}.wash-c{fill:var(--cy);opacity:.16}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-top:1px solid var(--hair)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+input[type=range]{width:120px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--acc)"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cy)"/></marker>
+</defs></svg>
+
+<figure data-scene="q14-gen2"><svg viewBox="0 0 560 320" role="img" aria-label="水平光滑圆轨道，N、M为直径两端点，P为MN弧中点；球1从N出发经P点加速，与静止于M的球2发生两次碰撞的运动过程动画">
+
+<text class="u" x="16" y="16">归一化单位说明 (R=v0=m=1)：取 R=1、v0=1、m=1（球1质量）为单位</text>
+<text class="u" x="16" y="34">解出的球2质量 m2=3m 的数值标注：m₂ = 3.00 m</text>
+<text class="u" x="16" y="52">第一次过P后向心力数值 4mv0²/R 的标注：F = 4.00 (m·v0²/R)</text>
+
+<circle class="sh" cx="170" cy="185" r="85"/>
+<circle class="fk" cx="170" cy="185" r="2.2"/>
+<text x="176" y="198">O</text>
+
+<path class="fc" d="M170,90 L179,100 L170,110 L161,100 Z"/>
+<path class="sc" d="M170,82 L170,90 M170,110 L170,118 M153,100 L161,100 M179,100 L187,100"/>
+<circle id="q14-gen2-flashP" class="wash-c" cx="170" cy="100" r="18" opacity="0"/>
+<text class="u c" x="188" y="103">加速器</text>
+
+<circle id="q14-gen2-flashC1" class="wash-r" cx="85" cy="185" r="20" opacity="0"/>
+<circle id="q14-gen2-flashC2" class="wash-r" cx="243.61" cy="227.5" r="20" opacity="0"/>
+
+<text x="259" y="189">N</text>
+<text x="61" y="189">M</text>
+<text x="164" y="78">P</text>
+
+<line id="q14-gen2-vel2" class="sr" marker-end="url(#ar)" x1="85" y1="185" x2="85" y2="185"/>
+<line id="q14-gen2-vel1" class="sa" marker-end="url(#aa)" x1="255" y1="185" x2="255" y2="185"/>
+<circle id="q14-gen2-ball2" class="fr" cx="85" cy="185" r="6.5"/>
+<circle id="q14-gen2-ball1" class="fa" cx="255" cy="185" r="6.5"/>
+
+<rect class="fa" x="285" y="90" width="9" height="9"/>
+<text class="u" x="300" y="98">球1（质量 m=1）</text>
+<rect class="fr" x="285" y="110" width="9" height="9"/>
+<text class="u" x="300" y="118">球2（质量 m₂=3m）</text>
+
+<text class="u" id="q14-gen2-lblPhase" x="285" y="140">阶段：N→P（v=v0）</text>
+<text class="n" id="q14-gen2-lblT" x="285" y="160">t = 0.00 （R/v0）</text>
+<text class="n" id="q14-gen2-lblAngle" x="285" y="180">θA=0.0°　θB=180.0°</text>
+<text class="n a" id="q14-gen2-lblVA" x="285" y="200">vA = 1.00 v0</text>
+<text class="n r" id="q14-gen2-lblVB" x="285" y="220">vB = 0.00 v0</text>
+<text class="n" id="q14-gen2-lblFA" x="285" y="240">FA = 1.00 (m·v0²/R)</text>
+<text class="u" x="285" y="262">t碰1=3π/4≈2.36　t碰2=19π/12≈4.97</text>
+<text class="u" x="285" y="282">闪烁圆点：碰撞或加速时刻</text>
+
+</svg>
+<figcaption>球1从N以v0出发，经P点后速度增至2v0，在M与静止的球2发生弹性碰撞；由动量与能量守恒、且碰后两球速度大小相等解得 m₂=3m，碰后 vA=-v0、vB=+v0。此后球1沿轨道折返再次经过P点（速度增至-2v0），历时 5πR/(6v0) 后与沿另一侧运动的球2相遇，发生第二次碰撞。第一次经过P点后瞬间的向心力 F=m(2v0)²/R=4mv0²/R。</figcaption></figure>
+
+
+<script>window.Scenes = {};</script>
+<script>window.Scenes["q14-gen2"] = function (fig) {
+  var svg = fig.querySelector('svg');
+
+  /* ---------------- 权威解（归一化 R=v0=m=1） ---------------- */
+  var PI = Math.PI;
+  var TA = PI / 2;                 /* N->P 用时，v=v0 */
+  var TC1 = TA + PI / 4;           /* P->M 用时(v=2v0) 之后，第一次碰撞时刻 = 3πR/(4v0) */
+  var TP2 = TC1 + PI / 2;          /* 碰后 M->P 用时(v=v0)，球1第二次到达P */
+  var TC2 = TP2 + PI / 3;          /* 再经 t_d=πR/(3v0)，第二次碰撞时刻 = 19πR/(12v0) */
+  var MB = 3.0;                    /* 由弹性碰撞方程解出的球2质量 */
+
+  /* ---------------- 屏幕几何 ---------------- */
+  var CX = 170, CY = 185, RPX = 85;
+
+  function clamp01(x) { if (!(x > 0)) return 0; if (x > 1) return 1; return x; }
+
+  /* 纯物理内核：u ∈ [0,1] -> 该时刻全部物理量。step 与 probe 共用此函数。 */
+  function core(u) {
+    var uu = clamp01(u);
+    var t = uu * TC2;
+    var thetaA, vA;
+    if (t <= TA) { vA = 1.0; thetaA = 0 + 1.0 * t; }
+    else if (t <= TC1) { vA = 2.0; thetaA = PI / 2 + 2.0 * (t - TA); }
+    else if (t <= TP2) { vA = -1.0; thetaA = PI + (-1.0) * (t - TC1); }
+    else { vA = -2.0; thetaA = PI / 2 + (-2.0) * (t - TP2); }
+
+    var thetaB, vB;
+    if (t <= TC1) { vB = 0.0; thetaB = PI; }
+    else { vB = 1.0; thetaB = PI + 1.0 * (t - TC1); }
+
+    var FA = vA * vA;
+
+    return {
+      u: uu, t: t,
+      thetaA: thetaA, thetaB: thetaB,
+      vA: vA, vB: vB, FA: FA,
+      mB: MB,
+      t_collision1: TC1, t_collision2: TC2,
+      vA_pre_c1: 2.0, vA_post_c1: -1.0, vB_post_c1: 1.0
+    };
+  }
+
+  /* ---------------- 屏幕映射（仅渲染用，不影响 probe） ---------------- */
+  function ballX(theta) { return CX + RPX * Math.cos(theta); }
+  function ballY(theta) { return CY - RPX * Math.sin(theta); }
+  function tangentX(theta) { return -Math.sin(theta); }
+  function tangentY(theta) { return -Math.cos(theta); }
+
+  function pulse(dist, w) {
+    var v = 1 - dist / w;
+    if (v < 0) v = 0; if (v > 1) v = 1;
+    return v;
+  }
+
+  /* ---------------- DOM 引用 ---------------- */
+  var ball1 = fig.querySelector('#q14-gen2-ball1');
+  var ball2 = fig.querySelector('#q14-gen2-ball2');
+  var vel1 = fig.querySelector('#q14-gen2-vel1');
+  var vel2 = fig.querySelector('#q14-gen2-vel2');
+  var flashP = fig.querySelector('#q14-gen2-flashP');
+  var flashC1 = fig.querySelector('#q14-gen2-flashC1');
+  var flashC2 = fig.querySelector('#q14-gen2-flashC2');
+  var lblPhase = fig.querySelector('#q14-gen2-lblPhase');
+  var lblT = fig.querySelector('#q14-gen2-lblT');
+  var lblAngle = fig.querySelector('#q14-gen2-lblAngle');
+  var lblVA = fig.querySelector('#q14-gen2-lblVA');
+  var lblVB = fig.querySelector('#q14-gen2-lblVB');
+  var lblFA = fig.querySelector('#q14-gen2-lblFA');
+
+  function setVel(line, x, y, theta, v) {
+    var sp = Math.abs(v);
+    var dirSign = v > 0 ? 1 : (v < 0 ? -1 : 0);
+    var vlen = sp < 1e-9 ? 0 : (8 + 14 * sp);
+    var dx = dirSign * tangentX(theta) * vlen;
+    var dy = dirSign * tangentY(theta) * vlen;
+    line.setAttribute('x1', x.toFixed(2));
+    line.setAttribute('y1', y.toFixed(2));
+    line.setAttribute('x2', (x + dx).toFixed(2));
+    line.setAttribute('y2', (y + dy).toFixed(2));
+  }
+
+  function phaseText(t) {
+    if (t <= TA) return '阶段：N→P（v=v0）';
+    if (t <= TC1) return '阶段：P→M（过P后 v=2v0）';
+    if (t <= TP2) return '阶段：碰后 M→P（v=-v0）';
+    return '阶段：碰后再过P（v=-2v0），趋向第二次碰撞';
+  }
+
+  function draw(c) {
+    var xA = ballX(c.thetaA), yA = ballY(c.thetaA);
+    var xB = ballX(c.thetaB), yB = ballY(c.thetaB);
+    ball1.setAttribute('cx', xA.toFixed(2));
+    ball1.setAttribute('cy', yA.toFixed(2));
+    ball2.setAttribute('cx', xB.toFixed(2));
+    ball2.setAttribute('cy', yB.toFixed(2));
+    setVel(vel1, xA, yA, c.thetaA, c.vA);
+    setVel(vel2, xB, yB, c.thetaB, c.vB);
+
+    var w = 0.12;
+    var pOpac = Math.max(pulse(Math.abs(c.t - TA), w), pulse(Math.abs(c.t - TP2), w));
+    flashP.setAttribute('opacity', pOpac.toFixed(2));
+    flashC1.setAttribute('opacity', pulse(Math.abs(c.t - TC1), w).toFixed(2));
+    flashC2.setAttribute('opacity', pulse(Math.abs(c.t - TC2), w).toFixed(2));
+
+    lblPhase.textContent = phaseText(c.t);
+    lblT.textContent = 't = ' + c.t.toFixed(2) + ' （R/v0）';
+    lblAngle.textContent = 'θA=' + (c.thetaA * 180 / PI).toFixed(1) + '°　θB=' + (c.thetaB * 180 / PI).toFixed(1) + '°';
+    lblVA.textContent = 'vA = ' + c.vA.toFixed(2) + ' v0';
+    lblVB.textContent = 'vB = ' + c.vB.toFixed(2) + ' v0';
+    lblFA.textContent = 'FA = ' + c.FA.toFixed(2) + ' (m·v0²/R)';
+  }
+
+  /* ---------------- 播放节奏（仅 step 用，不影响 probe） ---------------- */
+  var ANIM = 9.0;     /* u:0->1 播放时长(秒) */
+  var HOLD = 2.0;     /* 第二次碰撞后定格时长(秒) */
+  var CYC = ANIM + HOLD;
+
+  return {
+    step: function (t) {
+      var tt = t - Math.floor(t / CYC) * CYC;
+      if (!(tt >= 0)) tt = 0;
+      var frac = tt <= ANIM ? tt / ANIM : 1;
+      draw(core(frac));
+    },
+    reset: function () {
+      draw(core(0));
+    },
+    probe: function (u, caseId) {
+      var c = core(u);
+      return {
+        u: c.u,
+        t: c.t,
+        thetaA: c.thetaA,
+        thetaB: c.thetaB,
+        vA: c.vA,
+        vB: c.vB,
+        FA: c.FA,
+        mB: c.mB,
+        t_collision1: c.t_collision1,
+        t_collision2: c.t_collision2,
+        vA_pre_c1: c.vA_pre_c1,
+        vA_post_c1: c.vA_post_c1,
+        vB_post_c1: c.vB_post_c1
+      };
+    }
+  };
+};
+</script>
+<script>/* ===== 动画运行时 ===== */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var live = [];
+
+  function build(fig) {
+    var id = fig.getAttribute('data-scene');
+    var factory = window.Scenes[id];
+    if (typeof factory !== 'function') return null;
+    var api;
+    try { api = factory(fig); } catch (e) { console.error('[scene ' + id + '] setup failed', e); return null; }
+    if (!api || typeof api.step !== 'function') { console.error('[scene ' + id + '] bad contract'); return null; }
+
+    var bar = document.createElement('div');
+    bar.className = 'ctlbar';
+    var pp = document.createElement('button');
+    pp.type = 'button'; pp.className = 'btn pp';
+    var rp = document.createElement('button');
+    rp.type = 'button'; rp.className = 'btn'; rp.textContent = '重播';
+    var tag = document.createElement('span');
+    tag.className = 'livebadge'; tag.textContent = 'LIVE';
+    bar.appendChild(pp); bar.appendChild(rp); bar.appendChild(tag);
+    var own = fig.querySelector('.ctl');
+    if (own) bar.appendChild(own);
+    var cap = fig.querySelector('figcaption');
+    fig.insertBefore(bar, cap);
+
+    window.__api = window.__api || {}; window.__api[id] = api;
+    var s = { id: id, api: api, t: 0, playing: !reduce, visible: true, fig: fig, pp: pp };
+    function paint() {
+      pp.textContent = s.playing ? '暂停' : '播放';
+      pp.setAttribute('aria-pressed', s.playing ? 'true' : 'false');
+      pp.setAttribute('aria-label', (s.playing ? '暂停' : '播放') + '动画');
+      tag.style.opacity = s.playing ? '.9' : '.3';
+    }
+    pp.addEventListener('click', function () { s.playing = !s.playing; paint(); });
+    rp.addEventListener('click', function () {
+      s.t = 0;
+      try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] reset', e); }
+    });
+    paint();
+    try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] first frame', e); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { s.visible = es[0].isIntersecting; },
+        { rootMargin: '120px' }).observe(fig);
+    }
+    return s;
+  }
+
+  function boot() {
+    var figs = document.querySelectorAll('figure[data-scene]');
+    for (var i = 0; i < figs.length; i++) {
+      var s = build(figs[i]);
+      if (s) live.push(s);
+    }
+    var g = document.getElementById('gswitch');
+    if (g) {
+      g.addEventListener('click', function () {
+        var anyOn = live.some(function (s) { return s.playing; });
+        live.forEach(function (s) { if (s.playing === anyOn) s.pp.click(); });
+        g.textContent = anyOn ? '▶ 全部播放' : '⏸ 全部暂停';
+      });
+      g.textContent = reduce ? '▶ 全部播放' : '⏸ 全部暂停';
+    }
+    var last = 0;
+    function frame(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 0;
+      last = now;
+      for (var i = 0; i < live.length; i++) {
+        var s = live[i];
+        if (!s.playing || !s.visible) continue;
+        s.t += dt;
+        try { s.api.step(s.t); }
+        catch (e) { console.error('[scene ' + s.id + '] step', e); s.playing = false; }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<script>
+function __runProbe(){
+  var out = {ok:false, errors:[], render:[], scenes:[], series:{}, notes:[]};
+  function rec(e){ out.errors.push(String(e && e.stack || e)); }
+  window.onerror = function(m,s,l,c,e){ rec(m + " @" + l + ":" + c); };
+  var _ce = console.error; console.error = function(){ rec([].join.call(arguments," ")); _ce.apply(console, arguments); };
+  try {
+    var SID = "q14-gen2", SPEC = {"id": "q14-gen2", "stem": "桌面上固定有半径为R的水平光滑圆轨道，M、N为轨道上同一直径两端的点，P为MN弧的中点。小球每次经过P点后速度大小增加v₀。质量为m的小球1从N处以初速度v₀沿轨道逆时针运动，与静止在M处的小球2发生第一次弹性碰撞，碰后瞬间两球速度大小相等。求：(1) 球1第一次经过P点后瞬间的向心力大小；(2) 球2的质量；(3) 两球从第一次碰撞到第二次碰撞所用时间。", "cases": [{"id": "c1", "label": "球1从N出发，与M处静止球2发生第一次碰撞，再运动至第二次碰撞"}], "title": "圆轨道加速器与两次弹性碰撞", "units": "长度单位R=1；速度单位v0=1；质量单位m=1（球1质量）；力单位m v0²/R=1；时间单位R/v0=1；所有探针量均为在此归一化下的无量纲数值。", "physics": {"note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式或碰撞规则。", "equations": ["N→P（1/4圆弧）：球1速度v0，用时 t_a=(πR/2)/v0", "P→M（1/4圆弧）：球1速度2v0（过P后突增），用时 t_b=(πR/2)/(2v0)；第一次碰撞时刻 t_collision1=t_a+t_b=3πR/(4v0)", "弹性碰撞：动量守恒 m·2v0 = m·vA' + mB·vB'；能量守恒 (1/2)m(2v0)² = (1/2)m vA'² + (1/2)mB vB'²；附加条件|vA'|=|vB'|，解得 mB=3m，vA'=-v0，vB'=+v0", "碰后M→P（1/4圆弧）：球1速度-v0，用时 t_c=(πR/2)/v0；球2速度+v0（离开P方向），此过程中球2未到达P", "球1第二次经过P后速度变为-2v0，再经时间 t_d=πR/(3v0) 与球2相遇，发生第二次碰撞；t_collision2=t_collision1+t_c+t_d=19πR/(12v0)", "θA(t)、θB(t) 由上述分段速度对时间积分得到（分段线性），θA(0)=0（N点），θB(t<t_collision1)=π（M点）", "过程进度u与物理时间线性对应：t(u)=u·t_collision2（因为u定义为按物理时间等比例的过程进度，u=0为球1离开N，u=1为第二次碰撞时刻）"], "definitions": ["θA、θB：球1、球2在圆周上的角位置（弧度，逆时针为正）", "vA、vB：球1、球2沿圆周切线方向的带符号速度（逆时针为正，单位v0）", "FA = m·vA²/R：球1所受的向心力大小", "mB：球2的质量（待解出，单位m）", "t：从球1离开N点开始经过的物理时间（单位R/v0）", "t_collision1、t_collision2：第一次、第二次碰撞发生的物理时刻"], "given_facts": ["F1 · 球1从N出发速度v0，逆时针经过P点（N→P为1/4圆弧），过P后速度增大到2v0", "F2 · 球1以2v0经过M与静止球2发生弹性碰撞，碰后两球速度大小相等、方向相反：球1变为-v0，球2变为+v0", "F3 · 由动量守恒与动能守恒（弹性碰撞）联立解得 m₂=3m", "F4 · 碰后球1先到达P点（M→P为1/4圆弧，速度v0），到达P后速度增大到2v0；此过程中球2始终以v0逆时针运动且未到达P点", "F5 · 第一次碰撞后经过时间5πR/(6v0)，两球在圆周上相遇，发生第二次碰撞", "F6 · 球1第一次经过P点后瞬间的向心力 F=m(2v0)²/R=4mv0²/R"], "normalization": "取球1质量m=1，初速度v0=1，圆轨道半径R=1；力的单位为m v0²/R=1，时间单位为R/v0=1，质量单位为m=1。角度采用弧度制，以N为0，逆时针为正方向，则P=π/2，M=π。", "free_parameters": "球2质量m₂/m（题面未给，需由碰撞条件解出，答案为3）；各阶段时间断点t_collision1、t_collision2以及第二次碰撞发生的角度位置（需由几何关系与速度分段解出，不能直接抄答案）"}, "constants": {"R": 1, "m": 1, "v0": 1}, "invariants": [{"id": "c1-force-after-P1", "why": "F6：球1第一次经过P点后瞬间向心力应为4mv0²/R", "case": "c1", "expr": "abs(max(FA) - 4.0) <= 0.04", "report": "max(FA)"}, {"id": "c1-mB-value", "why": "F3：由弹性碰撞方程解出球2质量应为3m", "case": "c1", "expr": "abs(mB[0] - 3.0) <= 0.03", "report": "mB[0]"}, {"id": "c1-t-collision1", "why": "F1/F2：N→P→M共用时3πR/(4v0)，为第一次碰撞时刻", "case": "c1", "expr": "abs(t_collision1[0] - 3*pi/4) <= 0.05", "report": "t_collision1[0]"}, {"id": "c1-t-collision2", "why": "F4/F5：第二次碰撞时刻应为19πR/(12v0)", "case": "c1", "expr": "abs(t_collision2[0] - 19*pi/12) <= 0.1", "report": "t_collision2[0]"}, {"id": "c1-dt-collisions", "why": "F5：两次碰撞间隔应为5πR/(6v0)", "case": "c1", "expr": "abs((t_collision2[0] - t_collision1[0]) - 5*pi/6) <= 0.08", "report": "t_collision2[0]-t_collision1[0]"}, {"id": "c1-vA-pre-c1", "why": "F1：球1过P后速度增大到2v0，此为碰前速度", "case": "c1", "expr": "abs(vA_pre_c1[0] - 2.0) <= 0.04", "report": "vA_pre_c1[0]"}, {"id": "c1-vA-post-c1", "why": "F2：碰后球1速度应为-v0（方向反转）", "case": "c1", "expr": "abs(vA_post_c1[0] + 1.0) <= 0.04", "report": "vA_post_c1[0]"}, {"id": "c1-vB-post-c1", "why": "F2：碰后球2速度应为+v0", "case": "c1", "expr": "abs(vB_post_c1[0] - 1.0) <= 0.04", "report": "vB_post_c1[0]"}, {"id": "c1-equal-speed-post", "why": "F2：碰后瞬间两球速度大小相等", "case": "c1", "expr": "abs(abs(vA_post_c1[0]) - abs(vB_post_c1[0])) <= 0.03", "report": "abs(|vA_post_c1|-|vB_post_c1|)"}, {"id": "c1-momentum-conservation", "why": "F2/F3：碰撞过程动量守恒，用以推导m2", "case": "c1", "expr": "abs(vA_pre_c1[0] - (vA_post_c1[0] + mB[0]*vB_post_c1[0])) <= 0.05", "report": "动量差"}, {"id": "c1-energy-conservation", "why": "F3：弹性碰撞动能守恒，用以推导m2", "case": "c1", "expr": "abs(vA_pre_c1[0]**2 - (vA_post_c1[0]**2 + mB[0]*vB_post_c1[0]**2)) <= 0.05", "report": "动能差"}, {"id": "c1-force-velocity-consistency", "why": "F6：FA与vA须在每一时刻满足F=m v²/R的代数关系，防止两者各算各的相互矛盾", "case": "c1", "expr": "max(abs(FA - vA**2)) <= 0.05", "report": "max|FA-vA^2|"}, {"id": "c1-thetaA-vA-derivative", "why": "vA理论上是thetaA对t的导数（角速度），二者须自洽", "case": "c1", "expr": "mean(abs(diff(thetaA)/diff(t) - vA[:-1])) <= 0.1", "report": "mean|dθA/dt - vA|"}, {"id": "c1-thetaB-vB-derivative", "why": "vB理论上是thetaB对t的导数（角速度），二者须自洽", "case": "c1", "expr": "mean(abs(diff(thetaB)/diff(t) - vB[:-1])) <= 0.1", "report": "mean|dθB/dt - vB|"}, {"id": "c1-thetaB-monotonic", "why": "F4：碰后球2一直逆时针运动，从不反向，角位置应单调不减", "case": "c1", "expr": "min(diff(thetaB)) >= -1e-6", "report": "min(diff(thetaB))"}, {"id": "c1-vB-constant-after-move", "why": "F4：光滑轨道上球2未经过P点，速度大小应保持不变", "case": "c1", "expr": "std(vB[vB > 0.5]) <= 0.03", "report": "std(vB when moving)"}, {"id": "c1-collision2-position-sin", "why": "F5：第二次碰撞时两球必须处于同一位置", "case": "c1", "expr": "abs(sin(thetaA[-1]) - sin(thetaB[-1])) <= 0.05", "report": "sin(thetaA[-1])-sin(thetaB[-1])"}, {"id": "c1-collision2-position-cos", "why": "F5：第二次碰撞时两球必须处于同一位置", "case": "c1", "expr": "abs(cos(thetaA[-1]) - cos(thetaB[-1])) <= 0.05", "report": "cos(thetaA[-1])-cos(thetaB[-1])"}], "probe_keys": ["u", "t", "thetaA", "thetaB", "vA", "vB", "FA", "mB", "t_collision1", "t_collision2", "vA_pre_c1", "vA_post_c1", "vB_post_c1"], "disclosures": [{"why": "对应given_facts F3，需要在画面上明确展示解出的球2质量，便于门禁核验第二小问", "must_contain": "解出的球2质量 m2=3m 的数值标注"}, {"why": "对应F6，第一小问答案需要在画面中直接呈现，避免仅靠动画无法核验数值", "must_contain": "第一次过P后向心力数值 4mv0²/R 的标注"}, {"why": "保证门禁按probe_keys数值与题目物理量单位理解一致", "must_contain": "归一化单位说明 (R=v0=m=1)"}], "sample_points": 401, "probe_key_meaning": {"t": "球1离开N点后经过的物理时间（单位R/v0），t(u)=u·t_collision2", "u": "归一化过程进度，等于传入的u", "FA": "球1所受向心力大小 FA=m·vA²/R（单位m v0²/R）", "mB": "球2的质量（单位m，理论上为常数3，各u处取值相同）", "vA": "球1沿圆周切线方向的带符号速度（单位v0）", "vB": "球2沿圆周切线方向的带符号速度（单位v0）", "thetaA": "球1的角位置（弧度，N=0，逆时针为正）", "thetaB": "球2的角位置（弧度，同一角度约定；碰撞前恒为π，即静止在M）", "vA_pre_c1": "第一次碰撞前瞬间球1的速度（常数，理论值2v0）", "vA_post_c1": "第一次碰撞后瞬间球1的速度（常数，理论值-v0）", "vB_post_c1": "第一次碰撞后瞬间球2的速度（常数，理论值+v0）", "t_collision1": "第一次碰撞发生的物理时刻（常数，各u处取值相同）", "t_collision2": "第二次碰撞发生的物理时刻（常数，各u处取值相同）"}, "process_endpoints": "u=0 对应球1以速度v0从N点出发的时刻（球2静止于M点）；u=1 对应两球发生第二次碰撞的瞬间。", "scene_requirements": ["画出半径为R的水平圆轨道，标出M、N（同一直径两端）、P（MN弧中点）三点位置", "在P点标注“加速器”图标，每次球经过P时高亮/闪烁并显示速度突变（v0→2v0 或 v0→2v0 的对应关系）", "球1、球2为轨道上两个可视小球，随u变化沿圆周运动，位置分别由thetaA、thetaB驱动", "实时显示球1、球2的速度大小与方向（数值或箭头）", "在t≈t_collision1、t≈t_collision2附近显示碰撞高亮效果", "屏幕上显示归一化单位说明（m=v0=R=1）、解出的m2数值、以及第一次碰后瞬间的向心力数值"]};
+    out.scenes = Object.keys(window.Scenes || {});
+    var fig = document.querySelector('figure[data-scene="' + SID + '"]');
+    if (!fig) { out.errors.push("DOM 里找不到 figure[data-scene=" + SID + "]"); throw 0; }
+    var api = (window.__api || {})[SID];
+    if (!api) { out.errors.push("运行时未能构造该场景（工厂抛错或契约不符）"); throw 0; }
+    ["step","reset","probe"].forEach(function(k){
+      if (typeof api[k] !== "function") out.errors.push("api." + k + " 不是函数");
+    });
+    if (out.errors.length) throw 0;
+
+    var svg = fig.querySelector("svg");
+
+    // --- 渲染压力：跑 451 帧 step()，抓异常与脏数值 ---
+    try {
+      api.reset(); api.step(0);
+      for (var t = 0; t <= 18.0001; t += 0.04) api.step(t);
+    } catch (e) { rec("step() 抛异常: " + e); }
+    var dom = svg.outerHTML;
+    ["NaN","Infinity","undefined","null"].forEach(function(w){
+      var n = (dom.match(new RegExp(w, "g")) || []).length;
+      if (n) out.errors.push("渲染后 SVG 中出现 " + w + " ×" + n);
+    });
+
+    /* --- L3.5 渲染覆盖 ---
+       断言只跑 probe，看不见渲染。历史教训：把 translate(cx,cy) rotate(θ)
+       误写成 rotate(θ cx cy)，整组元素飞出画布，四层门禁 13/13 全绿放行。
+       这里补上：每个带 id 的 SVG 元素，必须在某一采样时刻真的画在 viewBox 内。
+       只查「位置」不查「可见性」—— opacity=0 的元素 getBBox 依然有效，
+       所以合法隐藏的结论框不会被误伤，而「整组飞出画布」是全时段的，必然被抓。*/
+    try {
+      api.reset();
+      var vb = svg.viewBox.baseVal;
+      var els = svg.querySelectorAll("[id]");
+      var ids = [], everOK = {}, everDrawn = {}, snaps = [];
+      for (var q0 = 0; q0 < els.length; q0++) ids.push(els[q0].getAttribute("id"));
+      /* 注意：不能用 el.getCTM() —— 它含 viewBox 缩放，返回的是渲染像素坐标，
+         拿去和 viewBox 数值比会把右下方的元素全部误判出界。
+         正确做法是经 svg 根的 screenCTM 求逆，换回 viewBox 用户单位。 */
+      for (var tq = 0; tq <= 20.0001; tq += 0.5) {
+        api.step(tq);
+        snaps.push(svg.innerHTML);
+        var rootM = svg.getScreenCTM();
+        if (!rootM) continue;
+        var invM = rootM.inverse();
+        for (var q1 = 0; q1 < els.length; q1++) {
+          var idq = ids[q1];
+          if (everOK[idq]) continue;
+          var bb, mm;
+          try { bb = els[q1].getBBox(); mm = els[q1].getScreenCTM(); } catch (err0) { continue; }
+          if (!mm) continue;
+          if (bb.width <= 0 && bb.height <= 0) continue;   /* 退化元素不判位置 */
+          everDrawn[idq] = true;
+          mm = invM.multiply(mm);                          /* → viewBox 用户单位 */
+          var cxq = bb.x + bb.width / 2, cyq = bb.y + bb.height / 2;
+          var XQ = mm.a * cxq + mm.c * cyq + mm.e;
+          var YQ = mm.b * cxq + mm.d * cyq + mm.f;
+          if (XQ >= vb.x - 2 && XQ <= vb.x + vb.width + 2 &&
+              YQ >= vb.y - 2 && YQ <= vb.y + vb.height + 2)
+            everOK[idq] = true;
+        }
+      }
+      var off = [], dead = [];
+      for (var q2 = 0; q2 < ids.length; q2++) {
+        if (!everDrawn[ids[q2]]) dead.push(ids[q2]);
+        else if (!everOK[ids[q2]]) off.push(ids[q2]);
+      }
+      if (off.length)
+        out.render.push("这些元素在全部 41 个采样时刻都画在 viewBox 之外（画面上看不到）：" + off.join(", "));
+      var moved = false;
+      for (var q3 = 1; q3 < snaps.length; q3++) if (snaps[q3] !== snaps[0]) { moved = true; break; }
+      if (!moved)
+        out.render.push("采样了 " + snaps.length + " 个不同时刻，SVG 内容完全没有变化——动画没有动");
+      out.notes.push("渲染覆盖：" + ids.length + " 个带 id 元素，" +
+                     Object.keys(everOK).length + " 个曾正常出现在画面内" +
+                     (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
+    } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
+
+    // --- probe 采样 ---
+    var N = SPEC.sample_points || 401;
+    for (var ci = 0; ci < SPEC.cases.length; ci++) {
+      var cid = SPEC.cases[ci].id;
+      var cols = {}; SPEC.probe_keys.forEach(function(k){ cols[k] = []; });
+
+      // 纯度 + 无副作用
+      var before = svg.outerHTML;
+      var a1 = api.probe(0.37, cid), a2 = api.probe(0.37, cid);
+      if (svg.outerHTML !== before) out.errors.push("[" + cid + "] probe() 修改了 DOM（必须是纯函数）");
+      SPEC.probe_keys.forEach(function(k){
+        if (!(k in a1)) out.errors.push("[" + cid + "] probe 返回值缺少键 " + k);
+        else if (a1[k] !== a2[k]) out.errors.push("[" + cid + "] probe 不纯：同一 u 两次调用 " + k + " 不同（" + a1[k] + " vs " + a2[k] + "）");
+      });
+
+      var nbad = 0;
+      for (var i = 0; i < N; i++) {
+        var u = i / (N - 1);
+        var r;
+        try { r = api.probe(u, cid); }
+        catch (e) { out.errors.push("[" + cid + "] probe(" + u.toFixed(3) + ") 抛异常: " + e); break; }
+        for (var ki = 0; ki < SPEC.probe_keys.length; ki++) {
+          var k = SPEC.probe_keys[ki], v = r ? r[k] : undefined;
+          if (typeof v !== "number" || !isFinite(v)) { nbad++; v = null; }
+          cols[k].push(v);
+        }
+      }
+      if (nbad) out.errors.push("[" + cid + "] probe 返回了 " + nbad + " 个非有限数值");
+      out.series[cid] = cols;
+    }
+    out.ok = out.errors.length === 0 && out.render.length === 0;
+  } catch (e) { if (e) rec(e); }
+  document.getElementById("TESTOUT").textContent = "@@" + JSON.stringify(out) + "@@";
+}
+/* 必须等运行时 boot 完（它也挂在 DOMContentLoaded 上，且注册在前），
+   同时保证 <pre id="TESTOUT"> 已经存在 */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", __runProbe);
+else __runProbe();
+</script>
+<pre id="TESTOUT"></pre>

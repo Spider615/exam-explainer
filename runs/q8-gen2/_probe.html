@@ -1,0 +1,513 @@
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --stem:#FAFBFC;
+  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
+  --line:#C9D2DE; --hair:#E4E9F0;
+  --acc:#2B5490; --acc2:#E9EFF8;
+  --cy:#0C8CAE; --cy2:#E2F2F6;
+  --red:#AE3B2B; --red2:#FBEBE7;
+  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"Times New Roman",Georgia,serif;
+  --song:Songti SC,SimSun,serif;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk)}
+figure{margin:0;background:var(--panel);border:1px solid var(--line)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px solid var(--hair)}
+svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
+svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
+svg text.n{font-family:var(--mono);font-style:normal;font-size:11px;fill:var(--ink2)}
+svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
+.sk{stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.sh{stroke:var(--line);fill:none;stroke-width:1}
+.sa{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sr{stroke:var(--red);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sc{stroke:var(--cy);fill:none;stroke-width:1.5;stroke-dasharray:5 4}
+.fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
+.wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}.wash-c{fill:var(--cy);opacity:.16}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-top:1px solid var(--hair)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+input[type=range]{width:120px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--acc)"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cy)"/></marker>
+</defs></svg>
+
+<figure data-scene="q8-gen2"><svg viewBox="0 0 560 420" role="img" aria-label="无人机竖直飞行高度时间曲线">
+  <defs>
+    <marker id="q8-gen2-ak" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"></path>
+    </marker>
+  </defs>
+
+  <!-- title -->
+  <text x="280" y="18" text-anchor="middle" class="u" font-size="13">无人机竖直飞行 y–t 曲线</text>
+
+  <!-- y-t axes -->
+  <line x1="55" y1="200" x2="545" y2="200" class="sk" marker-end="url(#q8-gen2-ak)"></line>
+  <line x1="55" y1="205" x2="55" y2="28" class="sk" marker-end="url(#q8-gen2-ak)"></line>
+  <text x="532" y="214" class="u" font-size="10">t/s</text>
+  <text x="40" y="34" class="u" font-size="10">y/m</text>
+
+  <!-- gridlines / tick labels for y-t -->
+  <line x1="55" y1="200" x2="540" y2="200" class="sh"></line>
+  <line x1="55" y1="160" x2="540" y2="160" class="sh"></line>
+  <line x1="55" y1="120" x2="540" y2="120" class="sh"></line>
+  <line x1="55" y1="80" x2="540" y2="80" class="sh"></line>
+  <line x1="55" y1="40" x2="540" y2="40" class="sh"></line>
+  <text x="50" y="203" text-anchor="end" class="n" font-size="9">0</text>
+  <text x="50" y="163" text-anchor="end" class="n" font-size="9">20</text>
+  <text x="50" y="123" text-anchor="end" class="n" font-size="9">40</text>
+  <text x="50" y="83" text-anchor="end" class="n" font-size="9">60</text>
+  <text x="50" y="43" text-anchor="end" class="n" font-size="9">80</text>
+  <text x="55" y="214" text-anchor="middle" class="n" font-size="9">10</text>
+  <text x="168" y="214" text-anchor="middle" class="n" font-size="9">20</text>
+  <text x="281" y="214" text-anchor="middle" class="n" font-size="9">30</text>
+  <text x="393" y="214" text-anchor="middle" class="n" font-size="9">40</text>
+  <text x="506" y="214" text-anchor="middle" class="n" font-size="9">50</text>
+
+  <!-- curve segments (filled by js) -->
+  <path id="q8-gen2-ef" d="" class="sa" fill="none" stroke-width="2.2"></path>
+  <path id="q8-gen2-fm" d="" class="sk" fill="none" stroke-width="2.2"></path>
+  <path id="q8-gen2-mn" d="" class="sr" fill="none" stroke-width="2.2"></path>
+
+  <!-- now indicator on y-t -->
+  <line id="q8-gen2-now" x1="55" y1="30" x2="55" y2="200" class="sc"></line>
+  <line id="q8-gen2-drop" x1="0" y1="0" x2="0" y2="0" class="sh"></line>
+
+  <!-- E F M N points -->
+  <circle id="q8-gen2-ptE" cx="55" cy="172" r="3.5" class="fk"></circle>
+  <circle id="q8-gen2-ptF" cx="168" cy="92" r="3.5" class="fk"></circle>
+  <circle id="q8-gen2-ptM" cx="393" cy="80" r="3.5" class="fk"></circle>
+  <circle id="q8-gen2-ptN" cx="540" cy="132" r="3.5" class="fk"></circle>
+  <text x="55" y="188" text-anchor="middle" class="u a" font-size="11">E</text>
+  <text x="168" y="84" text-anchor="middle" class="u a" font-size="11">F</text>
+  <text x="393" y="74" text-anchor="middle" class="u r" font-size="11">M</text>
+  <text x="540" y="126" text-anchor="middle" class="u r" font-size="11">N</text>
+
+  <!-- segment annotations -->
+  <text x="105" y="120" class="u a" font-size="10">EF: v=4 m/s 匀速上升</text>
+  <text x="250" y="56" class="u" font-size="10">FM: a负 减速(失重)</text>
+  <text x="405" y="100" class="u r" font-size="10">MN: v=−2, a=0</text>
+
+  <!-- drone icon -->
+  <g id="q8-gen2-drone">
+    <line x1="-10" y1="-2" x2="-5" y2="-2" class="sk" stroke-width="1.4"></line>
+    <line x1="10" y1="-2" x2="5" y2="-2" class="sk" stroke-width="1.4"></line>
+    <circle cx="-11" cy="-2" r="2.2" class="sk" fill="var(--panel)"></circle>
+    <circle cx="11" cy="-2" r="2.2" class="sk" fill="var(--panel)"></circle>
+    <rect x="-6" y="-2" width="12" height="6" rx="2" class="fk" fill="var(--acc)"></rect>
+    <rect x="-3" y="4" width="6" height="5" rx="1" class="sk" fill="var(--ink2)"></rect>
+  </g>
+
+  <!-- v-t auxiliary axes -->
+  <text x="55" y="228" class="u" font-size="11">v / (m·s⁻¹)</text>
+  <line x1="55" y1="320" x2="545" y2="320" class="sk" marker-end="url(#q8-gen2-ak)"></line>
+  <line x1="55" y1="322" x2="55" y2="238" class="sk" marker-end="url(#q8-gen2-ak)"></line>
+  <line x1="55" y1="275" x2="540" y2="275" class="sh"></line>
+  <text x="50" y="233" text-anchor="end" class="n" font-size="9">4</text>
+  <text x="50" y="278" text-anchor="end" class="n" font-size="9">0</text>
+  <text x="50" y="300" text-anchor="end" class="n" font-size="9">−2</text>
+  <path id="q8-gen2-vt" d="" class="sk" fill="none" stroke-width="1.8"></path>
+  <circle id="q8-gen2-vdot" cx="55" cy="230" r="3.5" class="fa"></circle>
+
+  <!-- readouts -->
+  <g font-size="11">
+    <text x="55" y="350" class="u">t =</text>
+    <text id="q8-gen2-txt-t" x="80" y="350" class="n">10.0 s</text>
+    <text x="150" y="350" class="u">y =</text>
+    <text id="q8-gen2-txt-y" x="175" y="350" class="n">14.0 m</text>
+    <text x="245" y="350" class="u">v =</text>
+    <text id="q8-gen2-txt-v" x="270" y="350" class="n">4.00 m/s</text>
+    <text x="350" y="350" class="u">a =</text>
+    <text id="q8-gen2-txt-a" x="375" y="350" class="n">0.00 m/s²</text>
+    <text x="455" y="350" class="u">p =</text>
+    <text id="q8-gen2-txt-p" x="480" y="350" class="n">8.00</text>
+  </g>
+  <text x="55" y="370" class="u" font-size="10">状态：</text>
+  <text id="q8-gen2-txt-state" x="95" y="370" class="u a" font-size="10">EF段匀速上升</text>
+  <text x="250" y="370" class="u" font-size="10">p单位：kg·m/s</text>
+</svg>
+  <figcaption class="u">EF段速度恒为4m/s，FM段加速度为负（失重），MN段加速度为0。FN段动量变化大小为12 kg·m/s。</figcaption>
+</figure>
+
+<script>window.Scenes = {};</script>
+<script>window.Scenes["q8-gen2"] = function (fig) {
+  var svg = fig.querySelector('svg');
+
+  // constants (mirrors spec/reference exactly)
+  var t_E = 10.0, t_F = 20.0, t_M = 40.0, t_N = 53.0;
+  var m = 2.0;
+
+  function yOf(t) {
+    if (t <= t_F) {
+      return 4.0 * t - 26.0;
+    } else if (t <= t_M) {
+      var dt = t - t_F;
+      return 54.0 + 4.0 * dt - 0.15 * dt * dt;
+    } else {
+      return -2.0 * t + 140.0;
+    }
+  }
+  function vOf(t) {
+    if (t <= t_F) {
+      return 4.0;
+    } else if (t <= t_M) {
+      return 4.0 - 0.3 * (t - t_F);
+    } else {
+      return -2.0;
+    }
+  }
+  function aOf(t) {
+    var h = 1e-4;
+    var tm = t - h, tp = t + h;
+    if (tm < t_E) tm = t_E;
+    if (tp > t_N) tp = t_N;
+    if (tp > tm) {
+      return (vOf(tp) - vOf(tm)) / (tp - tm);
+    }
+    return 0.0;
+  }
+
+  // coordinate maps
+  function xT(t) { return 55 + (t - t_E) * (540 - 55) / (t_N - t_E); }
+  function pyY(y) { return 200 - y * 2.0; }          // 0->200, 80->40
+  function pyV(v) { return 275 - v * 11.25; }       // 0->275, 4->230, -2->297.5
+
+  // element refs
+  var elEF = svg.querySelector('#q8-gen2-ef');
+  var elFM = svg.querySelector('#q8-gen2-fm');
+  var elMN = svg.querySelector('#q8-gen2-mn');
+  var elVT = svg.querySelector('#q8-gen2-vt');
+  var elNow = svg.querySelector('#q8-gen2-now');
+  var elDrop = svg.querySelector('#q8-gen2-drop');
+  var elDrone = svg.querySelector('#q8-gen2-drone');
+  var elVdot = svg.querySelector('#q8-gen2-vdot');
+  var elT = svg.querySelector('#q8-gen2-txt-t');
+  var elY = svg.querySelector('#q8-gen2-txt-y');
+  var elV = svg.querySelector('#q8-gen2-txt-v');
+  var elA = svg.querySelector('#q8-gen2-txt-a');
+  var elP = svg.querySelector('#q8-gen2-txt-p');
+  var elState = svg.querySelector('#q8-gen2-txt-state');
+
+  function buildPath(x0, x1, n, yfn) {
+    var d = '';
+    for (var i = 0; i <= n; i++) {
+      var t = x0 + (x1 - x0) * i / n;
+      var x = xT(t);
+      var y = pyY(yfn(t));
+      d += (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2) + ' ';
+    }
+    return d;
+  }
+  function buildVPath(x0, x1, n) {
+    var d = '';
+    for (var i = 0; i <= n; i++) {
+      var t = x0 + (x1 - x0) * i / n;
+      var x = xT(t);
+      var y = pyV(vOf(t));
+      d += (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2) + ' ';
+    }
+    return d;
+  }
+
+  function renderStatic() {
+    elEF.setAttribute('d', buildPath(t_E, t_F, 60, yOf));
+    elFM.setAttribute('d', buildPath(t_F, t_M, 120, yOf));
+    elMN.setAttribute('d', buildPath(t_M, t_N, 80, yOf));
+    elVT.setAttribute('d', buildVPath(t_E, t_N, 200));
+  }
+  renderStatic();
+
+  function fmt(x, d) {
+    var s = x.toFixed(d);
+    return s;
+  }
+
+  function drawAt(u) {
+    var t = t_E + u * (t_N - t_E);
+    var y = yOf(t);
+    var v = vOf(t);
+    var a = aOf(t);
+    var p = m * v;
+
+    var cx = xT(t);
+    var cy = pyY(y);
+
+    elNow.setAttribute('x1', cx.toFixed(2));
+    elNow.setAttribute('x2', cx.toFixed(2));
+    elNow.setAttribute('y1', (cy - 6).toFixed(2));
+    elNow.setAttribute('y2', '200');
+
+    elDrop.setAttribute('x1', cx.toFixed(2));
+    elDrop.setAttribute('y1', cy.toFixed(2));
+    elDrop.setAttribute('x2', cx.toFixed(2));
+    elDrop.setAttribute('y2', pyV(v).toFixed(2));
+
+    elDrone.setAttribute('transform', 'translate(' + cx.toFixed(2) + ',' + cy.toFixed(2) + ')');
+
+    var vx = xT(t);
+    var vy = pyV(v);
+    elVdot.setAttribute('cx', vx.toFixed(2));
+    elVdot.setAttribute('cy', vy.toFixed(2));
+
+    elT.textContent = fmt(t, 1) + ' s';
+    elY.textContent = fmt(y, 1) + ' m';
+    elV.textContent = fmt(v, 2) + ' m/s';
+    elA.textContent = fmt(a, 2) + ' m/s²';
+    elP.textContent = fmt(p, 2) + ' kg·m/s';
+
+    var state;
+    if (t < t_F) {
+      state = 'EF段匀速上升';
+      elState.setAttribute('class', 'u a');
+    } else if (t <= t_M) {
+      state = 'FM段减速（a<0，失重）';
+      elState.setAttribute('class', 'u r');
+    } else {
+      state = 'MN段匀速下降（a=0）';
+      elState.setAttribute('class', 'u r');
+    }
+    elState.textContent = state;
+  }
+
+  var PERIOD = 9.0;
+
+  return {
+    step: function (t) {
+      var u = (t % PERIOD) / PERIOD;
+      drawAt(u);
+    },
+    reset: function () {
+      drawAt(0);
+    },
+    probe: function (u, caseId) {
+      var tt = t_E + u * (t_N - t_E);
+      var y = yOf(tt);
+      var v = vOf(tt);
+      var p = m * v;
+      var a = aOf(tt);
+      return { u: u, t: tt, y: y, v: v, a: a, p: p };
+    }
+  };
+};</script>
+<script>/* ===== 动画运行时 ===== */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var live = [];
+
+  function build(fig) {
+    var id = fig.getAttribute('data-scene');
+    var factory = window.Scenes[id];
+    if (typeof factory !== 'function') return null;
+    var api;
+    try { api = factory(fig); } catch (e) { console.error('[scene ' + id + '] setup failed', e); return null; }
+    if (!api || typeof api.step !== 'function') { console.error('[scene ' + id + '] bad contract'); return null; }
+
+    var bar = document.createElement('div');
+    bar.className = 'ctlbar';
+    var pp = document.createElement('button');
+    pp.type = 'button'; pp.className = 'btn pp';
+    var rp = document.createElement('button');
+    rp.type = 'button'; rp.className = 'btn'; rp.textContent = '重播';
+    var tag = document.createElement('span');
+    tag.className = 'livebadge'; tag.textContent = 'LIVE';
+    bar.appendChild(pp); bar.appendChild(rp); bar.appendChild(tag);
+    var own = fig.querySelector('.ctl');
+    if (own) bar.appendChild(own);
+    var cap = fig.querySelector('figcaption');
+    fig.insertBefore(bar, cap);
+
+    window.__api = window.__api || {}; window.__api[id] = api;
+    var s = { id: id, api: api, t: 0, playing: !reduce, visible: true, fig: fig, pp: pp };
+    function paint() {
+      pp.textContent = s.playing ? '暂停' : '播放';
+      pp.setAttribute('aria-pressed', s.playing ? 'true' : 'false');
+      pp.setAttribute('aria-label', (s.playing ? '暂停' : '播放') + '动画');
+      tag.style.opacity = s.playing ? '.9' : '.3';
+    }
+    pp.addEventListener('click', function () { s.playing = !s.playing; paint(); });
+    rp.addEventListener('click', function () {
+      s.t = 0;
+      try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] reset', e); }
+    });
+    paint();
+    try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] first frame', e); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { s.visible = es[0].isIntersecting; },
+        { rootMargin: '120px' }).observe(fig);
+    }
+    return s;
+  }
+
+  function boot() {
+    var figs = document.querySelectorAll('figure[data-scene]');
+    for (var i = 0; i < figs.length; i++) {
+      var s = build(figs[i]);
+      if (s) live.push(s);
+    }
+    var g = document.getElementById('gswitch');
+    if (g) {
+      g.addEventListener('click', function () {
+        var anyOn = live.some(function (s) { return s.playing; });
+        live.forEach(function (s) { if (s.playing === anyOn) s.pp.click(); });
+        g.textContent = anyOn ? '▶ 全部播放' : '⏸ 全部暂停';
+      });
+      g.textContent = reduce ? '▶ 全部播放' : '⏸ 全部暂停';
+    }
+    var last = 0;
+    function frame(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 0;
+      last = now;
+      for (var i = 0; i < live.length; i++) {
+        var s = live[i];
+        if (!s.playing || !s.visible) continue;
+        s.t += dt;
+        try { s.api.step(s.t); }
+        catch (e) { console.error('[scene ' + s.id + '] step', e); s.playing = false; }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<script>
+function __runProbe(){
+  var out = {ok:false, errors:[], render:[], scenes:[], series:{}, notes:[]};
+  function rec(e){ out.errors.push(String(e && e.stack || e)); }
+  window.onerror = function(m,s,l,c,e){ rec(m + " @" + l + ":" + c); };
+  var _ce = console.error; console.error = function(){ rec([].join.call(arguments," ")); _ce.apply(console, arguments); };
+  try {
+    var SID = "q8-gen2", SPEC = {"id": "q8-gen2", "stem": "某实验小组测得在竖直方向飞行的无人机飞行高度y随时间t的变化曲线如图所示，E、F、M、N为曲线上的点，EF、MN段可视为两段直线，其方程分别为y=4t-26和y=-2t+140。无人机及其载物的总质量为2kg，取竖直向上为正方向。判断：A. EF段无人机的速度大小为4m/s；B. FM段无人机的货物处于失重状态；C. FN段无人机和装载物总动量变化量大小为4kg·m/s；D. MN段无人机机械能守恒。", "cases": [{"id": "c1", "label": "完整过程E→F→M→N，含EF匀速上升、FM过渡减速（含失重）、MN匀速下降三段"}], "title": "无人机竖直飞行高度-时间曲线的运动学与动力学分析", "units": "时间t：秒(s)；高度y：米(m)；速度v：米/秒(m/s)；加速度a：米/秒²(m/s²)；动量p：千克·米/秒(kg·m/s)；质量m：千克(kg)", "physics": {"note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。EF段和MN段为给定直线运动（恒速），FM段为速度从+4m/s连续变化到-2m/s的过渡段，速度单调递减（加速度恒为负，即失重）。probe以u∈[0,1]参数化整个E→N的时间过程。", "equations": ["EF段(10<=t<=20): y = 4t - 26, v = 4 (恒定)", "FM段(20<=t<=40): y为光滑过渡曲线，v从+4连续单调变化到-2，具体形式为v(t) = 4 - 0.3*(t-20)（线性插值近似，仅需满足端点值v(20)=4, v(40)=-2且单调，实现方可自行选择满足这些约束的连续可导函数）", "MN段(40<=t<=53): y = -2t + 140, v = -2 (恒定)", "a = diff(v)/diff(t)（数值微分）", "p = m * v, m = 2kg"], "definitions": ["t: 时间，单位s，t(u) = t_E + u*(t_N - t_E)，其中t_E=10, t_N=53", "y: 高度，单位m，由分段函数给出", "v: 速度 dy/dt，单位m/s", "a: 加速度 dv/dt，单位m/s^2", "p: 动量 = m*v，单位kg·m/s", "t_E=10, t_F=20, t_M=40, t_N=53（由直线方程反推的近似分段时刻，仅用于分段判断，不代表精确读数）"], "given_facts": ["F1 · EF段速度恒为4 m/s（向上）", "F2 · MN段速度恒为2 m/s（向下）", "F3 · F点速度为+4 m/s，M、N点速度均为−2 m/s", "F4 · FN段动量变化大小为12 kg·m/s（非4 kg·m/s）", "F5 · MN段加速度为0，机械能不守恒（因存在非重力做功，如螺旋桨阻力）"], "normalization": "以时间t（单位s）为自变量，用u线性映射整个E到N的过程；取质量m=2kg，重力加速度g=10 m/s^2（仅用于失重/超重判断参考，不直接出现在方程中）", "free_parameters": "E、F、M、N四点的精确时间坐标题面未给，根据两直线方程及FM段连续性假设反推近似值：t_E=10, t_F=20, t_M=40, t_N=53；FM段的具体速度-时间函数形式题面未给，只要求满足端点连续（v(F)=4, v(M)=-2）且单调递减，实现方可自行选择插值函数"}, "constants": {"g": 10, "m": 2, "t_E": 10, "t_F": 20, "t_M": 40, "t_N": 53}, "reference": "def probe(u, case):\n    t_E = 10.0\n    t_F = 20.0\n    t_M = 40.0\n    t_N = 53.0\n    m = 2.0\n\n    def y_of_t(t):\n        if t <= t_F:\n            return 4.0 * t - 26.0\n        elif t <= t_M:\n            dt = t - t_F\n            return 54.0 + 4.0 * dt - 0.15 * dt * dt\n        else:\n            return -2.0 * t + 140.0\n\n    def v_of_t(t):\n        if t <= t_F:\n            return 4.0\n        elif t <= t_M:\n            return 4.0 - 0.3 * (t - t_F)\n        else:\n            return -2.0\n\n    t = t_E + u * (t_N - t_E)\n\n    y = y_of_t(t)\n    v = v_of_t(t)\n    p = m * v\n\n    h = 1e-4\n    t_minus = t - h\n    t_plus = t + h\n    if t_minus < t_E:\n        t_minus = t_E\n    if t_plus > t_N:\n        t_plus = t_N\n\n    if t_plus > t_minus:\n        a = (v_of_t(t_plus) - v_of_t(t_minus)) / (t_plus - t_minus)\n    else:\n        a = 0.0\n\n    return {\n        \"u\": u,\n        \"t\": t,\n        \"y\": y,\n        \"v\": v,\n        \"a\": a,\n        \"p\": p\n    }", "invariants": [{"id": "c1-ef-speed", "why": "F1 · EF段速度恒为4 m/s", "case": "c1", "expr": "abs(mean(v[(t>=10.5) & (t<=19.5)]) - 4.0) <= 0.08", "report": "mean(v) in EF segment"}, {"id": "c1-mn-speed", "why": "F2 · MN段速度恒为2 m/s（向下）", "case": "c1", "expr": "abs(mean(v[(t>=40.5) & (t<=52.5)]) - (-2.0)) <= 0.08", "report": "mean(v) in MN segment"}, {"id": "c1-ef-monotonic", "why": "F1 · EF段为匀速直线运动，高度单调上升", "case": "c1", "expr": "max(diff(y[(t>=10) & (t<=20)])) > 0 and max(abs(diff(v[(t>=10) & (t<=20)]))) <= 0.05", "report": "y increasing and v constant in EF"}, {"id": "c1-fm-monotonic-decrease", "why": "F3 · FM段速度从+4连续单调减小到-2，说明加速度恒为负（失重）", "case": "c1", "expr": "max(diff(v[(t>=20) & (t<=40)])) <= 1e-6", "report": "diff(v) in FM segment (should be <=0)"}, {"id": "c1-fm-acceleration-negative", "why": "F5 · FM段加速度方向向下（失重状态）", "case": "c1", "expr": "max(a[(t>=21) & (t<=39)]) <= -0.05", "report": "max(a) in FM segment interior"}, {"id": "c1-mn-acceleration-zero", "why": "F5 · MN段加速度为0", "case": "c1", "expr": "abs(mean(a[(t>=41) & (t<=52)])) <= 0.1", "report": "mean(a) in MN segment"}, {"id": "c1-f-point-velocity", "why": "F3 · F点速度为+4 m/s", "case": "c1", "expr": "abs(interp(20, t, v) - 4.0) <= 0.08", "report": "v at t=20 (F point)"}, {"id": "c1-n-point-velocity", "why": "F3 · N点速度为-2 m/s", "case": "c1", "expr": "abs(v[-1] - (-2.0)) <= 0.08", "report": "v[-1] (N point)"}, {"id": "c1-momentum-change-fn", "why": "F4 · FN段动量变化大小为12 kg·m/s，非4 kg·m/s", "case": "c1", "expr": "abs(abs(p[-1] - interp(20, t, p)) - 12.0) <= 0.5", "report": "abs(p[-1] - p at F)"}, {"id": "c1-momentum-mass-consistency", "why": "F4 · 动量定义p=mv必须在probe内部自洽，避免p与v各算各的", "case": "c1", "expr": "max(abs(p - 2*v)) <= 1e-6", "report": "max abs(p - m*v)"}], "probe_keys": ["u", "t", "y", "v", "a", "p"], "disclosures": [{"why": "对应F1、F5，判断ABD选项需要这些信息在画面上明确可见", "must_contain": "EF段速度恒为4m/s，FM段加速度为负（失重），MN段加速度为0"}], "sample_points": 401, "probe_key_meaning": {"a": "无人机加速度，单位m/s^2（由v数值微分得到）", "p": "无人机总动量，单位kg·m/s，p = 2*v", "t": "物理时间，单位s", "u": "归一化进度，等于传入的u，对应t从t_E=10线性映射到t_N=53", "v": "无人机速度，单位m/s", "y": "无人机高度，单位m"}, "process_endpoints": "u=0对应E点（t=10s，无人机在EF直线段起点，速度4m/s），u=1对应N点（t=53s，MN直线段终点，速度-2m/s）", "scene_requirements": ["画面显示y-t曲线，标注E、F、M、N四点位置", "EF段与MN段以直线（虚线延长可选）显示，FM段以光滑曲线显示", "显示速度v随时间变化的辅助图或数值", "显示无人机图标沿曲线运动，实时高度与速度数值可见", "标注EF段速度恒为4m/s、MN段速度恒为-2m/s"]};
+    out.scenes = Object.keys(window.Scenes || {});
+    var fig = document.querySelector('figure[data-scene="' + SID + '"]');
+    if (!fig) { out.errors.push("DOM 里找不到 figure[data-scene=" + SID + "]"); throw 0; }
+    var api = (window.__api || {})[SID];
+    if (!api) { out.errors.push("运行时未能构造该场景（工厂抛错或契约不符）"); throw 0; }
+    ["step","reset","probe"].forEach(function(k){
+      if (typeof api[k] !== "function") out.errors.push("api." + k + " 不是函数");
+    });
+    if (out.errors.length) throw 0;
+
+    var svg = fig.querySelector("svg");
+
+    // --- 渲染压力：跑 451 帧 step()，抓异常与脏数值 ---
+    try {
+      api.reset(); api.step(0);
+      for (var t = 0; t <= 18.0001; t += 0.04) api.step(t);
+    } catch (e) { rec("step() 抛异常: " + e); }
+    var dom = svg.outerHTML;
+    ["NaN","Infinity","undefined","null"].forEach(function(w){
+      var n = (dom.match(new RegExp(w, "g")) || []).length;
+      if (n) out.errors.push("渲染后 SVG 中出现 " + w + " ×" + n);
+    });
+
+    /* --- L3.5 渲染覆盖 ---
+       断言只跑 probe，看不见渲染。历史教训：把 translate(cx,cy) rotate(θ)
+       误写成 rotate(θ cx cy)，整组元素飞出画布，四层门禁 13/13 全绿放行。
+       这里补上：每个带 id 的 SVG 元素，必须在某一采样时刻真的画在 viewBox 内。
+       只查「位置」不查「可见性」—— opacity=0 的元素 getBBox 依然有效，
+       所以合法隐藏的结论框不会被误伤，而「整组飞出画布」是全时段的，必然被抓。*/
+    try {
+      api.reset();
+      var vb = svg.viewBox.baseVal;
+      var els = svg.querySelectorAll("[id]");
+      var ids = [], everOK = {}, everDrawn = {}, snaps = [];
+      for (var q0 = 0; q0 < els.length; q0++) ids.push(els[q0].getAttribute("id"));
+      /* 注意：不能用 el.getCTM() —— 它含 viewBox 缩放，返回的是渲染像素坐标，
+         拿去和 viewBox 数值比会把右下方的元素全部误判出界。
+         正确做法是经 svg 根的 screenCTM 求逆，换回 viewBox 用户单位。 */
+      for (var tq = 0; tq <= 20.0001; tq += 0.5) {
+        api.step(tq);
+        snaps.push(svg.innerHTML);
+        var rootM = svg.getScreenCTM();
+        if (!rootM) continue;
+        var invM = rootM.inverse();
+        for (var q1 = 0; q1 < els.length; q1++) {
+          var idq = ids[q1];
+          if (everOK[idq]) continue;
+          var bb, mm;
+          try { bb = els[q1].getBBox(); mm = els[q1].getScreenCTM(); } catch (err0) { continue; }
+          if (!mm) continue;
+          if (bb.width <= 0 && bb.height <= 0) continue;   /* 退化元素不判位置 */
+          everDrawn[idq] = true;
+          mm = invM.multiply(mm);                          /* → viewBox 用户单位 */
+          var cxq = bb.x + bb.width / 2, cyq = bb.y + bb.height / 2;
+          var XQ = mm.a * cxq + mm.c * cyq + mm.e;
+          var YQ = mm.b * cxq + mm.d * cyq + mm.f;
+          if (XQ >= vb.x - 2 && XQ <= vb.x + vb.width + 2 &&
+              YQ >= vb.y - 2 && YQ <= vb.y + vb.height + 2)
+            everOK[idq] = true;
+        }
+      }
+      var off = [], dead = [];
+      for (var q2 = 0; q2 < ids.length; q2++) {
+        if (!everDrawn[ids[q2]]) dead.push(ids[q2]);
+        else if (!everOK[ids[q2]]) off.push(ids[q2]);
+      }
+      if (off.length)
+        out.render.push("这些元素在全部 41 个采样时刻都画在 viewBox 之外（画面上看不到）：" + off.join(", "));
+      var moved = false;
+      for (var q3 = 1; q3 < snaps.length; q3++) if (snaps[q3] !== snaps[0]) { moved = true; break; }
+      if (!moved)
+        out.render.push("采样了 " + snaps.length + " 个不同时刻，SVG 内容完全没有变化——动画没有动");
+      out.notes.push("渲染覆盖：" + ids.length + " 个带 id 元素，" +
+                     Object.keys(everOK).length + " 个曾正常出现在画面内" +
+                     (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
+    } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
+
+    // --- probe 采样 ---
+    var N = SPEC.sample_points || 401;
+    for (var ci = 0; ci < SPEC.cases.length; ci++) {
+      var cid = SPEC.cases[ci].id;
+      var cols = {}; SPEC.probe_keys.forEach(function(k){ cols[k] = []; });
+
+      // 纯度 + 无副作用
+      var before = svg.outerHTML;
+      var a1 = api.probe(0.37, cid), a2 = api.probe(0.37, cid);
+      if (svg.outerHTML !== before) out.errors.push("[" + cid + "] probe() 修改了 DOM（必须是纯函数）");
+      SPEC.probe_keys.forEach(function(k){
+        if (!(k in a1)) out.errors.push("[" + cid + "] probe 返回值缺少键 " + k);
+        else if (a1[k] !== a2[k]) out.errors.push("[" + cid + "] probe 不纯：同一 u 两次调用 " + k + " 不同（" + a1[k] + " vs " + a2[k] + "）");
+      });
+
+      var nbad = 0;
+      for (var i = 0; i < N; i++) {
+        var u = i / (N - 1);
+        var r;
+        try { r = api.probe(u, cid); }
+        catch (e) { out.errors.push("[" + cid + "] probe(" + u.toFixed(3) + ") 抛异常: " + e); break; }
+        for (var ki = 0; ki < SPEC.probe_keys.length; ki++) {
+          var k = SPEC.probe_keys[ki], v = r ? r[k] : undefined;
+          if (typeof v !== "number" || !isFinite(v)) { nbad++; v = null; }
+          cols[k].push(v);
+        }
+      }
+      if (nbad) out.errors.push("[" + cid + "] probe 返回了 " + nbad + " 个非有限数值");
+      out.series[cid] = cols;
+    }
+    out.ok = out.errors.length === 0 && out.render.length === 0;
+  } catch (e) { if (e) rec(e); }
+  document.getElementById("TESTOUT").textContent = "@@" + JSON.stringify(out) + "@@";
+}
+/* 必须等运行时 boot 完（它也挂在 DOMContentLoaded 上，且注册在前），
+   同时保证 <pre id="TESTOUT"> 已经存在 */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", __runProbe);
+else __runProbe();
+</script>
+<pre id="TESTOUT"></pre>

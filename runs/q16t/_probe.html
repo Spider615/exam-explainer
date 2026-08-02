@@ -1,0 +1,711 @@
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --stem:#FAFBFC;
+  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
+  --line:#C9D2DE; --hair:#E4E9F0;
+  --acc:#2B5490; --acc2:#E9EFF8;
+  --cy:#0C8CAE; --cy2:#E2F2F6;
+  --red:#AE3B2B; --red2:#FBEBE7;
+  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"Times New Roman",Georgia,serif;
+  --song:Songti SC,SimSun,serif;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk)}
+figure{margin:0;background:var(--panel);border:1px solid var(--line)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px solid var(--hair)}
+svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
+svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
+svg text.n{font-family:var(--mono);font-style:normal;font-size:11px;fill:var(--ink2)}
+svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
+.sk{stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.sh{stroke:var(--line);fill:none;stroke-width:1}
+.sa{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sr{stroke:var(--red);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sc{stroke:var(--cy);fill:none;stroke-width:1.5;stroke-dasharray:5 4}
+.fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
+.wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}.wash-c{fill:var(--cy);opacity:.16}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-top:1px solid var(--hair)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+input[type=range]{width:120px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--acc)"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cy)"/></marker>
+</defs></svg>
+
+<figure data-scene="q16t"><svg viewBox="0 0 560 310" role="img" aria-label="匀强电场中两带电滑块 A 与 B 的相互作用：左侧为随时间演化的受力与位置图，右侧为 A、B 的速度—时间曲线">
+
+  <text x="12" y="16" class="u" id="q16t-caselabel">情形① · A 过 S 时速度为 v₁</text>
+
+  <text x="14" y="28" class="u c">匀强电场 E（水平向右）</text>
+  <line class="sc" stroke-width="1" x1="14" y1="36" x2="286" y2="36" marker-end="url(#ac)"/>
+  <line class="sc" stroke-width="1" x1="14" y1="48" x2="286" y2="48" marker-end="url(#ac)"/>
+
+  <text x="8" y="73">F_s</text>
+  <line class="sk" stroke-width="1.4" id="q16t-fAs" x1="60" y1="69" x2="54" y2="69" marker-end="url(#ak)" visibility="hidden"/>
+  <line class="sk" stroke-width="1.4" id="q16t-fBs" x1="257" y1="69" x2="263" y2="69" marker-end="url(#ak)" visibility="hidden"/>
+
+  <text x="8" y="86" class="r">f</text>
+  <line class="sr" stroke-width="1.4" id="q16t-fAf" x1="60" y1="82" x2="46" y2="82" marker-end="url(#ar)"/>
+  <line class="sr" stroke-width="1.4" id="q16t-fBf" x1="257" y1="82" x2="268" y2="82" marker-end="url(#ar)"/>
+
+  <text x="8" y="99" class="c">F_C</text>
+  <line class="sc" stroke-width="1.4" id="q16t-fAc" x1="60" y1="95" x2="64" y2="95" marker-end="url(#ac)"/>
+  <line class="sc" stroke-width="1.4" id="q16t-fBc" x1="257" y1="95" x2="253" y2="95" marker-end="url(#ac)"/>
+
+  <text x="8" y="112" class="a">qE</text>
+  <line class="sa" stroke-width="1.4" id="q16t-fAe" x1="60" y1="108" x2="67" y2="108" marker-end="url(#aa)"/>
+  <line class="sa" stroke-width="1.4" id="q16t-fBe" x1="257" y1="108" x2="250" y2="108" marker-end="url(#aa)"/>
+
+  <line class="sc" id="q16t-sline" x1="122" y1="114" x2="122" y2="158"/>
+  <text x="118" y="172" class="c" id="q16t-slabel">S</text>
+
+  <rect class="sk" id="q16t-blockA" x="60" y="118" width="30" height="34" rx="2"/>
+  <text x="75" y="133" id="q16t-labA" text-anchor="middle">A</text>
+  <text x="75" y="146" id="q16t-labAq" text-anchor="middle" class="n a">+q</text>
+
+  <rect class="sk" id="q16t-blockB" x="227" y="118" width="30" height="34" rx="2"/>
+  <text x="242" y="133" id="q16t-labB" text-anchor="middle">B</text>
+  <text x="242" y="146" id="q16t-labBq" text-anchor="middle" class="n r">−q</text>
+
+  <line class="sk" id="q16t-rod" x1="90" y1="138" x2="132" y2="138"/>
+  <path class="sk" id="q16t-spring" d="M132 138 L153 138"/>
+
+  <line class="sk" x1="10" y1="152" x2="298" y2="152"/>
+  <path class="sh" d="M22 153L15 160M32 153L25 160M42 153L35 160M52 153L45 160M62 153L55 160M72 153L65 160M82 153L75 160M92 153L85 160M102 153L95 160M112 153L105 160M122 153L115 160M132 153L125 160M142 153L135 160M152 153L145 160M162 153L155 160M172 153L165 160M182 153L175 160M192 153L185 160M202 153L195 160M212 153L205 160M222 153L215 160M232 153L225 160M242 153L235 160M252 153L245 160M262 153L255 160M272 153L265 160M282 153L275 160M292 153L285 160"/>
+
+  <text x="8" y="190">d</text>
+  <line class="sk" id="q16t-darrow" x1="90" y1="186" x2="227" y2="186" marker-start="url(#ak)" marker-end="url(#ak)"/>
+
+  <text x="14" y="208" class="u">读数均为无量纲量（力以 qE 为单位）</text>
+
+  <text x="14" y="228" class="n">d</text><text x="70" y="228" class="n" id="q16t-rd">1.300</text>
+  <text x="14" y="248" class="n c">F_C</text><text x="70" y="248" class="n c" id="q16t-rfc">0.592</text>
+  <text x="14" y="268" class="n">F_s</text><text x="70" y="268" class="n" id="q16t-rfs">0.000</text>
+  <text x="14" y="288" class="n">a_A</text><text x="70" y="288" class="n" id="q16t-raa">-0.408</text>
+
+  <text x="168" y="228" class="n a">v_A</text><text x="228" y="228" class="n a" id="q16t-rva">0.537</text>
+  <text x="168" y="248" class="n r">v_B</text><text x="228" y="248" class="n r" id="q16t-rvb">0.000</text>
+  <text x="168" y="268" class="n">v_A/v1</text><text x="228" y="268" class="n" id="q16t-rratio">1.387</text>
+  <text x="168" y="288" class="n">t</text><text x="228" y="288" class="n" id="q16t-rt">0.000</text>
+
+  <line class="sh" x1="310" y1="8" x2="310" y2="302"/>
+  <text x="322" y="16" class="u">A、B 的 v–t 曲线（随过程逐点画出）</text>
+
+  <line class="sh" x1="358" y1="71" x2="544" y2="71"/>
+  <line class="sh" x1="358" y1="162" x2="544" y2="162"/>
+  <line class="sh" x1="416" y1="44" x2="416" y2="252"/>
+  <line class="sh" x1="474" y1="44" x2="474" y2="252"/>
+
+  <line class="sc" id="q16t-mk1" x1="404" y1="44" x2="404" y2="252"/>
+  <line class="sc" id="q16t-mk2" x1="520" y1="44" x2="520" y2="252"/>
+  <text x="386" y="40" class="n c" id="q16t-mk1lab">a=0</text>
+  <text x="502" y="40" class="n c" id="q16t-mk2lab">a=0</text>
+
+  <polyline class="sa" id="q16t-curveA" points=""/>
+  <polyline class="sr" id="q16t-curveB" points=""/>
+  <circle class="fa" id="q16t-dotA" cx="358" cy="155" r="3"/>
+  <circle class="fr" id="q16t-dotB" cx="358" cy="252" r="3"/>
+
+  <line class="sk" x1="358" y1="44" x2="358" y2="252"/>
+  <line class="sk" x1="358" y1="252" x2="544" y2="252"/>
+  <text x="348" y="40">v</text>
+  <text x="536" y="268">t</text>
+  <text x="334" y="166" class="n">0.5</text>
+  <text x="334" y="75" class="n">1.0</text>
+  <text x="352" y="268" class="n">0</text>
+  <text x="406" y="268" class="n">0.5</text>
+  <text x="464" y="268" class="n">1.0</text>
+
+  <line class="sa" x1="358" y1="284" x2="384" y2="284"/>
+  <text x="390" y="288" class="n a">v_A</text>
+  <line class="sr" x1="424" y1="284" x2="450" y2="284"/>
+  <text x="456" y="288" class="n r">v_B</text>
+  <text x="358" y="302" class="u c">青色虚线 = a_A 为零的两个时刻</text>
+
+</svg>
+<div class="ctl"><span>情形</span><button type="button" class="btn" id="q16t-c1" aria-pressed="true">① 过 S 时 v₁</button><button type="button" class="btn" id="q16t-c2" aria-pressed="false">② 过 S 时 2v₁</button></div>
+<figcaption>取 qE = 1、m = 1、长度单位 d₁ = √(kq/E) 作无量纲化，图中一切读数（力、速度、加速度、间距）都是无量纲值，不是牛顿或米每秒。解出的自洽参数：弹簧原长 L_s = 0.6，劲度 k_s = 30，细杆长 L_r = 0.4，初始间距 d₀ = 1.3，v₁ = √0.15 ≈ 0.387。A 的速度在 d = d₁ = 1 处取极小（即 v₁，B 恰好起动），在 d = 0.5 处取极大（此时弹力恰为 3qE）；细杆与 B 相碰时 v_A = 2v₁、v_B = v₁。</figcaption></figure>
+
+
+<script>window.Scenes = {};</script>
+<script>/* q16t · 匀强电场中两带电滑块的相互作用
+ *
+ * 无量纲化（与 spec 一致）：qE = 1，m = 1，长度单位 d1 = sqrt(kq/E)。
+ * 自由参数 L_s / k_s / L_r / d0 / 初速度由 solve.py 解出（推导见 NOTES.md，
+ * 与 runs/q16 共用同一套自洽解——两者的 spec 内容完全相同）：
+ *   k_s = 30，L_s = 0.5 + 3/k_s = 0.6，L_r = 0.4，d0 = 1.3
+ *   v1 = sqrt(J(L_r)/2) = sqrt(0.15)，J(d) = 积分 g 从 d 到 1
+ * 下面 JS 里 v1 与两个初速度都由这些常数现算，轨迹是真的用 RK4 跑出来的。
+ */
+window.Scenes["q16t"] = function (fig) {
+  var svg = fig.querySelector('svg');
+
+  /* ================= 物理 ================= */
+  var KS = 30.0;   /* 弹簧劲度 k_s */
+  var LS = 0.6;    /* 弹簧原长 L_s（k_s(L_s-0.5)=3 由 F2 定） */
+  var LR = 0.4;    /* 细杆长 L_r（须大于 g 的第二零点 1/3） */
+  var D0 = 1.3;    /* 初始间距 d0 */
+
+  function fSpring(d) { return d < LS ? KS * (LS - d) : 0; }
+  function fCoul(d) { return 1 / (d * d); }
+  /* a_A = 1 + 1/d^2 - 2 - F_s ；B 起动后 a_B 与之同式 */
+  function accel(d) { return fCoul(d) - 1 - fSpring(d); }
+  /* J(d) = ∫_d^1 a(x) dx 的闭式，用来定 v1 */
+  function Jint(d) {
+    var b = 1 / d + d - 2;
+    if (d < LS) { b -= 0.5 * KS * (LS - d) * (LS - d); }
+    return b;
+  }
+
+  var V1 = Math.sqrt(Jint(LR) / 2);          /* F3 给出 J(L_r) = 2 v1^2 */
+  var VAPP = 2 * (D0 + 1 / D0 - 2);          /* d>=1 段能量项：v(d0)^2 = v(1)^2 + VAPP */
+
+  /* ---- RK4 时域积分：状态 [d, vA, vB, xA] ---- */
+  function deriv(s, moving, out) {
+    var a = accel(s[0]);
+    out[0] = -(s[1] + s[2]);
+    out[1] = a;
+    out[2] = moving ? a : 0;
+    out[3] = s[1];
+    return out;
+  }
+  function rk4(s, h, moving, out) {
+    var k1 = [0, 0, 0, 0], k2 = [0, 0, 0, 0], k3 = [0, 0, 0, 0], k4 = [0, 0, 0, 0];
+    var tmp = [0, 0, 0, 0], i;
+    deriv(s, moving, k1);
+    for (i = 0; i < 4; i++) { tmp[i] = s[i] + 0.5 * h * k1[i]; }
+    deriv(tmp, moving, k2);
+    for (i = 0; i < 4; i++) { tmp[i] = s[i] + 0.5 * h * k2[i]; }
+    deriv(tmp, moving, k3);
+    for (i = 0; i < 4; i++) { tmp[i] = s[i] + h * k3[i]; }
+    deriv(tmp, moving, k4);
+    for (i = 0; i < 4; i++) {
+      out[i] = s[i] + (h / 6) * (k1[i] + 2 * k2[i] + 2 * k3[i] + k4[i]);
+    }
+    return out;
+  }
+
+  /* vS = A 经过 S（d = 1）时的速度。d>1 段 B 被静摩擦锁住。 */
+  function simulate(vS) {
+    var v0 = Math.sqrt(vS * vS + VAPP);
+    var dt = 4e-4;
+    var s = [D0, v0, 0, 0], ns = [0, 0, 0, 0], tst = [0, 0, 0, 0];
+    var T = [0], D = [D0], VA = [v0], VB = [0], XA = [0];
+    var t = 0, moving = false, guard = 0, target, h, lo, hi, mid, k;
+    while (s[0] > LR && guard < 200000) {
+      guard++;
+      target = moving ? LR : 1.0;
+      h = dt;
+      rk4(s, h, moving, ns);
+      if (ns[0] <= target) {                    /* 事件：二分收缩步长，精确落到 target */
+        lo = 0; hi = h;
+        for (k = 0; k < 60; k++) {
+          mid = 0.5 * (lo + hi);
+          if (rk4(s, mid, moving, tst)[0] > target) { lo = mid; } else { hi = mid; }
+        }
+        h = hi;
+        rk4(s, h, moving, ns);
+        ns[0] = target;
+      }
+      if (!(h > 0)) { break; }
+      s[0] = ns[0]; s[1] = ns[1]; s[2] = ns[2]; s[3] = ns[3];
+      t += h;
+      T.push(t); D.push(s[0]); VA.push(s[1]); VB.push(s[2]); XA.push(s[3]);
+      if (!moving && s[0] <= 1.0) { moving = true; }
+    }
+    return { t: T, d: D, vA: VA, vB: VB, xA: XA, T: t };
+  }
+
+  var TR1 = simulate(V1);          /* 情形①：过 S 时 v1 */
+  var TR2 = simulate(2 * V1);      /* 情形②：过 S 时 2v1 */
+
+  function traj(cid) { return cid === 'c2' ? TR2 : TR1; }
+
+  /* 按归一化进度 u 取状态（u=0 起点 d0，u=1 细杆碰 B） */
+  function stateAt(tr, u) {
+    var n = tr.t.length - 1;
+    var uu = u < 0 ? 0 : (u > 1 ? 1 : u);
+    var tq = uu * tr.T, lo = 0, hi = n, mid, den, w;
+    if (!(tq > 0)) { return { t: 0, d: tr.d[0], vA: tr.vA[0], vB: tr.vB[0], xA: tr.xA[0] }; }
+    if (tq >= tr.T) { return { t: tr.T, d: tr.d[n], vA: tr.vA[n], vB: tr.vB[n], xA: tr.xA[n] }; }
+    while (hi - lo > 1) {
+      mid = (lo + hi) >> 1;
+      if (tr.t[mid] <= tq) { lo = mid; } else { hi = mid; }
+    }
+    den = tr.t[hi] - tr.t[lo];
+    w = den > 0 ? (tq - tr.t[lo]) / den : 0;
+    return {
+      t: tq,
+      d: tr.d[lo] + w * (tr.d[hi] - tr.d[lo]),
+      vA: tr.vA[lo] + w * (tr.vA[hi] - tr.vA[lo]),
+      vB: tr.vB[lo] + w * (tr.vB[hi] - tr.vB[lo]),
+      xA: tr.xA[lo] + w * (tr.xA[hi] - tr.xA[lo])
+    };
+  }
+
+  /* d 首次降到 dv 的时刻（用来标出 a=0 的两个时刻，以及位置 S） */
+  function atD(tr, dv) {
+    var i, w;
+    for (i = 1; i < tr.d.length; i++) {
+      if (tr.d[i] <= dv) {
+        w = (tr.d[i - 1] - tr.d[i]) > 0 ? (tr.d[i - 1] - dv) / (tr.d[i - 1] - tr.d[i]) : 0;
+        return { t: tr.t[i - 1] + w * (tr.t[i] - tr.t[i - 1]),
+                 xA: tr.xA[i - 1] + w * (tr.xA[i] - tr.xA[i - 1]) };
+      }
+    }
+    return { t: tr.T, xA: tr.xA[tr.xA.length - 1] };
+  }
+
+  /* ================= 画布几何 ================= */
+  /* X0 = 物理 x=0（A 右端起点）的像素位置，SC = 每单位长度像素，FSC = 每单位力像素。
+     力矢量锚在两个滑块的「外侧」边缘：这样 d 最小时（0.4）两个库仑力箭头之间
+     仍有 SC*L_r + 2*BW - 2*FSC*(1/L_r^2) = 42 + 60 - 87.5 ≈ 14px 的余量，不会打架。 */
+  var X0 = 90, SC = 105, BW = 30, ROD = 138, FSC = 7;
+  var PXL = 358, PXW = 186, TAX = 1.6, PYB = 252, PYH = 208, VAX = 1.15;
+  function pxT(t) { return PXL + (t / TAX) * PXW; }
+  function pxV(v) { return PYB - (v / VAX) * PYH; }
+
+  /* ================= DOM ================= */
+  var elCase = svg.querySelector('#q16t-caselabel');
+  var elBlockA = svg.querySelector('#q16t-blockA');
+  var elLabA = svg.querySelector('#q16t-labA');
+  var elLabAq = svg.querySelector('#q16t-labAq');
+  var elBlockB = svg.querySelector('#q16t-blockB');
+  var elLabB = svg.querySelector('#q16t-labB');
+  var elLabBq = svg.querySelector('#q16t-labBq');
+  var elRod = svg.querySelector('#q16t-rod');
+  var elSpring = svg.querySelector('#q16t-spring');
+  var elDarr = svg.querySelector('#q16t-darrow');
+  var elSline = svg.querySelector('#q16t-sline');
+  var elSlabel = svg.querySelector('#q16t-slabel');
+  var elFAs = svg.querySelector('#q16t-fAs');
+  var elFAf = svg.querySelector('#q16t-fAf');
+  var elFAc = svg.querySelector('#q16t-fAc');
+  var elFAe = svg.querySelector('#q16t-fAe');
+  var elFBs = svg.querySelector('#q16t-fBs');
+  var elFBf = svg.querySelector('#q16t-fBf');
+  var elFBc = svg.querySelector('#q16t-fBc');
+  var elFBe = svg.querySelector('#q16t-fBe');
+  var elRd = svg.querySelector('#q16t-rd');
+  var elRfc = svg.querySelector('#q16t-rfc');
+  var elRfs = svg.querySelector('#q16t-rfs');
+  var elRaa = svg.querySelector('#q16t-raa');
+  var elRva = svg.querySelector('#q16t-rva');
+  var elRvb = svg.querySelector('#q16t-rvb');
+  var elRratio = svg.querySelector('#q16t-rratio');
+  var elRt = svg.querySelector('#q16t-rt');
+  var elCurveA = svg.querySelector('#q16t-curveA');
+  var elCurveB = svg.querySelector('#q16t-curveB');
+  var elDotA = svg.querySelector('#q16t-dotA');
+  var elDotB = svg.querySelector('#q16t-dotB');
+  var elMk1 = svg.querySelector('#q16t-mk1');
+  var elMk2 = svg.querySelector('#q16t-mk2');
+  var elMk1lab = svg.querySelector('#q16t-mk1lab');
+  var elMk2lab = svg.querySelector('#q16t-mk2lab');
+  var btn1 = fig.querySelector('#q16t-c1');
+  var btn2 = fig.querySelector('#q16t-c2');
+
+  /* ================= 曲线预采样 ================= */
+  var CN = 240;
+  function chartOf(tr) {
+    var a = [], b = [], i, u, st;
+    for (i = 0; i <= CN; i++) {
+      u = i / CN;
+      st = stateAt(tr, u);
+      a.push(pxT(st.t).toFixed(2) + ',' + pxV(st.vA).toFixed(2));
+      b.push(pxT(st.t).toFixed(2) + ',' + pxV(st.vB).toFixed(2));
+    }
+    return { a: a, b: b };
+  }
+  var CH1 = chartOf(TR1), CH2 = chartOf(TR2);
+  var MK = {
+    c1: { one: atD(TR1, 1.0), half: atD(TR1, 0.5) },
+    c2: { one: atD(TR2, 1.0), half: atD(TR2, 0.5) }
+  };
+
+  /* ================= 渲染 ================= */
+  function num(v) { return (isFinite(v) ? v : 0).toFixed(3); }
+
+  function seg(el, x1, y1, x2, y2) {
+    el.setAttribute('x1', x1.toFixed(2));
+    el.setAttribute('y1', y1.toFixed(2));
+    el.setAttribute('x2', x2.toFixed(2));
+    el.setAttribute('y2', y2.toFixed(2));
+  }
+
+  /* 力矢量：从 bx 出发，dir=+1 向右，长度正比于 mag */
+  function arrow(el, bx, y, dir, mag) {
+    var L = FSC * mag;
+    if (!(L > 1.5)) { el.setAttribute('visibility', 'hidden'); return; }
+    el.setAttribute('visibility', 'visible');
+    seg(el, bx, y, bx + dir * L, y);
+  }
+
+  function springPath(x1, x2, y) {
+    var len = x2 - x1, i, x, amp, seg1, p;
+    if (!(len > 2)) { return 'M' + x1.toFixed(2) + ' ' + y + 'L' + x2.toFixed(2) + ' ' + y; }
+    amp = len > 14 ? 5 : len / 2.8;
+    seg1 = len / 12;
+    p = 'M' + x1.toFixed(2) + ' ' + y;
+    x = x1;
+    for (i = 0; i < 12; i++) {
+      x += seg1;
+      p += 'L' + x.toFixed(2) + ' ' + (y + (i % 2 === 0 ? -amp : amp)).toFixed(2);
+    }
+    return p + 'L' + x2.toFixed(2) + ' ' + y;
+  }
+
+  var cur = 'c1';
+
+  function render(u) {
+    var tr = traj(cur);
+    var st = stateAt(tr, u);
+    var d = st.d, vA = st.vA, vB = st.vB;
+    var Fs = fSpring(d), Fc = fCoul(d), aA = accel(d);
+    var xA = X0 + SC * st.xA, xB = xA + SC * d;
+    var ca = xA - BW, cb = xB + BW;      /* 力矢量的锚点：两滑块的外侧边缘 */
+    var P, fB, fBd, xs;
+
+    elBlockA.setAttribute('x', (xA - BW).toFixed(2));
+    elLabA.setAttribute('x', (xA - BW / 2).toFixed(2));
+    elLabAq.setAttribute('x', (xA - BW / 2).toFixed(2));
+    elBlockB.setAttribute('x', xB.toFixed(2));
+    elLabB.setAttribute('x', (xB + BW / 2).toFixed(2));
+    elLabBq.setAttribute('x', (xB + BW / 2).toFixed(2));
+
+    seg(elRod, xA, ROD, xA + SC * LR, ROD);
+    elSpring.setAttribute('d', springPath(xA + SC * LR, Math.min(xA + SC * LS, xB), ROD));
+    seg(elDarr, xA, 186, xB, 186);
+
+    /* A 上四力：电场力向右 1，库仑引力向右 Fc，滑动摩擦向左 2，弹力向左 Fs */
+    arrow(elFAe, ca, 108, 1, 1);
+    arrow(elFAc, ca, 95, 1, Fc);
+    arrow(elFAf, ca, 82, -1, 2);
+    arrow(elFAs, ca, 69, -1, Fs);
+
+    /* B 上四力：电场力向左 1，库仑引力向左 Fc，弹力向右 Fs，摩擦力见下 */
+    arrow(elFBe, cb, 108, -1, 1);
+    arrow(elFBc, cb, 95, -1, Fc);
+    arrow(elFBs, cb, 69, 1, Fs);
+    P = 1 + Fc - Fs;                 /* B 上非摩擦力的合力，向左为正 */
+    if (vB > 1e-12) { fB = 2; fBd = 1; }
+    else { fB = Math.abs(P); if (fB > 2) { fB = 2; } fBd = P >= 0 ? 1 : -1; }
+    arrow(elFBf, cb, 82, fBd, fB);
+
+    /* 位置 S：A 在 d = d1 = 1 那一刻所在处 */
+    xs = X0 + SC * MK[cur].one.xA;
+    seg(elSline, xs, 114, xs, 158);
+    elSlabel.setAttribute('x', (xs - 4).toFixed(2));
+
+    /* 读数 */
+    elRd.textContent = num(d);
+    elRfc.textContent = num(Fc);
+    elRfs.textContent = num(Fs);
+    elRaa.textContent = num(aA);
+    elRva.textContent = num(vA);
+    elRvb.textContent = num(vB);
+    elRratio.textContent = num(vA / V1);
+    elRt.textContent = num(st.t);
+
+    /* v–t 曲线：逐点画到当前进度 */
+    var ch = cur === 'c2' ? CH2 : CH1;
+    var k = Math.round((u < 0 ? 0 : (u > 1 ? 1 : u)) * CN);
+    var tail = pxT(st.t).toFixed(2) + ',';
+    elCurveA.setAttribute('points', ch.a.slice(0, k + 1).join(' ') + ' ' + tail + pxV(vA).toFixed(2));
+    elCurveB.setAttribute('points', ch.b.slice(0, k + 1).join(' ') + ' ' + tail + pxV(vB).toFixed(2));
+    elDotA.setAttribute('cx', pxT(st.t).toFixed(2));
+    elDotA.setAttribute('cy', pxV(vA).toFixed(2));
+    elDotB.setAttribute('cx', pxT(st.t).toFixed(2));
+    elDotB.setAttribute('cy', pxV(vB).toFixed(2));
+  }
+
+  function paintCase() {
+    var m = MK[cur], x1 = pxT(m.one.t), x2 = pxT(m.half.t);
+    elCase.textContent = cur === 'c2'
+      ? '情形② · A 过 S 时速度为 2v₁ → 碰撞时 v_A = (√3+1)v₁'
+      : '情形① · A 过 S 时速度为 v₁ → 碰撞时 v_A = 2v₁、v_B = v₁';
+    seg(elMk1, x1, 44, x1, PYB);
+    seg(elMk2, x2, 44, x2, PYB);
+    elMk1lab.setAttribute('x', (x1 - 22).toFixed(2));
+    elMk2lab.setAttribute('x', (x2 - 10).toFixed(2));
+    if (btn1) { btn1.setAttribute('aria-pressed', cur === 'c1' ? 'true' : 'false'); }
+    if (btn2) { btn2.setAttribute('aria-pressed', cur === 'c2' ? 'true' : 'false'); }
+  }
+
+  /* ================= 时间轴（帧循环由运行时驱动） ================= */
+  var HOLD0 = 0.3, HOLD1 = 1.1;
+  var switchT = 0, lastT = 0;
+
+  function step(t) {
+    lastT = t;
+    var tr = traj(cur);
+    var span = HOLD0 + tr.T + HOLD1;
+    var tt = t - switchT;
+    if (!(tt > 0)) { tt = 0; }
+    tt = tt - Math.floor(tt / span) * span;
+    var u = tt < HOLD0 ? 0 : (tt < HOLD0 + tr.T ? (tt - HOLD0) / tr.T : 1);
+    render(u);
+  }
+
+  function pick(id) {
+    return function () {
+      if (cur === id) { return; }
+      cur = id;
+      switchT = lastT;
+      paintCase();
+      step(lastT);
+    };
+  }
+  if (btn1) { btn1.addEventListener('click', pick('c1')); }
+  if (btn2) { btn2.addEventListener('click', pick('c2')); }
+
+  paintCase();
+
+  return {
+    step: step,
+    reset: function () {
+      switchT = 0;
+      lastT = 0;
+      elCurveA.setAttribute('points', '');
+      elCurveB.setAttribute('points', '');
+      paintCase();
+      render(0);
+    },
+    /* 纯函数：只读预计算好的轨迹，不碰 DOM、不改内部状态 */
+    probe: function (u, caseId) {
+      var st = stateAt(traj(caseId), u);
+      return {
+        u: u,
+        d: st.d,
+        vA: st.vA,
+        vB: st.vB,
+        aA: accel(st.d),
+        Fs: fSpring(st.d),
+        Fc: fCoul(st.d),
+        v1: V1
+      };
+    }
+  };
+};
+</script>
+<script>/* ===== 动画运行时 ===== */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var live = [];
+
+  function build(fig) {
+    var id = fig.getAttribute('data-scene');
+    var factory = window.Scenes[id];
+    if (typeof factory !== 'function') return null;
+    var api;
+    try { api = factory(fig); } catch (e) { console.error('[scene ' + id + '] setup failed', e); return null; }
+    if (!api || typeof api.step !== 'function') { console.error('[scene ' + id + '] bad contract'); return null; }
+
+    var bar = document.createElement('div');
+    bar.className = 'ctlbar';
+    var pp = document.createElement('button');
+    pp.type = 'button'; pp.className = 'btn pp';
+    var rp = document.createElement('button');
+    rp.type = 'button'; rp.className = 'btn'; rp.textContent = '重播';
+    var tag = document.createElement('span');
+    tag.className = 'livebadge'; tag.textContent = 'LIVE';
+    bar.appendChild(pp); bar.appendChild(rp); bar.appendChild(tag);
+    var own = fig.querySelector('.ctl');
+    if (own) bar.appendChild(own);
+    var cap = fig.querySelector('figcaption');
+    fig.insertBefore(bar, cap);
+
+    window.__api = window.__api || {}; window.__api[id] = api;
+    var s = { id: id, api: api, t: 0, playing: !reduce, visible: true, fig: fig, pp: pp };
+    function paint() {
+      pp.textContent = s.playing ? '暂停' : '播放';
+      pp.setAttribute('aria-pressed', s.playing ? 'true' : 'false');
+      pp.setAttribute('aria-label', (s.playing ? '暂停' : '播放') + '动画');
+      tag.style.opacity = s.playing ? '.9' : '.3';
+    }
+    pp.addEventListener('click', function () { s.playing = !s.playing; paint(); });
+    rp.addEventListener('click', function () {
+      s.t = 0;
+      try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] reset', e); }
+    });
+    paint();
+    try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] first frame', e); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { s.visible = es[0].isIntersecting; },
+        { rootMargin: '120px' }).observe(fig);
+    }
+    return s;
+  }
+
+  function boot() {
+    var figs = document.querySelectorAll('figure[data-scene]');
+    for (var i = 0; i < figs.length; i++) {
+      var s = build(figs[i]);
+      if (s) live.push(s);
+    }
+    var g = document.getElementById('gswitch');
+    if (g) {
+      g.addEventListener('click', function () {
+        var anyOn = live.some(function (s) { return s.playing; });
+        live.forEach(function (s) { if (s.playing === anyOn) s.pp.click(); });
+        g.textContent = anyOn ? '▶ 全部播放' : '⏸ 全部暂停';
+      });
+      g.textContent = reduce ? '▶ 全部播放' : '⏸ 全部暂停';
+    }
+    var last = 0;
+    function frame(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 0;
+      last = now;
+      for (var i = 0; i < live.length; i++) {
+        var s = live[i];
+        if (!s.playing || !s.visible) continue;
+        s.t += dt;
+        try { s.api.step(s.t); }
+        catch (e) { console.error('[scene ' + s.id + '] step', e); s.playing = false; }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<script>
+function __runProbe(){
+  var out = {ok:false, errors:[], render:[], scenes:[], series:{}, notes:[]};
+  function rec(e){ out.errors.push(String(e && e.stack || e)); }
+  window.onerror = function(m,s,l,c,e){ rec(m + " @" + l + ":" + c); };
+  var _ce = console.error; console.error = function(){ rec([].join.call(arguments," ")); _ce.apply(console, arguments); };
+  try {
+    var SID = "q16t", SPEC = {"id": "q16t", "title": "2023 福建卷 第16题 · 电场中两带电滑块的相互作用", "difficulty": "hard", "stem": "水平面上有方向水平向右的匀强电场 E。质量均为 m 的滑块 A、B 置于水平面上，A 带电 +q，B 带电 −q，A 在左、B 在右。两滑块与水平面间的滑动摩擦力大小均为 2qE。A 的右端固定一根轻质细杆，杆端连一轻弹簧（弹簧自由端朝向 B）。A 以某一初速度向右运动，经过位置 S 时速度为 v₁，此后 B 开始运动，最终细杆与 B 相碰。", "physics": {"note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。", "normalization": "取 qE = 1，m = 1，长度单位取 d₁ = √(kq/E)，即库仑力在 d = d₁ 时恰等于 qE。于是全部量无量纲。", "definitions": ["d ≡ x_B − x_A，两滑块间距（随过程单调减小）", "库仑引力大小 F_C(d) = 1/d²（A 被吸向右、B 被吸向左）", "弹簧：原长 L_s、劲度 k_s；仅当 d < L_s 时接触，F_s = k_s(L_s − d)，把 A 推向左、把 B 推向右", "细杆长 L_r；当 d = L_r 时细杆与 B 相碰，整个过程结束", "摩擦力大小恒为 2（滑动时方向与运动方向相反）"], "equations": ["A 向右运动：a_A = 1 + 1/d² − 2 − F_s(d)", "B 保持静止的判据：|−1 − 1/d² + F_s(d)| ≤ 2；弹簧未接触时化为 1 + 1/d² ≤ 2，即 d ≥ 1", "B 向左运动后（取向左为正）：a_B = 1 + 1/d² − F_s(d) − 2"], "given_facts": ["F1 · A 的速度取极小值的位置恰是 d = d₁ = 1（此处 a_A = 0，且 B 恰好起动）。该极小速度即题述的 v₁。", "F2 · A 的速度取极大值处，弹簧弹力恰为 3qE。", "F3 · 细杆与 B 相碰的瞬间，v_A = 2v₁、v_B = v₁。", "F4 · B 起动之后，a_A 与 a_B 表达式相同，故 v_A − v_B 在 B 运动期间是常量。", "F5 · 第(4)问：若 A 经过 S 时速度改为 2v₁（其余一切不变），则碰撞瞬间 v_A = (√3+1)v₁。"], "free_parameters": "L_s、k_s、L_r、初始间距 d₀ 与初速度未在题面给出。你必须自己解出一组同时满足 F1–F3 的自洽参数，再交给动画使用。不自洽的参数会被 L4 断言直接打回。"}, "scene_requirements": ["左半幅：水平面、匀强电场、两滑块 A(+q) 与 B(−q)、细杆与弹簧，随物理过程实时移动。", "标出各力矢量：电场力、库仑引力、摩擦力、弹力，长度随大小变化。", "右半幅：A 与 B 的 v−t 曲线，随过程逐点画出，并标出 a=0 的两个时刻。", "实时读数区：d、库仑力、弹力、a_A、v_A、v_B、v_A/v₁。", "提供两个按钮切换情形①（过 S 时 v₁）与情形②（过 S 时 2v₁）。"], "units": "全部无量纲：力以 qE 为单位，长度以 d₁ 为单位，质量以 m 为单位，速度以 d₁·√(qE/(m d₁)) 为单位。", "cases": [{"id": "c1", "label": "情形① · A 过 S 时速度为 v₁"}, {"id": "c2", "label": "情形② · A 过 S 时速度为 2v₁（同一套 L_s/k_s/L_r/d₀，仅初速更大）"}], "probe_keys": ["u", "d", "vA", "vB", "aA", "Fs", "Fc", "v1"], "probe_key_meaning": {"u": "归一化进度，等于传入的 u", "d": "两滑块间距（无量纲，单位 d₁）", "vA": "A 的速度，向右为正", "vB": "B 的速率，向左运动取正值；B 静止时为 0", "aA": "A 的加速度，向右为正", "Fs": "弹簧弹力大小（单位 qE），未接触时为 0", "Fc": "库仑引力大小（单位 qE）", "v1": "常量：题述的 v₁，即情形①中 A 的最小速度。每次调用返回同一数值。"}, "process_endpoints": "u = 0 对应 A 从初始间距 d₀ 出发的瞬间；u = 1 对应细杆与 B 相碰（d = L_r）的瞬间。两个情形使用同一套 L_s/k_s/L_r/d₀。", "sample_points": 401, "disclosures": [{"must_contain": "无量纲", "why": "读数区显示的 0.61、3.00 等是以 qE 为单位的无量纲值，不是牛顿。不披露会让读者把作图量当成真实物理量。"}], "constants": {"SQRT3": 1.7320508075688772}, "invariants": [{"id": "c1-min-at-d1", "case": "c1", "expr": "abs(d[argmin(vA)] - 1.0) <= 0.03", "report": "d[argmin(vA)]", "why": "F1：v_A 取极小值处必须恰在 d = d₁ = 1（该处 1 + 1/d² − 2 = 0）"}, {"id": "c1-v1-is-min", "case": "c1", "expr": "abs(vA[argmin(vA)] - v1[0]) <= 0.01 * v1[0]", "report": "[vA[argmin(vA)], v1[0]]", "why": "F1：probe 报出的 v1 必须就是 A 的最小速度本身"}, {"id": "c1-Fs-at-vmax", "case": "c1", "expr": "abs(Fs[argmax(vA)] - 3.0) <= 0.35", "report": "[Fs[argmax(vA)], d[argmax(vA)]]", "why": "F2：v_A 取极大值处弹力恰为 3qE"}, {"id": "c1-d-at-vmax", "case": "c1", "expr": "abs(d[argmax(vA)] - 0.5) <= 0.02", "report": "d[argmax(vA)]", "why": "F2 的推论：a_A=0 与 F_s=3 联立给出 1/d²=4，即 v_A 极大值必须出现在 d=0.5"}, {"id": "c1-collide-vA", "case": "c1", "expr": "abs(vA[-1] / v1[0] - 2.0) <= 0.04", "report": "vA[-1]/v1[0]", "why": "F3：碰撞瞬间 v_A = 2v₁"}, {"id": "c1-collide-vB", "case": "c1", "expr": "abs(vB[-1] / v1[0] - 1.0) <= 0.04", "report": "vB[-1]/v1[0]", "why": "F3：碰撞瞬间 v_B = v₁"}, {"id": "c1-momentum", "case": "c1", "expr": "max(abs(vA[vB > 1e-9] - vB[vB > 1e-9] - v1[0])) <= 0.03 * v1[0]", "report": "max(abs(vA[vB > 1e-9] - vB[vB > 1e-9] - v1[0])) / v1[0]", "why": "F4：B 起动后电场力与摩擦力两两抵消，v_A − v_B 必须恒等于 v₁"}, {"id": "c1-B-locked", "case": "c1", "expr": "max(vB[d > 1.005]) <= 1e-9", "report": "max(vB[d > 1.005])", "why": "d > d₁ 时 1 + 1/d² < 2，B 被静摩擦锁住，速率必须严格为 0"}, {"id": "c1-d-monotone", "case": "c1", "expr": "max(diff(d)) <= 1e-9", "report": "max(diff(d))", "why": "整个过程 A 向右、B 向左，间距 d 必须单调不增"}, {"id": "c1-vmax-inside", "case": "c1", "expr": "(argmax(vA) > argmin(vA)) and (argmax(vA) < len(vA) - 1)", "report": "[argmin(vA), argmax(vA), len(vA)]", "why": "速度极大值必须出现在极小值之后、碰撞之前（否则过程被截断或参数不自洽）"}, {"id": "c1-a-zero-at-extrema", "case": "c1", "expr": "(abs(aA[argmin(vA)]) <= 0.12) and (abs(aA[argmax(vA)]) <= 0.12)", "report": "[aA[argmin(vA)], aA[argmax(vA)]]", "why": "速度取极值处加速度必须为零——这是 probe 里 aA 与 vA 自洽的直接检验"}, {"id": "c2-at-S-is-2v1", "case": "c2", "expr": "abs(vA[argmin(abs(d - 1.0))] / v1[0] - 2.0) <= 0.05", "report": "vA[argmin(abs(d - 1.0))] / v1[0]", "why": "情形②的定义：A 经过 S（d = d₁）时速度为 2v₁"}, {"id": "c2-collide-vA", "case": "c2", "expr": "abs(vA[-1] / v1[0] - (1.0 + SQRT3)) <= 0.05", "report": "vA[-1] / v1[0]", "why": "F5：第(4)问的答案，碰撞瞬间 v_A = (√3+1)v₁ ≈ 2.732 v₁"}, {"id": "c2-collide-vB", "case": "c2", "expr": "abs(vB[-1] / v1[0] - (SQRT3 - 1.0)) <= 0.05", "report": "vB[-1] / v1[0]", "why": "由 v_A − v_B = 2v₁ 与 F5 联立得 v_B = (√3−1)v₁ ≈ 0.732 v₁——独立于 F5 的交叉检验"}, {"id": "c2-momentum", "case": "c2", "expr": "max(abs(vA[vB > 1e-9] - vB[vB > 1e-9] - 2.0 * v1[0])) <= 0.03 * v1[0]", "report": "max(abs(vA[vB > 1e-9] - vB[vB > 1e-9] - 2.0 * v1[0])) / v1[0]", "why": "F4 在情形②：B 起动后 v_A − v_B 恒等于此时 A 的速度 2v₁"}, {"id": "c2-same-geometry", "case": "c2", "expr": "(abs(Fs[argmax(vA)] - 3.0) <= 0.25) and (max(diff(d)) <= 1e-9)", "report": "[Fs[argmax(vA)], d[-1]]", "why": "情形②必须复用同一套弹簧/细杆几何——弹力极值点仍应落在 3qE 附近"}]};
+    out.scenes = Object.keys(window.Scenes || {});
+    var fig = document.querySelector('figure[data-scene="' + SID + '"]');
+    if (!fig) { out.errors.push("DOM 里找不到 figure[data-scene=" + SID + "]"); throw 0; }
+    var api = (window.__api || {})[SID];
+    if (!api) { out.errors.push("运行时未能构造该场景（工厂抛错或契约不符）"); throw 0; }
+    ["step","reset","probe"].forEach(function(k){
+      if (typeof api[k] !== "function") out.errors.push("api." + k + " 不是函数");
+    });
+    if (out.errors.length) throw 0;
+
+    var svg = fig.querySelector("svg");
+
+    // --- 渲染压力：跑 451 帧 step()，抓异常与脏数值 ---
+    try {
+      api.reset(); api.step(0);
+      for (var t = 0; t <= 18.0001; t += 0.04) api.step(t);
+    } catch (e) { rec("step() 抛异常: " + e); }
+    var dom = svg.outerHTML;
+    ["NaN","Infinity","undefined","null"].forEach(function(w){
+      var n = (dom.match(new RegExp(w, "g")) || []).length;
+      if (n) out.errors.push("渲染后 SVG 中出现 " + w + " ×" + n);
+    });
+
+    /* --- L3.5 渲染覆盖 ---
+       断言只跑 probe，看不见渲染。历史教训：把 translate(cx,cy) rotate(θ)
+       误写成 rotate(θ cx cy)，整组元素飞出画布，四层门禁 13/13 全绿放行。
+       这里补上：每个带 id 的 SVG 元素，必须在某一采样时刻真的画在 viewBox 内。
+       只查「位置」不查「可见性」—— opacity=0 的元素 getBBox 依然有效，
+       所以合法隐藏的结论框不会被误伤，而「整组飞出画布」是全时段的，必然被抓。*/
+    try {
+      api.reset();
+      var vb = svg.viewBox.baseVal;
+      var els = svg.querySelectorAll("[id]");
+      var ids = [], everOK = {}, everDrawn = {}, snaps = [];
+      for (var q0 = 0; q0 < els.length; q0++) ids.push(els[q0].getAttribute("id"));
+      /* 注意：不能用 el.getCTM() —— 它含 viewBox 缩放，返回的是渲染像素坐标，
+         拿去和 viewBox 数值比会把右下方的元素全部误判出界。
+         正确做法是经 svg 根的 screenCTM 求逆，换回 viewBox 用户单位。 */
+      for (var tq = 0; tq <= 20.0001; tq += 0.5) {
+        api.step(tq);
+        snaps.push(svg.innerHTML);
+        var rootM = svg.getScreenCTM();
+        if (!rootM) continue;
+        var invM = rootM.inverse();
+        for (var q1 = 0; q1 < els.length; q1++) {
+          var idq = ids[q1];
+          if (everOK[idq]) continue;
+          var bb, mm;
+          try { bb = els[q1].getBBox(); mm = els[q1].getScreenCTM(); } catch (err0) { continue; }
+          if (!mm) continue;
+          if (bb.width <= 0 && bb.height <= 0) continue;   /* 退化元素不判位置 */
+          everDrawn[idq] = true;
+          mm = invM.multiply(mm);                          /* → viewBox 用户单位 */
+          var cxq = bb.x + bb.width / 2, cyq = bb.y + bb.height / 2;
+          var XQ = mm.a * cxq + mm.c * cyq + mm.e;
+          var YQ = mm.b * cxq + mm.d * cyq + mm.f;
+          if (XQ >= vb.x - 2 && XQ <= vb.x + vb.width + 2 &&
+              YQ >= vb.y - 2 && YQ <= vb.y + vb.height + 2)
+            everOK[idq] = true;
+        }
+      }
+      var off = [], dead = [];
+      for (var q2 = 0; q2 < ids.length; q2++) {
+        if (!everDrawn[ids[q2]]) dead.push(ids[q2]);
+        else if (!everOK[ids[q2]]) off.push(ids[q2]);
+      }
+      if (off.length)
+        out.render.push("这些元素在全部 41 个采样时刻都画在 viewBox 之外（画面上看不到）：" + off.join(", "));
+      var moved = false;
+      for (var q3 = 1; q3 < snaps.length; q3++) if (snaps[q3] !== snaps[0]) { moved = true; break; }
+      if (!moved)
+        out.render.push("采样了 " + snaps.length + " 个不同时刻，SVG 内容完全没有变化——动画没有动");
+      out.notes.push("渲染覆盖：" + ids.length + " 个带 id 元素，" +
+                     Object.keys(everOK).length + " 个曾正常出现在画面内" +
+                     (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
+    } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
+
+    // --- probe 采样 ---
+    var N = SPEC.sample_points || 401;
+    for (var ci = 0; ci < SPEC.cases.length; ci++) {
+      var cid = SPEC.cases[ci].id;
+      var cols = {}; SPEC.probe_keys.forEach(function(k){ cols[k] = []; });
+
+      // 纯度 + 无副作用
+      var before = svg.outerHTML;
+      var a1 = api.probe(0.37, cid), a2 = api.probe(0.37, cid);
+      if (svg.outerHTML !== before) out.errors.push("[" + cid + "] probe() 修改了 DOM（必须是纯函数）");
+      SPEC.probe_keys.forEach(function(k){
+        if (!(k in a1)) out.errors.push("[" + cid + "] probe 返回值缺少键 " + k);
+        else if (a1[k] !== a2[k]) out.errors.push("[" + cid + "] probe 不纯：同一 u 两次调用 " + k + " 不同（" + a1[k] + " vs " + a2[k] + "）");
+      });
+
+      var nbad = 0;
+      for (var i = 0; i < N; i++) {
+        var u = i / (N - 1);
+        var r;
+        try { r = api.probe(u, cid); }
+        catch (e) { out.errors.push("[" + cid + "] probe(" + u.toFixed(3) + ") 抛异常: " + e); break; }
+        for (var ki = 0; ki < SPEC.probe_keys.length; ki++) {
+          var k = SPEC.probe_keys[ki], v = r ? r[k] : undefined;
+          if (typeof v !== "number" || !isFinite(v)) { nbad++; v = null; }
+          cols[k].push(v);
+        }
+      }
+      if (nbad) out.errors.push("[" + cid + "] probe 返回了 " + nbad + " 个非有限数值");
+      out.series[cid] = cols;
+    }
+    out.ok = out.errors.length === 0 && out.render.length === 0;
+  } catch (e) { if (e) rec(e); }
+  document.getElementById("TESTOUT").textContent = "@@" + JSON.stringify(out) + "@@";
+}
+/* 必须等运行时 boot 完（它也挂在 DOMContentLoaded 上，且注册在前），
+   同时保证 <pre id="TESTOUT"> 已经存在 */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", __runProbe);
+else __runProbe();
+</script>
+<pre id="TESTOUT"></pre>

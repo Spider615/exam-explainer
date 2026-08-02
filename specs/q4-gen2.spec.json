@@ -1,0 +1,229 @@
+{
+ "id": "q4-gen2",
+ "stem": "密封于气缸中的理想气体，从状态a依次经过ab、bc、cd三个热力学过程达到状态d。已知V-T图中：a→b为过原点的直线（V∝T，V、T均增大）；b→c为竖直线段（T不变，V增大）；c→d为水平线段（V不变，T增大）。求对应的p-T图像。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "气体经ab(等压)→bc(等温)→cd(等容)从状态a到状态d的完整过程"
+  }
+ ],
+ "title": "密封气体a→b→c→d三过程的p-T图像匹配",
+ "units": "采用归一化单位制：取nR=1，使得p*V=T恒成立；T、V、p均为无量纲相对值",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。密封气缸内气体的量n不变，理想气体状态方程pV=nRT在全过程任意时刻均成立。",
+  "equations": [
+   "全程：p*V = T（因为nR归一化为1，气体量不变）",
+   "ab段（等压）：s=3u, s∈[0,1]；T=1+s，V=T，p=1（常数）",
+   "bc段（等温）：s=3u-1, s∈[0,1]；T=2（常数），V=2+2s，p=T/V=2/V",
+   "cd段（等容）：s=3u-2, s∈[0,1]；V=4（常数），T=2+2s，p=T/V=T/4"
+  ],
+  "definitions": [
+   "T：热力学温度",
+   "V：气体体积",
+   "p：气体压强，p=nRT/V",
+   "u：无量纲过程进度，0→1对应a→b→c→d整个过程，其中u∈[0,1/3]对应ab，u∈[1/3,2/3]对应bc，u∈[2/3,1]对应cd"
+  ],
+  "given_facts": [
+   "F1 · ab过程压强p保持不变（等压）",
+   "F2 · bc过程温度T保持不变、压强p减小（等温、体积增大）",
+   "F3 · cd过程体积V保持不变、压强p与温度T成正比增大（等容）",
+   "F4 · 正确p-T图中cd线段的延长线应通过坐标原点（因为等容过程p=T/V，是过原点的直线的一段）",
+   "F5 · 理想气体状态方程pV=nRT在全过程任意时刻均成立，且n不变（密封气缸）"
+  ],
+  "normalization": "取nR=1（即取p、V、T的单位使得pV=T恒成立），并取状态a为T_a=1, V_a=1, 故p_a=1",
+  "free_parameters": "题面V-T图只给出定性形状（ab过原点直线、bc竖直增大、cd水平增大），未给具体数值。为可动画化，选取具体数值：T_a=1,V_a=1(p_a=1)；T_b=2,V_b=2(p_b=1)；T_c=2,V_c=4(p_c=0.5)；T_d=4,V_d=4(p_d=1)，满足V/T在ab段恒为1、T在bc段恒为2、V在cd段恒为4，且cd段p=T/4过原点。这些具体数值不改变各段过程的定性性质（等压/等温/等容及单调方向）。"
+ },
+ "constants": {
+  "nR": 1,
+  "T_a": 1,
+  "T_b": 2,
+  "T_c": 2,
+  "T_d": 4,
+  "V_a": 1,
+  "V_b": 2,
+  "V_c": 4,
+  "V_d": 4,
+  "p_a": 1,
+  "p_b": 1,
+  "p_c": 0.5,
+  "p_d": 1
+ },
+ "reference": "def probe(u, case):\n    if u <= 1/3:\n        s = 3*u\n        T = 1 + s\n        V = T\n        p = 1.0\n    elif u <= 2/3:\n        s = 3*u - 1\n        T = 2.0\n        V = 2 + 2*s\n        p = T / V\n    else:\n        s = 3*u - 2\n        V = 4.0\n        T = 2 + 2*s\n        p = T / V\n    return {\"u\": u, \"T\": T, \"V\": V, \"p\": p}",
+ "invariants": [
+  {
+   "id": "c1-a-T",
+   "why": "对应state a定义，T_a=1",
+   "case": "c1",
+   "expr": "abs(T[0]-1.0) <= 0.02",
+   "report": "T[0]"
+  },
+  {
+   "id": "c1-a-V",
+   "why": "对应state a定义，V_a=1",
+   "case": "c1",
+   "expr": "abs(V[0]-1.0) <= 0.02",
+   "report": "V[0]"
+  },
+  {
+   "id": "c1-a-p",
+   "why": "对应F5及state a定义，p_a=1",
+   "case": "c1",
+   "expr": "abs(p[0]-1.0) <= 0.02",
+   "report": "p[0]"
+  },
+  {
+   "id": "c1-b-T",
+   "why": "对应F1终点，ab等压过程结束于state b, T_b=2",
+   "case": "c1",
+   "expr": "abs(interp(1/3, u, T) - 2.0) <= 0.04",
+   "report": "T(u=1/3)"
+  },
+  {
+   "id": "c1-b-V",
+   "why": "对应F1终点，ab过程V_b=2",
+   "case": "c1",
+   "expr": "abs(interp(1/3, u, V) - 2.0) <= 0.04",
+   "report": "V(u=1/3)"
+  },
+  {
+   "id": "c1-b-p",
+   "why": "对应F1，ab过程p恒为1，b点p_b=1",
+   "case": "c1",
+   "expr": "abs(interp(1/3, u, p) - 1.0) <= 0.02",
+   "report": "p(u=1/3)"
+  },
+  {
+   "id": "c1-c-T",
+   "why": "对应F2终点，bc等温过程T_c=2",
+   "case": "c1",
+   "expr": "abs(interp(2/3, u, T) - 2.0) <= 0.04",
+   "report": "T(u=2/3)"
+  },
+  {
+   "id": "c1-c-V",
+   "why": "对应F2终点，bc过程V_c=4",
+   "case": "c1",
+   "expr": "abs(interp(2/3, u, V) - 4.0) <= 0.08",
+   "report": "V(u=2/3)"
+  },
+  {
+   "id": "c1-c-p",
+   "why": "对应F2终点，bc过程p_c=0.5",
+   "case": "c1",
+   "expr": "abs(interp(2/3, u, p) - 0.5) <= 0.02",
+   "report": "p(u=2/3)"
+  },
+  {
+   "id": "c1-d-T",
+   "why": "对应F3终点，cd等容过程T_d=4",
+   "case": "c1",
+   "expr": "abs(T[-1]-4.0) <= 0.08",
+   "report": "T[-1]"
+  },
+  {
+   "id": "c1-d-V",
+   "why": "对应F3终点，cd过程V恒为4",
+   "case": "c1",
+   "expr": "abs(V[-1]-4.0) <= 0.08",
+   "report": "V[-1]"
+  },
+  {
+   "id": "c1-d-p",
+   "why": "对应F3终点，cd过程p_d=1",
+   "case": "c1",
+   "expr": "abs(p[-1]-1.0) <= 0.02",
+   "report": "p[-1]"
+  },
+  {
+   "id": "c1-ab-p-const",
+   "why": "对应F1，ab过程压强恒定",
+   "case": "c1",
+   "expr": "max(p[u<=1/3]) - min(p[u<=1/3]) <= 0.02",
+   "report": "max-min of p over ab segment"
+  },
+  {
+   "id": "c1-ab-V-increasing",
+   "why": "对应V-T图ab方向单调递增（V∝T）",
+   "case": "c1",
+   "expr": "min(diff(V[u<=1/3])) >= -1e-6",
+   "report": "min diff(V) over ab segment"
+  },
+  {
+   "id": "c1-bc-T-const",
+   "why": "对应F2，bc过程温度恒定",
+   "case": "c1",
+   "expr": "max(T[(u>1/3)&(u<=2/3)]) - min(T[(u>1/3)&(u<=2/3)]) <= 0.02",
+   "report": "max-min of T over bc segment"
+  },
+  {
+   "id": "c1-bc-p-decreasing",
+   "why": "对应F2，bc过程压强随体积增大而单调下降",
+   "case": "c1",
+   "expr": "max(diff(p[(u>1/3)&(u<=2/3)])) <= 1e-6",
+   "report": "max diff(p) over bc segment"
+  },
+  {
+   "id": "c1-cd-V-const",
+   "why": "对应F3，cd过程体积恒定",
+   "case": "c1",
+   "expr": "max(V[u>2/3]) - min(V[u>2/3]) <= 0.04",
+   "report": "max-min of V over cd segment"
+  },
+  {
+   "id": "c1-cd-p-increasing",
+   "why": "对应F3，cd过程压强随温度增大而单调上升",
+   "case": "c1",
+   "expr": "min(diff(p[u>2/3])) >= -1e-6",
+   "report": "min diff(p) over cd segment"
+  },
+  {
+   "id": "c1-cd-through-origin",
+   "why": "对应F4，cd段p与T成正比且直线过原点（p=T/4）",
+   "case": "c1",
+   "expr": "max(abs(p[u>2/3]*4.0 - T[u>2/3])) <= 0.16",
+   "report": "max abs(4p - T) over cd segment"
+  },
+  {
+   "id": "c1-ideal-gas-consistency",
+   "why": "对应F5，pV=nRT在全过程任意时刻均须自洽成立，防止probe内p、V、T各自独立计算而互不匹配",
+   "case": "c1",
+   "expr": "max(abs(p*V/T - 1.0)) <= 0.03",
+   "report": "max abs(pV/T - 1)"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "T",
+  "V",
+  "p"
+ ],
+ "disclosures": [
+  {
+   "why": "对应F1，是判断正确p-T图的关键特征",
+   "must_contain": "ab段标注'等压'，图中p保持水平不变"
+  },
+  {
+   "why": "对应F2，用于排除bc方向画反（p增大）的错误选项",
+   "must_contain": "bc段标注'等温'，图中p随V增大而下降（竖直线向下）"
+  },
+  {
+   "why": "对应F4，是区分正确选项与形似选项（cd斜率对但不过原点）的关键",
+   "must_contain": "cd段标注'等容'，并画出过原点的虚线以显示cd线段共线于该虚线"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "T": "热力学温度（归一化单位）",
+  "V": "气体体积（归一化单位）",
+  "p": "气体压强（归一化单位），恒满足p=T/V",
+  "u": "归一化过程进度，0→1/3为ab段，1/3→2/3为bc段，2/3→1为cd段"
+ },
+ "process_endpoints": "u=0对应状态a(T=1,V=1,p=1)；u=1/3对应状态b(T=2,V=2,p=1)；u=2/3对应状态c(T=2,V=4,p=0.5)；u=1对应状态d(T=4,V=4,p=1)",
+ "scene_requirements": [
+  "气缸活塞示意图，随过程推进显示活塞位置（体积V变化）与气体温度指示",
+  "同步绘制V-T图，展示a→b→c→d轨迹随u推进逐段画出",
+  "同步绘制p-T图，展示对应的a→b→c→d轨迹随u推进逐段画出",
+  "标注每段过程类型：ab-等压，bc-等温，cd-等容",
+  "在p-T图上用虚线标出cd段延长线经过坐标原点"
+ ]
+}

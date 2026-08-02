@@ -1,0 +1,193 @@
+{
+ "id": "q16t",
+ "title": "2023 福建卷 第16题 · 电场中两带电滑块的相互作用",
+ "difficulty": "hard",
+ "stem": "水平面上有方向水平向右的匀强电场 E。质量均为 m 的滑块 A、B 置于水平面上，A 带电 +q，B 带电 −q，A 在左、B 在右。两滑块与水平面间的滑动摩擦力大小均为 2qE。A 的右端固定一根轻质细杆，杆端连一轻弹簧（弹簧自由端朝向 B）。A 以某一初速度向右运动，经过位置 S 时速度为 v₁，此后 B 开始运动，最终细杆与 B 相碰。",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。",
+  "normalization": "取 qE = 1，m = 1，长度单位取 d₁ = √(kq/E)，即库仑力在 d = d₁ 时恰等于 qE。于是全部量无量纲。",
+  "definitions": [
+   "d ≡ x_B − x_A，两滑块间距（随过程单调减小）",
+   "库仑引力大小 F_C(d) = 1/d²（A 被吸向右、B 被吸向左）",
+   "弹簧：原长 L_s、劲度 k_s；仅当 d < L_s 时接触，F_s = k_s(L_s − d)，把 A 推向左、把 B 推向右",
+   "细杆长 L_r；当 d = L_r 时细杆与 B 相碰，整个过程结束",
+   "摩擦力大小恒为 2（滑动时方向与运动方向相反）"
+  ],
+  "equations": [
+   "A 向右运动：a_A = 1 + 1/d² − 2 − F_s(d)",
+   "B 保持静止的判据：|−1 − 1/d² + F_s(d)| ≤ 2；弹簧未接触时化为 1 + 1/d² ≤ 2，即 d ≥ 1",
+   "B 向左运动后（取向左为正）：a_B = 1 + 1/d² − F_s(d) − 2"
+  ],
+  "given_facts": [
+   "F1 · A 的速度取极小值的位置恰是 d = d₁ = 1（此处 a_A = 0，且 B 恰好起动）。该极小速度即题述的 v₁。",
+   "F2 · A 的速度取极大值处，弹簧弹力恰为 3qE。",
+   "F3 · 细杆与 B 相碰的瞬间，v_A = 2v₁、v_B = v₁。",
+   "F4 · B 起动之后，a_A 与 a_B 表达式相同，故 v_A − v_B 在 B 运动期间是常量。",
+   "F5 · 第(4)问：若 A 经过 S 时速度改为 2v₁（其余一切不变），则碰撞瞬间 v_A = (√3+1)v₁。"
+  ],
+  "free_parameters": "L_s、k_s、L_r、初始间距 d₀ 与初速度未在题面给出。你必须自己解出一组同时满足 F1–F3 的自洽参数，再交给动画使用。不自洽的参数会被 L4 断言直接打回。"
+ },
+ "scene_requirements": [
+  "左半幅：水平面、匀强电场、两滑块 A(+q) 与 B(−q)、细杆与弹簧，随物理过程实时移动。",
+  "标出各力矢量：电场力、库仑引力、摩擦力、弹力，长度随大小变化。",
+  "右半幅：A 与 B 的 v−t 曲线，随过程逐点画出，并标出 a=0 的两个时刻。",
+  "实时读数区：d、库仑力、弹力、a_A、v_A、v_B、v_A/v₁。",
+  "提供两个按钮切换情形①（过 S 时 v₁）与情形②（过 S 时 2v₁）。"
+ ],
+ "units": "全部无量纲：力以 qE 为单位，长度以 d₁ 为单位，质量以 m 为单位，速度以 d₁·√(qE/(m d₁)) 为单位。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "情形① · A 过 S 时速度为 v₁"
+  },
+  {
+   "id": "c2",
+   "label": "情形② · A 过 S 时速度为 2v₁（同一套 L_s/k_s/L_r/d₀，仅初速更大）"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "d",
+  "vA",
+  "vB",
+  "aA",
+  "Fs",
+  "Fc",
+  "v1"
+ ],
+ "probe_key_meaning": {
+  "u": "归一化进度，等于传入的 u",
+  "d": "两滑块间距（无量纲，单位 d₁）",
+  "vA": "A 的速度，向右为正",
+  "vB": "B 的速率，向左运动取正值；B 静止时为 0",
+  "aA": "A 的加速度，向右为正",
+  "Fs": "弹簧弹力大小（单位 qE），未接触时为 0",
+  "Fc": "库仑引力大小（单位 qE）",
+  "v1": "常量：题述的 v₁，即情形①中 A 的最小速度。每次调用返回同一数值。"
+ },
+ "process_endpoints": "u = 0 对应 A 从初始间距 d₀ 出发的瞬间；u = 1 对应细杆与 B 相碰（d = L_r）的瞬间。两个情形使用同一套 L_s/k_s/L_r/d₀。",
+ "sample_points": 401,
+ "disclosures": [
+  {
+   "must_contain": "无量纲",
+   "why": "读数区显示的 0.61、3.00 等是以 qE 为单位的无量纲值，不是牛顿。不披露会让读者把作图量当成真实物理量。"
+  }
+ ],
+ "constants": {
+  "SQRT3": 1.7320508075688772
+ },
+ "invariants": [
+  {
+   "id": "c1-min-at-d1",
+   "case": "c1",
+   "expr": "abs(d[argmin(vA)] - 1.0) <= 0.03",
+   "report": "d[argmin(vA)]",
+   "why": "F1：v_A 取极小值处必须恰在 d = d₁ = 1（该处 1 + 1/d² − 2 = 0）"
+  },
+  {
+   "id": "c1-v1-is-min",
+   "case": "c1",
+   "expr": "abs(vA[argmin(vA)] - v1[0]) <= 0.01 * v1[0]",
+   "report": "[vA[argmin(vA)], v1[0]]",
+   "why": "F1：probe 报出的 v1 必须就是 A 的最小速度本身"
+  },
+  {
+   "id": "c1-Fs-at-vmax",
+   "case": "c1",
+   "expr": "abs(Fs[argmax(vA)] - 3.0) <= 0.35",
+   "report": "[Fs[argmax(vA)], d[argmax(vA)]]",
+   "why": "F2：v_A 取极大值处弹力恰为 3qE"
+  },
+  {
+   "id": "c1-d-at-vmax",
+   "case": "c1",
+   "expr": "abs(d[argmax(vA)] - 0.5) <= 0.02",
+   "report": "d[argmax(vA)]",
+   "why": "F2 的推论：a_A=0 与 F_s=3 联立给出 1/d²=4，即 v_A 极大值必须出现在 d=0.5"
+  },
+  {
+   "id": "c1-collide-vA",
+   "case": "c1",
+   "expr": "abs(vA[-1] / v1[0] - 2.0) <= 0.04",
+   "report": "vA[-1]/v1[0]",
+   "why": "F3：碰撞瞬间 v_A = 2v₁"
+  },
+  {
+   "id": "c1-collide-vB",
+   "case": "c1",
+   "expr": "abs(vB[-1] / v1[0] - 1.0) <= 0.04",
+   "report": "vB[-1]/v1[0]",
+   "why": "F3：碰撞瞬间 v_B = v₁"
+  },
+  {
+   "id": "c1-momentum",
+   "case": "c1",
+   "expr": "max(abs(vA[vB > 1e-9] - vB[vB > 1e-9] - v1[0])) <= 0.03 * v1[0]",
+   "report": "max(abs(vA[vB > 1e-9] - vB[vB > 1e-9] - v1[0])) / v1[0]",
+   "why": "F4：B 起动后电场力与摩擦力两两抵消，v_A − v_B 必须恒等于 v₁"
+  },
+  {
+   "id": "c1-B-locked",
+   "case": "c1",
+   "expr": "max(vB[d > 1.005]) <= 1e-9",
+   "report": "max(vB[d > 1.005])",
+   "why": "d > d₁ 时 1 + 1/d² < 2，B 被静摩擦锁住，速率必须严格为 0"
+  },
+  {
+   "id": "c1-d-monotone",
+   "case": "c1",
+   "expr": "max(diff(d)) <= 1e-9",
+   "report": "max(diff(d))",
+   "why": "整个过程 A 向右、B 向左，间距 d 必须单调不增"
+  },
+  {
+   "id": "c1-vmax-inside",
+   "case": "c1",
+   "expr": "(argmax(vA) > argmin(vA)) and (argmax(vA) < len(vA) - 1)",
+   "report": "[argmin(vA), argmax(vA), len(vA)]",
+   "why": "速度极大值必须出现在极小值之后、碰撞之前（否则过程被截断或参数不自洽）"
+  },
+  {
+   "id": "c1-a-zero-at-extrema",
+   "case": "c1",
+   "expr": "(abs(aA[argmin(vA)]) <= 0.12) and (abs(aA[argmax(vA)]) <= 0.12)",
+   "report": "[aA[argmin(vA)], aA[argmax(vA)]]",
+   "why": "速度取极值处加速度必须为零——这是 probe 里 aA 与 vA 自洽的直接检验"
+  },
+  {
+   "id": "c2-at-S-is-2v1",
+   "case": "c2",
+   "expr": "abs(vA[argmin(abs(d - 1.0))] / v1[0] - 2.0) <= 0.05",
+   "report": "vA[argmin(abs(d - 1.0))] / v1[0]",
+   "why": "情形②的定义：A 经过 S（d = d₁）时速度为 2v₁"
+  },
+  {
+   "id": "c2-collide-vA",
+   "case": "c2",
+   "expr": "abs(vA[-1] / v1[0] - (1.0 + SQRT3)) <= 0.05",
+   "report": "vA[-1] / v1[0]",
+   "why": "F5：第(4)问的答案，碰撞瞬间 v_A = (√3+1)v₁ ≈ 2.732 v₁"
+  },
+  {
+   "id": "c2-collide-vB",
+   "case": "c2",
+   "expr": "abs(vB[-1] / v1[0] - (SQRT3 - 1.0)) <= 0.05",
+   "report": "vB[-1] / v1[0]",
+   "why": "由 v_A − v_B = 2v₁ 与 F5 联立得 v_B = (√3−1)v₁ ≈ 0.732 v₁——独立于 F5 的交叉检验"
+  },
+  {
+   "id": "c2-momentum",
+   "case": "c2",
+   "expr": "max(abs(vA[vB > 1e-9] - vB[vB > 1e-9] - 2.0 * v1[0])) <= 0.03 * v1[0]",
+   "report": "max(abs(vA[vB > 1e-9] - vB[vB > 1e-9] - 2.0 * v1[0])) / v1[0]",
+   "why": "F4 在情形②：B 起动后 v_A − v_B 恒等于此时 A 的速度 2v₁"
+  },
+  {
+   "id": "c2-same-geometry",
+   "case": "c2",
+   "expr": "(abs(Fs[argmax(vA)] - 3.0) <= 0.25) and (max(diff(d)) <= 1e-9)",
+   "report": "[Fs[argmax(vA)], d[-1]]",
+   "why": "情形②必须复用同一套弹簧/细杆几何——弹力极值点仍应落在 3qE 附近"
+  }
+ ]
+}

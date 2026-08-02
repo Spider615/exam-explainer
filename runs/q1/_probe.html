@@ -1,0 +1,448 @@
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --stem:#FAFBFC;
+  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
+  --line:#C9D2DE; --hair:#E4E9F0;
+  --acc:#2B5490; --acc2:#E9EFF8;
+  --cy:#0C8CAE; --cy2:#E2F2F6;
+  --red:#AE3B2B; --red2:#FBEBE7;
+  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"Times New Roman",Georgia,serif;
+  --song:Songti SC,SimSun,serif;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk)}
+figure{margin:0;background:var(--panel);border:1px solid var(--line)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px solid var(--hair)}
+svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
+svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
+svg text.n{font-family:var(--mono);font-style:normal;font-size:11px;fill:var(--ink2)}
+svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
+.sk{stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.sh{stroke:var(--line);fill:none;stroke-width:1}
+.sa{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sr{stroke:var(--red);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sc{stroke:var(--cy);fill:none;stroke-width:1.5;stroke-dasharray:5 4}
+.fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
+.wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}.wash-c{fill:var(--cy);opacity:.16}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-top:1px solid var(--hair)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+input[type=range]{width:120px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--acc)"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cy)"/></marker>
+</defs></svg>
+
+<figure data-scene="q1"><svg viewBox="0 0 560 320" role="img" aria-label="矫正牙齿两牵引力合成：牙齿受两个大小均为F、夹角为α的牵引力，α从0连续增大到π，动态展示平行四边形定则给出的合力 2F·cos(α/2)，右侧为合力随α变化的曲线">
+
+  <text x="14" y="17" class="u">两等大牵引力 F 的合力：平行四边形定则演示</text>
+
+  <circle id="q1-tooth" class="fk" cx="128" cy="150" r="4"/>
+  <text x="108" y="136" class="u" text-anchor="end">牙齿（简化为质点）</text>
+
+  <path id="q1-arc" class="sc" d="M 162.00 150.00 A 34 34 0 0 1 162.00 150.00"/>
+
+  <line id="q1-para1" class="sc" x1="204" y1="150" x2="280" y2="150"/>
+  <line id="q1-para2" class="sc" x1="204" y1="150" x2="280" y2="150"/>
+
+  <line id="q1-f1" class="sa" x1="128" y1="150" x2="204" y2="150" marker-end="url(#aa)"/>
+  <line id="q1-f2" class="sa" x1="128" y1="150" x2="204" y2="150" marker-end="url(#aa)"/>
+  <line id="q1-fres" class="sr" stroke-width="2.6" x1="128" y1="150" x2="280" y2="150" marker-end="url(#ar)"/>
+
+  <text id="q1-labF1" x="214" y="146" class="a">F₁</text>
+  <text id="q1-labF2" x="214" y="162" class="a">F₂</text>
+  <text id="q1-labFres" x="288" y="144" class="r">Fres</text>
+
+  <text x="176" y="146">α</text>
+
+  <text x="14" y="234" class="u">当前夹角α的数值（弧度或角度）：</text>
+  <text id="q1-roAlpha" x="204" y="234" class="n">0.000 rad ≈ 0.0°</text>
+
+  <text x="14" y="250" class="u">图中给出 F=1（归一化）的标注：两条牵引线上力的大小均为 F</text>
+
+  <text x="14" y="266">Fres</text>
+  <text id="q1-roFres" x="46" y="266" class="n r">= 2.000</text>
+
+  <text x="14" y="282">Fres_formula</text>
+  <text id="q1-roFormula" x="100" y="282" class="n">= 2F·cos(α/2) = 2.000</text>
+
+  <text x="14" y="298" class="u r">→ 公式2F·cos(α/2)及对应选项B的标注：矢量合成与解析公式处处相等</text>
+
+  <line class="hair-axis sh" x1="350" y1="8" x2="350" y2="312"/>
+  <text x="356" y="30" class="u">Fres 随 α 变化</text>
+  <rect class="wash-r" x="492" y="34" width="48" height="18" rx="3"/>
+  <text x="516" y="47" class="u r" text-anchor="middle">选项B</text>
+
+  <path class="sh" d="M 390 54 L 390 190 L 540 190"/>
+  <line class="sh" x1="386" y1="190" x2="390" y2="190"/>
+  <line class="sh" x1="386" y1="122" x2="390" y2="122"/>
+  <line class="sh" x1="386" y1="54" x2="390" y2="54"/>
+  <text x="382" y="193" class="n" text-anchor="end">0</text>
+  <text x="382" y="125" class="n" text-anchor="end">1</text>
+  <text x="382" y="57" class="n" text-anchor="end">2</text>
+  <line class="sh" x1="390" y1="190" x2="390" y2="194"/>
+  <line class="sh" x1="465" y1="190" x2="465" y2="194"/>
+  <line class="sh" x1="540" y1="190" x2="540" y2="194"/>
+  <text x="390" y="205" class="n" text-anchor="middle">0</text>
+  <text x="465" y="205" class="n" text-anchor="middle">π/2</text>
+  <text x="540" y="205" class="n" text-anchor="middle">π</text>
+  <text x="465" y="222" class="u" text-anchor="middle">α（弧度）</text>
+  <text x="356" y="50">Fres</text>
+
+  <path id="q1-curve" class="sh" d="M 390.00 54.00 L 392.50 54.05 L 395.00 54.19 L 397.50 54.42 L 400.00 54.75 L 402.50 55.16 L 405.00 55.67 L 407.50 56.28 L 410.00 56.97 L 412.50 57.76 L 415.00 58.63 L 417.50 59.60 L 420.00 60.66 L 422.50 61.80 L 425.00 63.03 L 427.50 64.35 L 430.00 65.76 L 432.50 67.25 L 435.00 68.82 L 437.50 70.48 L 440.00 72.22 L 442.50 74.04 L 445.00 75.94 L 447.50 77.92 L 450.00 79.97 L 452.50 82.10 L 455.00 84.31 L 457.50 86.58 L 460.00 88.93 L 462.50 91.35 L 465.00 93.83 L 467.50 96.38 L 470.00 99.00 L 472.50 101.68 L 475.00 104.41 L 477.50 107.21 L 480.00 110.06 L 482.50 112.97 L 485.00 115.93 L 487.50 118.94 L 490.00 122.00 L 492.50 125.11 L 495.00 128.26 L 497.50 131.45 L 500.00 134.68 L 502.50 137.96 L 505.00 141.26 L 507.50 144.60 L 510.00 147.97 L 512.50 151.37 L 515.00 154.80 L 517.50 158.25 L 520.00 161.72 L 522.50 165.22 L 525.00 168.72 L 527.50 172.25 L 530.00 175.78 L 532.50 179.33 L 535.00 182.88 L 537.50 186.44 L 540.00 190.00"/>
+  <line id="q1-cursor" class="sc" x1="390" y1="54" x2="390" y2="190"/>
+  <circle id="q1-dot" class="fr" cx="390" cy="54" r="3.6"/>
+
+</svg>
+<figcaption>取单个牵引力 F=1 为归一化单位，动画令夹角α在过程中从0连续增大到π（非题图中固定的某一角度），以展示平行四边形定则给出的合力通用表达式。左图两条牵引线（F₁、F₂）分别为力矢量，其矢量和（红色对角线，Fres）实时显示；右图为 Fres 随α变化的曲线，红点标出当前时刻位置。α=0（两力同向）时合力最大为2F；α=π（两力反向）时合力为0；全过程矢量合成结果 Fres 与解析公式 Fres_formula=2F·cos(α/2) 处处相等，对应正确选项B。</figcaption></figure>
+
+
+<script>window.Scenes = {};</script>
+<script>/* q1 · 矫正牙齿两等大牵引力的合力
+ *
+ * 归一化：单个牵引力 F = 1。角平分线取为固定的 x 轴，
+ * 两力关于 x 轴对称放置，故合力 y 分量恒为 0，合力矢量方向恒沿 x 轴，
+ * 只有长度随 α 变化（α 从 0 连续增大到 π，非题图中固定的某一角度）。
+ * probe() 与 step() 都调用同一个 physics(u)，保证渲染与断言物理一致。
+ */
+window.Scenes["q1"] = function (fig) {
+  var svg = fig.querySelector('svg');
+
+  function clamp01(u) {
+    if (!(u >= 0)) { return 0; }
+    if (u > 1) { return 1; }
+    return u;
+  }
+
+  /* 纯物理：与 spec.reference 完全一致 */
+  function physics(u) {
+    var uu = clamp01(u);
+    var F = 1.0;
+    var alpha = Math.PI * uu;
+    var half = alpha / 2;
+    var c = Math.cos(half), s = Math.sin(half);
+    var Fx1 = F * c, Fy1 = F * s;
+    var Fx2 = F * c, Fy2 = -F * s;
+    var Fx = Fx1 + Fx2, Fy = Fy1 + Fy2;
+    var Fres = Math.sqrt(Fx * Fx + Fy * Fy);
+    var Fres_formula = 2 * F * c;
+    return {
+      u: uu, alpha: alpha, F: F,
+      Fx1: Fx1, Fy1: Fy1, Fx2: Fx2, Fy2: Fy2,
+      Fx: Fx, Fy: Fy, Fres: Fres, Fres_formula: Fres_formula,
+      cosHalf: c, sinHalf: s
+    };
+  }
+
+  /* ================= 画布几何 ================= */
+  var OX = 128, OY = 150, SCALE = 76, RARC = 34;
+  var CL = 390, CR = 540, CT = 54, CB = 190;
+
+  function chx(alpha) { return CL + (alpha / Math.PI) * (CR - CL); }
+  function chy(fres) { return CB - (fres / 2) * (CB - CT); }
+
+  function f(v, n) { return (isFinite(v) ? v : 0).toFixed(n); }
+
+  /* ================= DOM 引用 ================= */
+  var elArc = svg.querySelector('#q1-arc');
+  var elF1 = svg.querySelector('#q1-f1');
+  var elF2 = svg.querySelector('#q1-f2');
+  var elPara1 = svg.querySelector('#q1-para1');
+  var elPara2 = svg.querySelector('#q1-para2');
+  var elFres = svg.querySelector('#q1-fres');
+  var elLabF1 = svg.querySelector('#q1-labF1');
+  var elLabF2 = svg.querySelector('#q1-labF2');
+  var elLabFres = svg.querySelector('#q1-labFres');
+  var elRoAlpha = svg.querySelector('#q1-roAlpha');
+  var elRoFres = svg.querySelector('#q1-roFres');
+  var elRoFormula = svg.querySelector('#q1-roFormula');
+  var elCursor = svg.querySelector('#q1-cursor');
+  var elDot = svg.querySelector('#q1-dot');
+
+  function seg(el, x1, y1, x2, y2) {
+    el.setAttribute('x1', f(x1, 2));
+    el.setAttribute('y1', f(y1, 2));
+    el.setAttribute('x2', f(x2, 2));
+    el.setAttribute('y2', f(y2, 2));
+  }
+
+  function render(u) {
+    var ph = physics(u);
+    var c = ph.cosHalf, s = ph.sinHalf;
+
+    var P1x = OX + SCALE * ph.Fx1, P1y = OY - SCALE * ph.Fy1;
+    var P2x = OX + SCALE * ph.Fx2, P2y = OY - SCALE * ph.Fy2;
+    var Rx = OX + SCALE * ph.Fx, Ry = OY - SCALE * ph.Fy;
+
+    seg(elF1, OX, OY, P1x, P1y);
+    seg(elF2, OX, OY, P2x, P2y);
+    seg(elPara1, P1x, P1y, Rx, Ry);
+    seg(elPara2, P2x, P2y, Rx, Ry);
+    seg(elFres, OX, OY, Rx, Ry);
+
+    var ax1 = OX + RARC * c, ay1 = OY + RARC * s;
+    var ax2 = OX + RARC * c, ay2 = OY - RARC * s;
+    elArc.setAttribute('d', 'M ' + f(ax1, 2) + ' ' + f(ay1, 2) +
+      ' A ' + RARC + ' ' + RARC + ' 0 0 1 ' + f(ax2, 2) + ' ' + f(ay2, 2));
+
+    elLabF1.setAttribute('x', f(P1x + 10 * c, 1));
+    elLabF1.setAttribute('y', f(P1y - 10 * s - 4, 1));
+    elLabF2.setAttribute('x', f(P2x + 10 * c, 1));
+    elLabF2.setAttribute('y', f(P2y + 10 * s + 12, 1));
+    elLabFres.setAttribute('x', f(Rx + 8, 1));
+    elLabFres.setAttribute('y', f(OY - 6, 1));
+
+    var alphaDeg = ph.alpha * 180 / Math.PI;
+    elRoAlpha.textContent = f(ph.alpha, 3) + ' rad ≈ ' + f(alphaDeg, 1) + '°';
+    elRoFres.textContent = '= ' + f(ph.Fres, 3);
+    elRoFormula.textContent = '= 2F·cos(α/2) = ' + f(ph.Fres_formula, 3);
+
+    var cx = chx(ph.alpha), cy = chy(ph.Fres);
+    elCursor.setAttribute('x1', f(cx, 2));
+    elCursor.setAttribute('x2', f(cx, 2));
+    elDot.setAttribute('cx', f(cx, 2));
+    elDot.setAttribute('cy', f(cy, 2));
+  }
+
+  /* ================= 时间轴（帧循环由运行时驱动） ================= */
+  var TRUN = 3.2, THOLD = 1.0, TPER = TRUN + THOLD;
+
+  function step(t) {
+    var tt = t;
+    if (!(tt > 0)) { tt = 0; }
+    var ph = tt - Math.floor(tt / TPER) * TPER;
+    var u = ph < TRUN ? ph / TRUN : 1;
+    render(u);
+  }
+
+  render(0);
+
+  return {
+    step: step,
+    reset: function () { render(0); },
+    probe: function (u, caseId) {
+      return physics(u);
+    }
+  };
+};
+</script>
+<script>/* ===== 动画运行时 ===== */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var live = [];
+
+  function build(fig) {
+    var id = fig.getAttribute('data-scene');
+    var factory = window.Scenes[id];
+    if (typeof factory !== 'function') return null;
+    var api;
+    try { api = factory(fig); } catch (e) { console.error('[scene ' + id + '] setup failed', e); return null; }
+    if (!api || typeof api.step !== 'function') { console.error('[scene ' + id + '] bad contract'); return null; }
+
+    var bar = document.createElement('div');
+    bar.className = 'ctlbar';
+    var pp = document.createElement('button');
+    pp.type = 'button'; pp.className = 'btn pp';
+    var rp = document.createElement('button');
+    rp.type = 'button'; rp.className = 'btn'; rp.textContent = '重播';
+    var tag = document.createElement('span');
+    tag.className = 'livebadge'; tag.textContent = 'LIVE';
+    bar.appendChild(pp); bar.appendChild(rp); bar.appendChild(tag);
+    var own = fig.querySelector('.ctl');
+    if (own) bar.appendChild(own);
+    var cap = fig.querySelector('figcaption');
+    fig.insertBefore(bar, cap);
+
+    window.__api = window.__api || {}; window.__api[id] = api;
+    var s = { id: id, api: api, t: 0, playing: !reduce, visible: true, fig: fig, pp: pp };
+    function paint() {
+      pp.textContent = s.playing ? '暂停' : '播放';
+      pp.setAttribute('aria-pressed', s.playing ? 'true' : 'false');
+      pp.setAttribute('aria-label', (s.playing ? '暂停' : '播放') + '动画');
+      tag.style.opacity = s.playing ? '.9' : '.3';
+    }
+    pp.addEventListener('click', function () { s.playing = !s.playing; paint(); });
+    rp.addEventListener('click', function () {
+      s.t = 0;
+      try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] reset', e); }
+    });
+    paint();
+    try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] first frame', e); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { s.visible = es[0].isIntersecting; },
+        { rootMargin: '120px' }).observe(fig);
+    }
+    return s;
+  }
+
+  function boot() {
+    var figs = document.querySelectorAll('figure[data-scene]');
+    for (var i = 0; i < figs.length; i++) {
+      var s = build(figs[i]);
+      if (s) live.push(s);
+    }
+    var g = document.getElementById('gswitch');
+    if (g) {
+      g.addEventListener('click', function () {
+        var anyOn = live.some(function (s) { return s.playing; });
+        live.forEach(function (s) { if (s.playing === anyOn) s.pp.click(); });
+        g.textContent = anyOn ? '▶ 全部播放' : '⏸ 全部暂停';
+      });
+      g.textContent = reduce ? '▶ 全部播放' : '⏸ 全部暂停';
+    }
+    var last = 0;
+    function frame(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 0;
+      last = now;
+      for (var i = 0; i < live.length; i++) {
+        var s = live[i];
+        if (!s.playing || !s.visible) continue;
+        s.t += dt;
+        try { s.api.step(s.t); }
+        catch (e) { console.error('[scene ' + s.id + '] step', e); s.playing = false; }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<script>
+function __runProbe(){
+  var out = {ok:false, errors:[], render:[], scenes:[], series:{}, notes:[]};
+  function rec(e){ out.errors.push(String(e && e.stack || e)); }
+  window.onerror = function(m,s,l,c,e){ rec(m + " @" + l + ":" + c); };
+  var _ce = console.error; console.error = function(){ rec([].join.call(arguments," ")); _ce.apply(console, arguments); };
+  try {
+    var SID = "q1", SPEC = {"id": "q1", "stem": "矫正牙齿时，牵引线对牙齿施加两个大小均为F、夹角为α的力。求两牵引力的合力大小（结果应为α的通用表达式，而非某个固定数值）。", "cases": [{"id": "c1", "label": "夹角α从0连续增大到π，展示合力大小2F·cos(α/2)"}], "title": "牙齿牵引线两等大力的合力随夹角变化", "units": "力：以F为单位（归一化F=1，无量纲）；角度：弧度，α∈[0,π]；u为无量纲的过程进度", "physics": {"note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。动画通过让夹角α在过程中从0连续增大到π来展示平行四边形定则给出的合力公式，而非展示题目原图中固定的某一夹角。", "equations": ["alpha = pi * u", "Fx1 = F*cos(alpha/2), Fy1 = F*sin(alpha/2)", "Fx2 = F*cos(alpha/2), Fy2 = -F*sin(alpha/2)", "Fx = Fx1 + Fx2, Fy = Fy1 + Fy2", "Fres = sqrt(Fx*Fx + Fy*Fy)", "Fres_formula = 2*F*cos(alpha/2)"], "definitions": ["α：两牵引力之间的夹角（弧度）", "F：单个牵引力的大小（归一化为1）", "(Fx1,Fy1),(Fx2,Fy2)：两个牵引力沿x、y方向的分量，取其角平分线为x轴对称放置", "(Fx,Fy)：两力的矢量和（合力）的分量", "Fres：由分量矢量和算出的合力大小 sqrt(Fx^2+Fy^2)", "Fres_formula：直接用平行四边形定则解析公式算出的合力大小 2F·cos(α/2)，二者理论上应处处相等"], "given_facts": ["F1 · 两牵引力大小均为F", "F2 · 两牵引力夹角为α，动画中令α随过程从0线性增大到π以展示通用规律", "F3 · 由平行四边形定则/矢量和，任意α下合力大小为2F·cos(α/2)（选项B）", "F4 · α=0（两力同向）时合力最大为2F；α=π（两力反向）时合力为0"], "normalization": "取单个牵引力大小 F=1 为归一化单位；角度α以弧度为单位，α∈[0,π]", "free_parameters": ""}, "constants": {}, "reference": "def probe(u, case):\n    F = 1.0\n    alpha = pi * u\n    Fx1 = F * cos(alpha / 2)\n    Fy1 = F * sin(alpha / 2)\n    Fx2 = F * cos(alpha / 2)\n    Fy2 = -F * sin(alpha / 2)\n    Fx = Fx1 + Fx2\n    Fy = Fy1 + Fy2\n    Fres = sqrt(Fx * Fx + Fy * Fy)\n    Fres_formula = 2 * F * cos(alpha / 2)\n    return {\n        \"u\": u,\n        \"alpha\": alpha,\n        \"F\": F,\n        \"Fx1\": Fx1,\n        \"Fy1\": Fy1,\n        \"Fx2\": Fx2,\n        \"Fy2\": Fy2,\n        \"Fx\": Fx,\n        \"Fy\": Fy,\n        \"Fres\": Fres,\n        \"Fres_formula\": Fres_formula,\n    }", "invariants": [{"id": "c1-endpoint-max", "why": "对应F4：α=0时合力应为2F", "case": "c1", "expr": "abs(Fres[0] - 2.0*F[0]) <= 0.02", "report": "Fres[0]"}, {"id": "c1-endpoint-zero", "why": "对应F4：α=π时合力应为0", "case": "c1", "expr": "abs(Fres[-1]) <= 0.02", "report": "Fres[-1]"}, {"id": "c1-monotonic", "why": "对应F3：2F·cos(α/2)在α∈[0,π]上单调不增，合力大小随α增大应单调不增", "case": "c1", "expr": "max(diff(Fres)) <= 1e-9", "report": "max(diff(Fres))"}, {"id": "c1-vector-sum-consistency", "why": "对应F3：Fres必须真的是由展示在画面上的两个力矢量分量矢量相加得到，而非独立算出的数值", "case": "c1", "expr": "max(abs(Fres - sqrt(Fx*Fx + Fy*Fy))) <= 0.02", "report": "max(abs(Fres - sqrt(Fx*Fx+Fy*Fy)))"}, {"id": "c1-formula-match", "why": "对应F3：矢量合成得到的Fres必须与解析公式2F·cos(α/2)算出的Fres_formula一致，这正是选项B成立的关键", "case": "c1", "expr": "max(abs(Fres - Fres_formula)) <= 0.02", "report": "max(abs(Fres - Fres_formula))"}, {"id": "c1-dot-product-alpha", "why": "对应F2：两力矢量之间的夹角必须真的等于alpha，用两力点积反算夹角余弦应与cos(alpha)一致", "case": "c1", "expr": "max(abs((Fx1*Fx2 + Fy1*Fy2) - F*F*cos(alpha))) <= 0.02", "report": "max(abs((Fx1*Fx2+Fy1*Fy2) - F*F*cos(alpha)))"}, {"id": "c1-force1-magnitude", "why": "对应F1：力1的大小在整个过程中必须恒为F", "case": "c1", "expr": "max(abs(sqrt(Fx1*Fx1 + Fy1*Fy1) - F)) <= 0.02", "report": "max(abs(sqrt(Fx1*Fx1+Fy1*Fy1) - F))"}, {"id": "c1-force2-magnitude", "why": "对应F1：力2的大小在整个过程中必须恒为F", "case": "c1", "expr": "max(abs(sqrt(Fx2*Fx2 + Fy2*Fy2) - F)) <= 0.02", "report": "max(abs(sqrt(Fx2*Fx2+Fy2*Fy2) - F))"}], "probe_keys": ["u", "alpha", "F", "Fx1", "Fy1", "Fx2", "Fy2", "Fx", "Fy", "Fres", "Fres_formula"], "disclosures": [{"why": "α是决定合力大小的关键无量纲/几何参数，必须让观察者能对照α与合力变化，对应F2、F3", "must_contain": "当前夹角α的数值（弧度或角度）"}, {"why": "确保观众理解合力数值是以单个牵引力F为单位表示的，对应F1", "must_contain": "F=1（归一化）的标注"}, {"why": "题目为选择题，需在画面上明确展示该公式即为正确结论，对应F3", "must_contain": "公式2F·cos(α/2)及对应选项B的标注"}], "sample_points": 401, "probe_key_meaning": {"F": "单个牵引力大小，归一化为1（常数）", "u": "归一化过程进度，等于传入的u", "Fx": "合力x分量 = Fx1+Fx2", "Fy": "合力y分量 = Fy1+Fy2", "Fx1": "力1沿x轴分量", "Fx2": "力2沿x轴分量", "Fy1": "力1沿y轴分量", "Fy2": "力2沿y轴分量", "Fres": "由矢量分量算出的合力大小 sqrt(Fx^2+Fy^2)", "alpha": "两牵引力夹角，alpha = pi*u（弧度）", "Fres_formula": "由解析公式2F·cos(α/2)直接算出的合力大小"}, "process_endpoints": "u=0对应α=0（两牵引力方向重合，合力最大为2F）；u=1对应α=π（两牵引力方向相反，合力为0）", "scene_requirements": ["画面中心一颗牙齿（或抽象为一点），两条牵引线从该点引出，夹角为α", "两条牵引线上各画一个大小为F的力矢量箭头", "随着动画推进（u从0到1），α从0连续增大到π，力矢量箭头随之张开", "叠加画出合力矢量（平行四边形对角线方向），并实时显示其大小Fres", "画面标注当前α的数值（弧度或角度）以及归一化的F=1", "画面显示解析公式 2F·cos(α/2) 及其数值Fres_formula，与矢量合成得到的Fres对照，标出正确选项B"]};
+    out.scenes = Object.keys(window.Scenes || {});
+    var fig = document.querySelector('figure[data-scene="' + SID + '"]');
+    if (!fig) { out.errors.push("DOM 里找不到 figure[data-scene=" + SID + "]"); throw 0; }
+    var api = (window.__api || {})[SID];
+    if (!api) { out.errors.push("运行时未能构造该场景（工厂抛错或契约不符）"); throw 0; }
+    ["step","reset","probe"].forEach(function(k){
+      if (typeof api[k] !== "function") out.errors.push("api." + k + " 不是函数");
+    });
+    if (out.errors.length) throw 0;
+
+    var svg = fig.querySelector("svg");
+
+    // --- 渲染压力：跑 451 帧 step()，抓异常与脏数值 ---
+    try {
+      api.reset(); api.step(0);
+      for (var t = 0; t <= 18.0001; t += 0.04) api.step(t);
+    } catch (e) { rec("step() 抛异常: " + e); }
+    var dom = svg.outerHTML;
+    ["NaN","Infinity","undefined","null"].forEach(function(w){
+      var n = (dom.match(new RegExp(w, "g")) || []).length;
+      if (n) out.errors.push("渲染后 SVG 中出现 " + w + " ×" + n);
+    });
+
+    /* --- L3.5 渲染覆盖 ---
+       断言只跑 probe，看不见渲染。历史教训：把 translate(cx,cy) rotate(θ)
+       误写成 rotate(θ cx cy)，整组元素飞出画布，四层门禁 13/13 全绿放行。
+       这里补上：每个带 id 的 SVG 元素，必须在某一采样时刻真的画在 viewBox 内。
+       只查「位置」不查「可见性」—— opacity=0 的元素 getBBox 依然有效，
+       所以合法隐藏的结论框不会被误伤，而「整组飞出画布」是全时段的，必然被抓。*/
+    try {
+      api.reset();
+      var vb = svg.viewBox.baseVal;
+      var els = svg.querySelectorAll("[id]");
+      var ids = [], everOK = {}, everDrawn = {}, snaps = [];
+      for (var q0 = 0; q0 < els.length; q0++) ids.push(els[q0].getAttribute("id"));
+      /* 注意：不能用 el.getCTM() —— 它含 viewBox 缩放，返回的是渲染像素坐标，
+         拿去和 viewBox 数值比会把右下方的元素全部误判出界。
+         正确做法是经 svg 根的 screenCTM 求逆，换回 viewBox 用户单位。 */
+      for (var tq = 0; tq <= 20.0001; tq += 0.5) {
+        api.step(tq);
+        snaps.push(svg.innerHTML);
+        var rootM = svg.getScreenCTM();
+        if (!rootM) continue;
+        var invM = rootM.inverse();
+        for (var q1 = 0; q1 < els.length; q1++) {
+          var idq = ids[q1];
+          if (everOK[idq]) continue;
+          var bb, mm;
+          try { bb = els[q1].getBBox(); mm = els[q1].getScreenCTM(); } catch (err0) { continue; }
+          if (!mm) continue;
+          if (bb.width <= 0 && bb.height <= 0) continue;   /* 退化元素不判位置 */
+          everDrawn[idq] = true;
+          mm = invM.multiply(mm);                          /* → viewBox 用户单位 */
+          var cxq = bb.x + bb.width / 2, cyq = bb.y + bb.height / 2;
+          var XQ = mm.a * cxq + mm.c * cyq + mm.e;
+          var YQ = mm.b * cxq + mm.d * cyq + mm.f;
+          if (XQ >= vb.x - 2 && XQ <= vb.x + vb.width + 2 &&
+              YQ >= vb.y - 2 && YQ <= vb.y + vb.height + 2)
+            everOK[idq] = true;
+        }
+      }
+      var off = [], dead = [];
+      for (var q2 = 0; q2 < ids.length; q2++) {
+        if (!everDrawn[ids[q2]]) dead.push(ids[q2]);
+        else if (!everOK[ids[q2]]) off.push(ids[q2]);
+      }
+      if (off.length)
+        out.render.push("这些元素在全部 41 个采样时刻都画在 viewBox 之外（画面上看不到）：" + off.join(", "));
+      var moved = false;
+      for (var q3 = 1; q3 < snaps.length; q3++) if (snaps[q3] !== snaps[0]) { moved = true; break; }
+      if (!moved)
+        out.render.push("采样了 " + snaps.length + " 个不同时刻，SVG 内容完全没有变化——动画没有动");
+      out.notes.push("渲染覆盖：" + ids.length + " 个带 id 元素，" +
+                     Object.keys(everOK).length + " 个曾正常出现在画面内" +
+                     (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
+    } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
+
+    // --- probe 采样 ---
+    var N = SPEC.sample_points || 401;
+    for (var ci = 0; ci < SPEC.cases.length; ci++) {
+      var cid = SPEC.cases[ci].id;
+      var cols = {}; SPEC.probe_keys.forEach(function(k){ cols[k] = []; });
+
+      // 纯度 + 无副作用
+      var before = svg.outerHTML;
+      var a1 = api.probe(0.37, cid), a2 = api.probe(0.37, cid);
+      if (svg.outerHTML !== before) out.errors.push("[" + cid + "] probe() 修改了 DOM（必须是纯函数）");
+      SPEC.probe_keys.forEach(function(k){
+        if (!(k in a1)) out.errors.push("[" + cid + "] probe 返回值缺少键 " + k);
+        else if (a1[k] !== a2[k]) out.errors.push("[" + cid + "] probe 不纯：同一 u 两次调用 " + k + " 不同（" + a1[k] + " vs " + a2[k] + "）");
+      });
+
+      var nbad = 0;
+      for (var i = 0; i < N; i++) {
+        var u = i / (N - 1);
+        var r;
+        try { r = api.probe(u, cid); }
+        catch (e) { out.errors.push("[" + cid + "] probe(" + u.toFixed(3) + ") 抛异常: " + e); break; }
+        for (var ki = 0; ki < SPEC.probe_keys.length; ki++) {
+          var k = SPEC.probe_keys[ki], v = r ? r[k] : undefined;
+          if (typeof v !== "number" || !isFinite(v)) { nbad++; v = null; }
+          cols[k].push(v);
+        }
+      }
+      if (nbad) out.errors.push("[" + cid + "] probe 返回了 " + nbad + " 个非有限数值");
+      out.series[cid] = cols;
+    }
+    out.ok = out.errors.length === 0 && out.render.length === 0;
+  } catch (e) { if (e) rec(e); }
+  document.getElementById("TESTOUT").textContent = "@@" + JSON.stringify(out) + "@@";
+}
+/* 必须等运行时 boot 完（它也挂在 DOMContentLoaded 上，且注册在前），
+   同时保证 <pre id="TESTOUT"> 已经存在 */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", __runProbe);
+else __runProbe();
+</script>
+<pre id="TESTOUT"></pre>

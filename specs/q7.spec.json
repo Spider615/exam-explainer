@@ -1,0 +1,174 @@
+{
+ "id": "q7",
+ "stem": "如图所示，与水平面夹角为θ的绝缘斜面上固定有光滑U型金属导轨。质量为m、电阻不可忽略的导体杆MN沿导轨向下运动，以大小为v的速度进入方向垂直于导轨平面向下的匀强磁场区域，在磁场中运动一段时间t后，速度大小变为2v。运动过程中杆与导轨垂直并接触良好，导轨的电阻忽略不计，重力加速度为g。求杆在磁场中运动的此段时间内的相关物理量。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "标准情形：θ=30°, m=1, g=10, v=1, t=1，安培力系数k由边界条件反解"
+  }
+ ],
+ "title": "斜面导轨中导体杆在磁场中减速运动的动量与能量分析",
+ "units": "长度：以v*t为单位长度参考；速度：v为单位速度；时间：t为单位时间；质量m、重力加速度g、角度θ均为自由设定的数值常数（建议m=1, g=10, θ=30°）；力、冲量、能量均为国际单位制下的一致单位（由m,g,v,t组合得到）。",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。杆在斜面内做一维运动，沿斜面方向使用牛顿第二定律与动量定理，安培力方向沿斜面向上（阻碍杆下滑速度增大过程中的加速度，但杆仍加速因为重力分量更大）。安培力大小正比于瞬时速度：F_安培 = k*v_inst，其中k为待定比例系数（由题目边界条件 v(0)=v, v(t)=2v 反解得到，因为具体B、L、R未给出，只需保证边界条件满足即可，不要求真实还原B²L²/R）。",
+  "equations": [
+   "运动方程：m*dv_inst/dt = m*g*sinθ - F_amp(v_inst)，其中 F_amp(v_inst)=k*v_inst，k为待定系数",
+   "边界条件：v_inst(t=0)=v，v_inst(t=t_total)=2v，由此反解k使得ODE积分后满足终值条件（数值求解，例如二分法调节k）",
+   "安培力冲量：impulse_amp(u) = ∫_0^{t(u)} F_amp(v_inst(τ)) dτ",
+   "动量定理（整体过程校验）：m*(2v) - m*v = m*g*sinθ*t - impulse_amp(u=1)",
+   "焦耳热：dQ/dt = F_amp(v_inst)*v_inst （安培力做负功大小等于电阻发热，因导轨无电阻）",
+   "动能：Ek(u) = (1/2)*m*v_inst(u)^2",
+   "位移：d(u) = ∫_0^{t(u)} v_inst(τ) dτ"
+  ],
+  "definitions": [
+   "u：物理过程进度，u=0对应杆刚进入磁场（速度为v），u=1对应经过时间t后（速度为2v）",
+   "v_inst(u)：杆在磁场中运动过程中沿斜面方向的瞬时速度（沿斜面向下为正）",
+   "a_inst(u)：杆的瞬时加速度",
+   "F_amp(u)：安培力大小（方向沿斜面向上，即对下滑运动做负功）",
+   "d(u)：杆沿斜面下滑的位移，d(0)=0",
+   "impulse_amp(u)：安培力冲量大小的累积值（从0到当前u的时间积分）",
+   "Q(u)：电阻上产生的焦耳热累积值（从0到当前u）",
+   "Ek(u)：杆的瞬时动能"
+  ],
+  "given_facts": [
+   "F1 · 棒进入磁场时速度为v，经时间t后速度变为2v",
+   "F2 · 安培力冲量大小 I = m*g*t*sinθ - m*v",
+   "F3 · 动能增量 ΔEk = (3/2)*m*v²",
+   "F4 · 位移不能确定为(3/2)vt，因加速度非恒定（v-t关系非线性）",
+   "F5 · 安培力方向沿斜面向上，阻碍杆的下滑运动"
+  ],
+  "normalization": "取初速度 v=1（即以初速度v为单位1），取磁场中运动时间 t=1 为时间单位；g、m、θ 作为符号常数在实现时可取具体数值（建议 g=10, m=1, θ=30°，sinθ=0.5）以便数值积分求解ODE。",
+  "free_parameters": "安培力比例系数k（对应B²L²/R的等效值）：题目未给出B、L、R具体数值，需要实现方通过边界条件v(0)=v, v(t)=t_total时v=2v反解ODE中的k，使数值积分结果满足终值速度条件"
+ },
+ "constants": {
+  "g": 10.0,
+  "m": 1.0,
+  "t": 1.0,
+  "v": 1.0,
+  "theta_deg": 30
+ },
+ "reference": "def probe(u, case):\n    m = 1.0\n    g = 10.0\n    theta = pi / 6.0\n    v0_ = 1.0\n    t_total = 1.0\n    target_v = 2.0 * v0_\n\n    N = 2000\n    dt = t_total / N\n\n    def simulate(k):\n        v = v0_\n        d = 0.0\n        impulse = 0.0\n        Q = 0.0\n        traj_t = [0.0]\n        traj_v = [v]\n        traj_d = [d]\n        traj_impulse = [impulse]\n        traj_Q = [Q]\n        for i in range(N):\n            F = k * v\n            a = g * sin(theta) - F / m\n            v_new = v + a * dt\n            v_mid = 0.5 * (v + v_new)\n            d += v_mid * dt\n            impulse += k * v_mid * dt\n            Q += k * v_mid * v_mid * dt\n            v = v_new\n            traj_t.append((i + 1) * dt)\n            traj_v.append(v)\n            traj_d.append(d)\n            traj_impulse.append(impulse)\n            traj_Q.append(Q)\n        return traj_t, traj_v, traj_d, traj_impulse, traj_Q\n\n    # bisection to find k such that v(t_total) = 2*v0\n    k_lo, k_hi = 0.0, 100.0\n    for _ in range(60):\n        k_mid = 0.5 * (k_lo + k_hi)\n        _, v_arr, _, _, _ = simulate(k_mid)\n        v_end = v_arr[-1]\n        if v_end > target_v:\n            k_lo = k_mid\n        else:\n            k_hi = k_mid\n    k = 0.5 * (k_lo + k_hi)\n\n    traj_t, traj_v, traj_d, traj_impulse, traj_Q = simulate(k)\n\n    idx = int(round(u * N))\n    if idx < 0:\n        idx = 0\n    if idx > N:\n        idx = N\n\n    v_inst = traj_v[idx]\n    F_amp = k * v_inst\n    a_inst = g * sin(theta) - F_amp / m\n    d = traj_d[idx]\n    impulse_amp = traj_impulse[idx]\n    Q = traj_Q[idx]\n    Ek = 0.5 * m * v_inst ** 2\n\n    return {\n        \"u\": u,\n        \"v_inst\": v_inst,\n        \"a_inst\": a_inst,\n        \"F_amp\": F_amp,\n        \"d\": d,\n        \"impulse_amp\": impulse_amp,\n        \"Q\": Q,\n        \"Ek\": Ek,\n        \"t_total\": t_total,\n        \"v0\": v0_,\n        \"m\": m,\n        \"g\": g,\n        \"theta\": theta\n    }",
+ "invariants": [
+  {
+   "id": "c1-v-endpoint",
+   "why": "对应F1：经过时间t后速度变为2v",
+   "case": "c1",
+   "expr": "abs(v_inst[-1]/v0[0] - 2.0) <= 0.04",
+   "report": "v_inst[-1]/v0[0]"
+  },
+  {
+   "id": "c1-v-start",
+   "why": "对应F1：杆进入磁场时速度为v",
+   "case": "c1",
+   "expr": "abs(v_inst[0]/v0[0] - 1.0) <= 0.02",
+   "report": "v_inst[0]/v0[0]"
+  },
+  {
+   "id": "c1-impulse-endpoint",
+   "why": "对应F2：安培力冲量大小 I = mgt sinθ - mv，即选项D的结论",
+   "case": "c1",
+   "expr": "abs(impulse_amp[-1] - (m[0]*g[0]*t_total[0]*sin(theta[0]) - m[0]*v0[0])) <= 0.04*abs(m[0]*g[0]*t_total[0]*sin(theta[0]) - m[0]*v0[0])",
+   "report": "impulse_amp[-1]"
+  },
+  {
+   "id": "c1-Ek-increment",
+   "why": "对应F3：动能增量 ΔEk = (3/2)mv²",
+   "case": "c1",
+   "expr": "abs((Ek[-1]-Ek[0]) - 1.5*m[0]*v0[0]**2) <= 0.04*1.5*m[0]*v0[0]**2",
+   "report": "Ek[-1]-Ek[0]"
+  },
+  {
+   "id": "c1-v-monotonic",
+   "why": "对应F1、F5：杆速度从v增大到2v，运动过程中速度应单调不减（重力分量始终大于安培力）",
+   "case": "c1",
+   "expr": "min(diff(v_inst)) >= -1e-9",
+   "report": "min(diff(v_inst))"
+  },
+  {
+   "id": "c1-d-monotonic",
+   "why": "对应基本运动学：杆持续沿斜面下滑，位移单调不减",
+   "case": "c1",
+   "expr": "min(diff(d)) >= -1e-9",
+   "report": "min(diff(d))"
+  },
+  {
+   "id": "c1-d-not-uniform",
+   "why": "对应F4：位移不能等于(3/2)vt，因加速度非恒定，排除选项B",
+   "case": "c1",
+   "expr": "abs(d[-1] - 1.5*v0[0]*t_total[0]) >= 0.05*1.5*v0[0]*t_total[0]",
+   "report": "d[-1] vs 1.5*v0[0]*t_total[0]"
+  },
+  {
+   "id": "c1-force-velocity-consistency",
+   "why": "自洽性检验：a_inst必须始终等于(重力分量-安培力)/m，确保F_amp、a_inst、v_inst三者在probe内部相互一致，而非各自独立计算",
+   "case": "c1",
+   "expr": "abs(a_inst[argmax(v_inst)] - (g[0]*sin(theta[0]) - F_amp[argmax(v_inst)]/m[0])) <= 0.02*g[0]*sin(theta[0])",
+   "report": "a_inst[argmax(v_inst)] vs g*sinθ - F_amp/m at v_max point"
+  },
+  {
+   "id": "c1-heat-lt-gravity-work",
+   "why": "对应F3：因动能增加(ΔEk=1.5mv²>0)，重力做功大于电阻发热，排除选项C（电流平均功率等于重力平均功率）",
+   "case": "c1",
+   "expr": "Q[-1] < m[0]*g[0]*sin(theta[0])*d[-1]",
+   "report": "Q[-1] vs m*g*sinθ*d[-1]"
+  },
+  {
+   "id": "c1-Ek-consistency",
+   "why": "自洽性检验：Ek必须由v_inst实时计算得到，而非独立赋值，确保probe内部动能与速度一致",
+   "case": "c1",
+   "expr": "abs(Ek[-1] - 0.5*m[0]*v_inst[-1]**2) <= 0.02*0.5*m[0]*v_inst[-1]**2",
+   "report": "Ek[-1] vs 0.5*m*v_inst[-1]^2"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "v_inst",
+  "a_inst",
+  "F_amp",
+  "d",
+  "impulse_amp",
+  "Q",
+  "Ek",
+  "t_total",
+  "v0",
+  "m",
+  "g",
+  "theta"
+ ],
+ "disclosures": [
+  {
+   "why": "k是free_parameters中题目未给定、需要实现方自行求解的量，必须披露求解过程以便审查一致性",
+   "must_contain": "安培力系数k的数值及反解方法说明"
+  },
+  {
+   "why": "对应given_facts F4，避免动画中错误地将位移显示为(3/2)vt",
+   "must_contain": "v-t关系为非线性曲线（而非直线）"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "Q": "电阻焦耳热的累积值，Q(u=0)=0",
+  "d": "杆沿斜面下滑的累积位移，d(u=0)=0",
+  "g": "重力加速度（常数）",
+  "m": "杆的质量（常数）",
+  "u": "归一化进度，等于传入的u，对应磁场中运动过程的时间进度（非位移进度）",
+  "Ek": "杆的瞬时动能 (1/2)*m*v_inst^2",
+  "v0": "杆进入磁场时的初速度v（常数，对所有u相同）",
+  "F_amp": "安培力大小（方向沿斜面向上），单位为力",
+  "theta": "斜面倾角（弧度制，常数）",
+  "a_inst": "杆的瞬时加速度，单位与g一致",
+  "v_inst": "杆沿斜面方向的瞬时速度（沿斜面向下为正），单位与v一致",
+  "t_total": "磁场中运动总时间t（常数，对所有u相同）",
+  "impulse_amp": "安培力冲量大小的累积值，impulse_amp(u=0)=0"
+ },
+ "process_endpoints": "u=0对应杆刚进入磁场时刻（速度为v）；u=1对应经过时间t后（速度为2v）的时刻",
+ "scene_requirements": [
+  "斜面（与水平面夹角θ）及固定在斜面上的U型导轨",
+  "导体杆MN在导轨上沿斜面方向滑动的动画",
+  "标示磁场区域（垂直斜面向下的匀强磁场，用点/叉或箭头表示）",
+  "杆进入磁场时刻（u=0）与离开该段过程时刻（u=1）的速度标注（v 和 2v）",
+  "实时显示杆的瞬时速度、位移、安培力大小随进度u变化的曲线或数值",
+  "显示安培力冲量的累积值曲线",
+  "显示电阻焦耳热累积值曲线，与重力做功对比"
+ ]
+}

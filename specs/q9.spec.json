@@ -1,0 +1,143 @@
+{
+ "id": "q9",
+ "stem": "一列简谐横波在介质中沿x轴传播，波速v=2m/s，t=0时波形为y=Acos(2πx/λ)（A=0.1m），x=0处为波峰。x=12m处为波形第二次过零点（自x=0起，即3λ/4处）。P为介质中一质点，位于零点与波谷之间（y<0区域）。求：波长、周期，t=0时P点加速度方向，以及0~2s内P点路程是否可能小于0.1m。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "P点初相位φ0=3π/4，t从0到2s（即T/4）"
+  }
+ ],
+ "title": "简谐横波波形与质点P的振动分析",
+ "units": "长度：m；时间：s；速度：m/s；加速度：m/s²；角度：弧度",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。",
+  "equations": [
+   "波形方程：y(x,0) = A*cos(2π*x/λ)",
+   "P点位移：yP(t) = A*cos(ω*t + φ0)，其中φ0为P点初相位，满足t=0时yP(0)=-A/√2且yP在增大（从零点趋向波谷需具体符号，此处取φ0=3π/4，使yP(0)=A*cos(3π/4)=-A/√2）",
+   "P点速度：vP(t) = -A*ω*sin(ω*t+φ0)",
+   "P点加速度：aP(t) = -A*ω²*cos(ω*t+φ0) = -ω²*yP(t)",
+   "路程（0~2s内数值积分）：s(t) = 累积|Δy|，即s(t)=∫|vP(t')|dt' from 0 to t"
+  ],
+  "definitions": [
+   "A：振幅，A=0.1m",
+   "λ：波长，由3λ/4=12m解得λ=16m",
+   "T：周期，T=λ/v=8s",
+   "ω：角频率，ω=2π/T",
+   "yP(t)：P点位移，P点初相位取为使其位于零点与波谷之间，设P点在t=0时刻相位对应y_P(0)=-A/√2（即P初始位移为负且恰好使得0~2s内路程取一个具体值，用于验证路程范围）",
+   "vP(t)：P点速度，vP=dyP/dt",
+   "aP(t)：P点加速度，aP=-ω²*yP（简谐运动核心方程）"
+  ],
+  "given_facts": [
+   "F1 · 波长λ=16m",
+   "F2 · 周期T=8s",
+   "F3 · 振幅A=0.1m",
+   "F4 · 0~2s对应T/4",
+   "F5 · 简谐振动T/4内路程范围为(2-√2)A至√2A，即0.0586m~0.1414m",
+   "F6 · P点位移为负，此刻加速度方向为+y方向（与位移相反）"
+  ],
+  "normalization": "取振幅A=1（即所有位移量除以0.1m进行归一化），空间坐标x以m为单位，时间t以s为单位。probe以t为物理过程参量，u=t/2（0~2s映射到u∈[0,1]，对应T/4）",
+  "free_parameters": "P点初相位φ0：题目图中P点位置具体x坐标未标出，仅知其位于零点与波谷之间（y<0）。为使invariants可验证且体现路程范围的物理意义，取φ0=3π/4（即t=0时yP(0)=-A/√2，恰为(2-√2)A对应的临界初相位之一，用以在动画中展示T/4内路程小于A的具体情形，验证选项D的'可能小于0.1m'）"
+ },
+ "constants": {
+  "A": 0.1,
+  "T": 8,
+  "v": 2,
+  "phi0": "3*pi/4",
+  "lambda": 16
+ },
+ "reference": "def probe(u, case):\n    A = 0.1\n    lam = 16.0\n    T = 8.0\n    omega = 2*pi/T\n    phi0 = 3*pi/4\n\n    t = 2*u\n\n    yP = A*cos(omega*t + phi0)\n    vP = -A*omega*sin(omega*t + phi0)\n    aP = -omega**2*yP\n\n    # numerical integration of |vP(t')| dt' from 0 to t\n    N = 2000\n    if t <= 0:\n        s_path = 0.0\n    else:\n        dt = t / N\n        s_path = 0.0\n        prev = abs(-A*omega*sin(omega*0.0 + phi0))\n        for i in range(1, N+1):\n            tt = i*dt\n            cur = abs(-A*omega*sin(omega*tt + phi0))\n            s_path += 0.5*(prev+cur)*dt\n            prev = cur\n\n    return {\n        \"u\": u,\n        \"t\": t,\n        \"yP\": yP,\n        \"vP\": vP,\n        \"aP\": aP,\n        \"s_path\": s_path\n    }",
+ "invariants": [
+  {
+   "id": "c1-wavelength-period",
+   "why": "对应given_facts F2，周期T=8s，通过加速度-位移关系反推验证自洽",
+   "case": "c1",
+   "expr": "abs(2*pi/(aP[0]/(-yP[0]))**0.5 - 8) <= 0.16",
+   "report": "由aP=-ω²yP反推周期T"
+  },
+  {
+   "id": "c1-accel-negative-y-direction",
+   "why": "对应given_facts F6，t=0时P点位移为负，加速度应沿+y方向（数值为正）",
+   "case": "c1",
+   "expr": "aP[0] > 0",
+   "report": "aP[0]"
+  },
+  {
+   "id": "c1-accel-displacement-opposite",
+   "why": "对应physics.equations中aP=-ω²yP的自洽关系，检验probe内部aP与yP是否互相独立计算却应满足简谐运动核心方程",
+   "case": "c1",
+   "expr": "max(abs(aP + (2*pi/8)**2*yP)) <= 0.01",
+   "report": "max(abs(aP - (-omega^2 * yP)))"
+  },
+  {
+   "id": "c1-velocity-zero-at-accel-extreme",
+   "why": "自洽性检验：加速度大小最大处对应位移极值处，此时速度应为零（简谐运动基本关系）",
+   "case": "c1",
+   "expr": "abs(vP[argmax(abs(aP))]) <= 0.005",
+   "report": "vP在|aP|取极值处的值"
+  },
+  {
+   "id": "c1-path-monotonic-increase",
+   "why": "路程s_path应随时间单调不减，检验积分过程的物理合理性",
+   "case": "c1",
+   "expr": "min(diff(s_path)) >= -1e-9",
+   "report": "diff(s_path)的最小值"
+  },
+  {
+   "id": "c1-path-range-T4",
+   "why": "对应given_facts F5，验证选项D：T/4内路程存在小于振幅0.1m的情形（此处用具体初相位构造出s_path[-1]<=0.1的实例）",
+   "case": "c1",
+   "expr": "s_path[-1] <= 0.1 + 1e-6",
+   "report": "s_path[-1]"
+  },
+  {
+   "id": "c1-path-lower-bound",
+   "why": "对应given_facts F5，验证T/4内路程不低于理论下界(2-√2)A≈0.0586m",
+   "case": "c1",
+   "expr": "s_path[-1] >= 0.0586 - 0.003",
+   "report": "s_path[-1]"
+  },
+  {
+   "id": "c1-amplitude-consistency",
+   "why": "对应given_facts F3，振幅A=0.1m，位移不应超过振幅",
+   "case": "c1",
+   "expr": "max(abs(yP)) <= 0.1 + 0.001",
+   "report": "max(abs(yP))"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "t",
+  "yP",
+  "vP",
+  "aP",
+  "s_path"
+ ],
+ "disclosures": [
+  {
+   "why": "这些是选项A、B判断的直接依据",
+   "must_contain": "波长λ=16m、周期T=8s、振幅A=0.1m"
+  },
+  {
+   "why": "题图未标P点具体坐标，需向用户说明该参数是为满足'零点与波谷之间'条件所补充的假设",
+   "must_contain": "P点初相位假设（φ0=3π/4）及其来源说明"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "t": "实际时间，t=2*u（单位s，覆盖0~2s即T/4）",
+  "u": "归一化进度，等于传入的u，u∈[0,1]",
+  "aP": "P点加速度，单位m/s²，aP=-ω²*yP",
+  "vP": "P点速度，单位m/s，vP=dyP/dt",
+  "yP": "P点位移，单位m，yP=A*cos(ω*t+φ0)",
+  "s_path": "P点从t=0到当前t累积走过的路程，单位m"
+ },
+ "process_endpoints": "u=0对应t=0（P点初始位移yP(0)=-A/√2，位于零点与波谷之间）；u=1对应t=2s（即T/4时刻）",
+ "scene_requirements": [
+  "显示t=0时刻的完整波形曲线y=A*cos(2πx/λ)，横轴x从0到至少20m，标出x=12m处过零点",
+  "标出波峰(y=A)、波谷(y=-A)水平虚线",
+  "在波形图上标出P点位置（位于零点与波谷之间的某处，对应初相位φ0=3π/4）",
+  "显示P点随时间t（0~2s）的振动轨迹：位移yP(t)、速度vP(t)、加速度aP(t)随时间变化的曲线或矢量指示",
+  "显示P点加速度方向箭头（应指向+y方向，即回复力方向）",
+  "显示0~2s内P点路程的累积过程（实时路程数值）"
+ ]
+}
