@@ -1,0 +1,136 @@
+{
+ "id": "q11",
+ "stem": "一定质量的理想气体经历A→B→C→D→A的顺时针闭合p-V循环，回到初始状态A，分析循环过程的内能变化、做功和吸放热情况",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "标准顺时针p-V循环过程"
+  }
+ ],
+ "title": "理想气体顺时针p-V循环过程分析",
+ "units": "所有物理量均为无量纲量，p以A点压强为单位，V以A点体积为单位，U以A点内能为单位，W/Q以p_A V_A为单位",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。",
+  "equations": [
+   "理想气体状态方程：pV = T",
+   "理想气体内能：U = T",
+   "热力学第一定律：ΔU = Q - W",
+   "p-V过程做功微分：dW = p dV"
+  ],
+  "definitions": [
+   "p：气体无量纲压强",
+   "V：气体无量纲体积",
+   "U：气体无量纲内能",
+   "T：气体无量纲热力学温度",
+   "W：气体对外界做的累计无量纲功",
+   "Q：气体吸收的累计无量纲热量"
+  ],
+  "given_facts": [
+   "F1：循环结束回到初始状态A，p(u=1)=p(u=0)、V(u=1)=V(u=0)、T(u=1)=T(u=0)",
+   "F2：理想气体内能仅为温度的单值函数，循环内能变化ΔU=0",
+   "F3：循环为顺时针p-V循环，全过程气体对外净功W>0，等于闭合曲线包围面积",
+   "F4：由热力学第一定律，循环总吸热量Q等于净功W，Q>0气体吸热"
+  ],
+  "normalization": "取初始状态A的压强p_A=1、体积V_A=1、内能U_A=1，nR=1进行无量纲化",
+  "free_parameters": "p-V闭合曲线的具体形状、各状态点具体p/V取值，满足顺时针循环、A为体积最大点、C为体积最小点、同体积下膨胀段压强大于压缩段即可"
+ },
+ "constants": {},
+ "reference": "def probe(u, case):\n    u = max(0.0, min(1.0, u))\n    if u <= 0.25:\n        t = u / 0.25\n        V = 1.0\n        p = 1.0 - 0.5 * t\n    elif u <= 0.5:\n        t = (u - 0.25) / 0.25\n        p = 0.5\n        V = 1.0 - 0.5 * t\n    elif u <= 0.75:\n        t = (u - 0.5) / 0.25\n        V = 0.5\n        p = 0.5 + 1.5 * t\n    else:\n        t = (u - 0.75) / 0.25\n        V = 0.5 + 0.5 * t\n        p = 2.0 - 1.0 * t\n    if u <= 0.25:\n        W = 0.0\n    elif u <= 0.5:\n        W = 0.5 * (V - 1.0)\n    elif u <= 0.75:\n        W = -0.25\n    else:\n        W = 3 * V - V * V - 1.5\n    U = p * V\n    T = U\n    Q = (U - 1.0) + W\n    return {\"u\": u, \"p\": p, \"V\": V, \"U\": U, \"T\": T, \"W\": W, \"Q\": Q}",
+ "invariants": [
+  {
+   "id": "c1-end-p",
+   "why": "对应given_facts F1：循环结束回到A点，压强与初始相等",
+   "case": "c1",
+   "expr": "abs(p[-1] - p[0]) <= 0.02",
+   "report": "p[-1], p[0]"
+  },
+  {
+   "id": "c1-end-V",
+   "why": "对应given_facts F1：循环结束回到A点，体积与初始相等",
+   "case": "c1",
+   "expr": "abs(V[-1] - V[0]) <= 0.02",
+   "report": "V[-1], V[0]"
+  },
+  {
+   "id": "c1-end-U",
+   "why": "对应given_facts F2：循环内能变化为0",
+   "case": "c1",
+   "expr": "abs(U[-1] - U[0]) <= 0.02",
+   "report": "U[-1], U[0]"
+  },
+  {
+   "id": "c1-end-W-equal-Q",
+   "why": "对应given_facts F4：循环总吸热量等于净功",
+   "case": "c1",
+   "expr": "abs(W[-1] - Q[-1]) <= 0.04",
+   "report": "W[-1], Q[-1]"
+  },
+  {
+   "id": "c1-U-consistent-T",
+   "why": "对应given_facts F2：理想气体内能是温度的单值函数",
+   "case": "c1",
+   "expr": "all(abs(U - T) <= 0.02)",
+   "report": "max(abs(U - T))"
+  },
+  {
+   "id": "c1-work-calc-consistent",
+   "why": "对应equations做功公式dW=p dV",
+   "case": "c1",
+   "expr": "max(abs(diff(W) - p[:-1] * diff(V))) <= 0.04",
+   "report": "max(abs(diff(W) - p[:-1] * diff(V)))"
+  },
+  {
+   "id": "c1-thermo-first-consistent",
+   "why": "对应equations热力学第一定律ΔU=Q-W",
+   "case": "c1",
+   "expr": "max(abs(diff(U) - (diff(Q) - diff(W)))) <= 0.04",
+   "report": "max(abs(diff(U) - (diff(Q) - diff(W))))"
+  },
+  {
+   "id": "c1-ideal-gas-law-consistent",
+   "why": "对应equations理想气体状态方程pV=T",
+   "case": "c1",
+   "expr": "max(abs(p * V - T)) <= 0.02",
+   "report": "max(abs(p * V - T))"
+  },
+  {
+   "id": "c1-net-work-positive",
+   "why": "对应given_facts F3：顺时针循环净功为正",
+   "case": "c1",
+   "expr": "W[-1] >= 0.05",
+   "report": "W[-1]"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "p",
+  "V",
+  "U",
+  "T",
+  "W",
+  "Q"
+ ],
+ "disclosures": [
+  {
+   "why": "题目未给出具体数值，采用无量纲化处理，需明确基准避免歧义",
+   "must_contain": "所有物理量均为无量纲量，p以A点压强为基准、V以A点体积为基准、U以A点内能为基准、W/Q以p_A V_A为基准"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "Q": "从u=0到当前时刻气体吸收的累计无量纲热量",
+  "T": "当前状态气体的无量纲热力学温度",
+  "U": "当前状态气体的无量纲内能",
+  "V": "当前状态气体的无量纲体积",
+  "W": "从u=0到当前时刻气体对外界做的累计无量纲功",
+  "p": "当前状态气体的无量纲压强",
+  "u": "归一化进度，等于传入的u，u∈[0,1]对应一次完整循环A→B→C→D→A"
+ },
+ "process_endpoints": "u=0对应循环开始，气体处于初始状态A；u=1对应循环结束，气体回到初始状态A",
+ "scene_requirements": [
+  "p-V坐标系，横轴为V纵轴为p，标注坐标原点",
+  "顺时针闭合循环曲线，标注A、B、C、D四个状态点，箭头标注A→B→C→D→A的过程方向",
+  "实时显示当前状态点在p-V图上的位置",
+  "实时显示当前U、累计W、累计Q的数值"
+ ]
+}

@@ -1,0 +1,59 @@
+<figure data-scene="q11"><svg viewBox="0 0 560 320" role="img" aria-label="理想气体顺时针p-V循环过程">
+  <!-- 坐标系 -->
+  <line class="sk" x1="60" y1="260" x2="520" y2="260" marker-end="url(#ak)"></line>
+  <line class="sk" x1="60" y1="260" x2="60" y2="40" marker-end="url(#ak)"></line>
+  <text class="u" x="530" y="270">V</text>
+  <text class="u" x="40" y="35">p</text>
+  <text class="n" x="45" y="265">0</text>
+
+  <!-- 刻度 -->
+  <line class="sh" x1="60" y1="260" x2="520" y2="260"></line>
+  <line class="sh" x1="60" y1="40" x2="60" y2="260"></line>
+  <line class="sh" x1="170" y1="255" x2="170" y2="265"></line>
+  <text class="n" x="165" y="280">0.5</text>
+  <line class="sh" x1="280" y1="255" x2="280" y2="265"></line>
+  <text class="n" x="275" y="280">1.0</text>
+  <line class="sh" x1="390" y1="255" x2="390" y2="265"></line>
+  <text class="n" x="385" y="280">1.5</text>
+  <line class="sh" x1="500" y1="255" x2="500" y2="265"></line>
+  <text class="n" x="495" y="280">2.0</text>
+
+  <line class="sh" x1="55" y1="195" x2="65" y2="195"></line>
+  <text class="n" x="35" y="200">0.5</text>
+  <line class="sh" x1="55" y1="130" x2="65" y2="130"></line>
+  <text class="n" x="35" y="135">1.0</text>
+  <line class="sh" x1="55" y1="65" x2="65" y2="65"></line>
+  <text class="n" x="35" y="70">1.5</text>
+
+  <!-- 循环路径 -->
+  <path id="q11-cycle" class="sa" d="M 280 130 L 280 195 L 170 195 L 170 65 L 280 130" fill="none" stroke-width="2"></path>
+
+  <!-- 状态点 -->
+  <circle id="q11-pointA" class="fr" cx="280" cy="130" r="4"></circle>
+  <text class="u r" x="288" y="125">A</text>
+
+  <circle id="q11-pointB" class="fr" cx="280" cy="195" r="4"></circle>
+  <text class="u r" x="288" y="190">B</text>
+
+  <circle id="q11-pointC" class="fr" cx="170" cy="195" r="4"></circle>
+  <text class="u r" x="155" y="190">C</text>
+
+  <circle id="q11-pointD" class="fr" cx="170" cy="65" r="4"></circle>
+  <text class="u r" x="155" y="60">D</text>
+
+  <!-- 方向箭头 -->
+  <path d="M 280 165 L 275 155 L 285 155 Z" class="fa" transform="translate(0 0)"></path>
+  <path d="M 225 195 L 235 190 L 235 200 Z" class="fa" transform="translate(0 0)"></path>
+  <path d="M 170 130 L 175 140 L 165 140 Z" class="fa" transform="translate(0 0)"></path>
+  <path d="M 225 97.5 L 215 102.5 L 215 92.5 Z" class="fa" transform="translate(0 0)"></path>
+
+  <!-- 当前状态点 -->
+  <circle id="q11-current" class="sr" cx="280" cy="130" r="5"></circle>
+
+  <!-- 信息显示 -->
+  <text class="u" x="320" y="70">状态信息：</text>
+  <text id="q11-info-U" class="n" x="320" y="100">U = 1.00</text>
+  <text id="q11-info-W" class="n" x="320" y="130">W = 0.00</text>
+  <text id="q11-info-Q" class="n" x="320" y="160">Q = 0.00</text>
+</svg>
+<figcaption class="u">理想气体顺时针p-V循环过程：A→B等容降压，B→C等压压缩，C→D等容升压，D→A等压膨胀。所有物理量均为无量纲量，p以A点压强为基准、V以A点体积为基准、U以A点内能为基准、W/Q以p_A V_A为基准</figcaption></figure>

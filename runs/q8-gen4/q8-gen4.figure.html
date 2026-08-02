@@ -1,0 +1,76 @@
+<figure data-scene="q8-gen4"><svg viewBox="0 0 560 320" role="img" aria-label="无人机竖直飞行高度-时间曲线图，含EF匀速上升、FM减速过渡、MN匀速下降三段">
+  <!-- Axes -->
+  <line class="sk" x1="60" y1="260" x2="520" y2="260" marker-end="url(#ak)"></line>
+  <line class="sk" x1="60" y1="260" x2="60" y2="40" marker-end="url(#ak)"></line>
+
+  <!-- Axis labels -->
+  <text class="u" x="505" y="265">t (s)</text>
+  <text class="u" x="30" y="45" transform="rotate(-90,30,150)">y (m)</text>
+
+  <!-- Required disclosure -->
+  <text class="u" x="150" y="295">EF段速度恒为4m/s，FM段加速度为负（失重），MN段加速度为0</text>
+
+  <!-- Grid lines -->
+  <line class="sh" x1="60" y1="220" x2="520" y2="220"></line>
+  <line class="sh" x1="60" y1="180" x2="520" y2="180"></line>
+  <line class="sh" x1="60" y1="140" x2="520" y2="140"></line>
+  <line class="sh" x1="60" y1="100" x2="520" y2="100"></line>
+  <line class="sh" x1="60" y1="60" x2="520" y2="60"></line>
+
+  <line class="sh" x1="120" y1="260" x2="120" y2="40"></line>
+  <line class="sh" x1="200" y1="260" x2="200" y2="40"></line>
+  <line class="sh" x1="340" y1="260" x2="340" y2="40"></line>
+  <line class="sh" x1="480" y1="260" x2="480" y2="40"></line>
+
+  <!-- Axis ticks -->
+  <text class="n" x="120" y="275">10</text>
+  <text class="n" x="200" y="275">20</text>
+  <text class="n" x="340" y="275">40</text>
+  <text class="n" x="480" y="275">53</text>
+
+  <text class="n" x="45" y="225">20</text>
+  <text class="n" x="45" y="185">40</text>
+  <text class="n" x="45" y="145">60</text>
+  <text class="n" x="45" y="105">80</text>
+
+  <!-- EF segment line -->
+  <line id="q8-gen4-ef-line" class="sa" x1="120" y1="233" x2="200" y2="173" stroke-width="2"></line>
+
+  <!-- FM segment curve -->
+  <path id="q8-gen4-fm-curve" class="sa" d="M 200 173 Q 270 130 340 143" fill="none" stroke-width="2"></path>
+
+  <!-- MN segment line -->
+  <line id="q8-gen4-mn-line" class="sa" x1="340" y1="143" x2="480" y2="203" stroke-width="2"></line>
+
+  <!-- Points E, F, M, N -->
+  <circle id="q8-gen4-point-E" class="fr" cx="120" cy="233" r="4"></circle>
+  <circle id="q8-gen4-point-F" class="fr" cx="200" cy="173" r="4"></circle>
+  <circle id="q8-gen4-point-M" class="fr" cx="340" cy="143" r="4"></circle>
+  <circle id="q8-gen4-point-N" class="fr" cx="480" cy="203" r="4"></circle>
+
+  <!-- Point labels -->
+  <text class="u r" x="115" y="228">E</text>
+  <text class="u r" x="195" y="168">F</text>
+  <text class="u r" x="335" y="138">M</text>
+  <text class="u r" x="475" y="198">N</text>
+
+  <!-- Segment labels -->
+  <text class="u a" x="150" y="195">v=4m/s</text>
+  <text class="u a" x="250" y="120">减速过渡</text>
+  <text class="u a" x="400" y="170">v=-2m/s</text>
+
+  <!-- Drone marker -->
+  <g id="q8-gen4-drone">
+    <rect class="fc" x="-12" y="-8" width="24" height="16" rx="3"></rect>
+    <line class="sc" x1="-15" y1="-4" x2="15" y2="-4" stroke-width="2"></line>
+    <line class="sc" x1="-15" y1="4" x2="15" y2="4" stroke-width="2"></line>
+  </g>
+
+  <!-- Info panel -->
+  <rect class="wash-c" x="380" y="10" width="160" height="70" rx="4"></rect>
+  <text class="u" x="390" y="30">实时参数</text>
+  <text id="q8-gen4-time" class="n" x="390" y="50">t: 0.0s</text>
+  <text id="q8-gen4-height" class="n" x="390" y="70">y: 0.0m</text>
+  <text id="q8-gen4-velocity" class="n" x="390" y="90">v: 0.0m/s</text>
+</svg>
+<figcaption>图：无人机竖直飞行高度-时间曲线，EF段匀速上升4m/s，FM段匀减速至-2m/s，MN段匀速下降2m/s</figcaption></figure>

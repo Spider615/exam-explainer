@@ -1,0 +1,43 @@
+<figure data-scene="q15">
+<svg viewBox="0 0 560 320" role="img" aria-label="离心测速器平衡状态演示">
+  <!-- 坐标系原点O在(280, 260)，x轴向右，y轴向上 -->
+  <defs>
+    <marker id="q15-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" class="sk" />
+    </marker>
+  </defs>
+
+  <!-- 竖直转轴OO' -->
+  <line x1="280" y1="10" x2="280" y2="290" class="sk" stroke-width="2" />
+  <text x="285" y="20" class="u">O'</text>
+  <text x="285" y="270" class="u">O</text>
+
+  <!-- 细杆（60°角，长度0.2m对应200px缩放） -->
+  <line id="q15-rod" x1="280" y1="260" x2="380" y2="86.6" class="sk" stroke-width="3" />
+  <text x="390" y="86.6" class="u">α=60°</text>
+
+  <!-- 弹簧 -->
+  <path id="q15-spring" d="M280 260 L330 173.2" class="sa" stroke-width="2" fill="none" />
+
+  <!-- 圆环 -->
+  <circle id="q15-ring" cx="330" cy="173.2" r="8" class="fr" />
+
+  <!-- 标注和显示区 -->
+  <g transform="translate(20, 20)">
+    <text x="0" y="0" class="u">当前状态：</text>
+    <text x="0" y="25" class="n" id="q15-x-display">x = 0.15 m</text>
+    <text x="0" y="50" class="n" id="q15-omega-display">ω = 0.00 rad/s</text>
+    <text x="0" y="75" class="n" id="q15-spring-state">弹簧：拉伸</text>
+  </g>
+
+  <!-- 标尺参考 -->
+  <line x1="420" y1="260" x2="520" y2="260" class="sh" />
+  <text x="470" y="280" class="u">0.1m</text>
+</svg>
+<div class="ctl">
+  <button type="button" class="btn" id="q15-btn-c1">情形1：静止释放</button>
+  <button type="button" class="btn" id="q15-btn-c2">情形2：弹簧原长转动</button>
+  <button type="button" class="btn" id="q15-btn-c3">情形3：末端固定转动</button>
+</div>
+<figcaption>细杆与竖直转轴成60°角，套有弹簧和圆环的离心测速器平衡状态演示。画面左上角实时x和omega数值显示，并有弹簧伸长状态标识区分压缩、原长、拉伸状态。</figcaption>
+</figure>
