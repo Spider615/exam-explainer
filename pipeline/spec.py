@@ -171,6 +171,35 @@ spec 如下：
 """
 
 
+# 顶格的 def/class/import/from/注释，或者顶格的赋值、带类型标注的赋值。
+# 用来找「散文结束、代码开始」的那一行
+CODE_START = re.compile(r"^(?:def |class |import |from |#)"
+                        r"|^[A-Za-z_]\w*\s*(?:=[^=]|:\s*\w)")
+
+
+def extract_code(txt):
+    """
+    从模型回复里抠出**能直接 exec 的** Python。
+
+    `REF_PROMPT` 已经写明「不要围栏、不要解释」，它照样会犯。2025年北京卷第 5、7 题
+    的 reference 就是这么废掉的 —— 代码本身完全正常，前面顶了一句
+    `All invariants verified... Final code:`，于是 speccheck 的 `exec` 在第 1 行
+    就 SyntaxError，两道题在 ④b 判「跑不起来」。④ 是整条链最贵的一步，白烧半小时。
+
+    原来这里是 `re.sub` 删围栏标记：删得掉标记，删不掉围栏**外面**的话。
+    现在有围栏就取围栏**里面**的，没围栏就从第一行像 Python 的地方切起。
+    """
+    txt = txt.strip()
+    m = re.search(r"```[a-z]*\n(.*?)(?:```|\Z)", txt, re.S)
+    if m:
+        return m.group(1).strip()
+    lines = txt.splitlines()
+    for i, ln in enumerate(lines):
+        if CODE_START.match(ln):
+            return "\n".join(lines[i:]).strip()
+    return txt
+
+
 def ask_reference(spec, tries=2):
     """
     单独一次调用要参考实现。
@@ -185,9 +214,18 @@ def ask_reference(spec, tries=2):
     for k in range(tries):
         try:
             txt = ask_raw(REF_PROMPT + json.dumps(slim, ensure_ascii=False, indent=1))
-            code = re.sub(r"^```[a-z]*\n|```$", "", txt.strip(), flags=re.M).strip()
+            code = extract_code(txt)
+            # 闸门用 compile，不用 `"def probe" in code` —— 后者对「代码是好的、
+            # 但前面顶了句人话」一律放行，而那正是实测掉链子的方式。语法不合法就重试：
+            # 让一份 exec 不起来的 reference 落库，等于这道题在 ④b 必然判「跑不起来」，
+            # 前面那几分钟全白花，而且要到下一个阶段才看得出来。
             if "def probe" in code:
-                return code
+                try:
+                    compile(code, "<reference>", "exec")
+                    return code
+                except SyntaxError as e:
+                    if k == tries - 1:
+                        raise RuntimeError("参考实现语法不合法：%s" % e) from None
         except Exception:
             if k == tries - 1:
                 raise

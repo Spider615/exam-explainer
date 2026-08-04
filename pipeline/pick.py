@@ -110,7 +110,17 @@ def payload_for(cands):
 
 
 def ask(payload, tries=3):
-    body = json.dumps({"model": MODEL, "max_tokens": 4000, "temperature": 0,
+    """
+    判整卷，一次调用。
+
+    `max_tokens` 和 solve.py / spec.py 一样给足 —— 思维链和正文共用这个额度。
+    原来写的 4000 不够：整卷 20 道题的判断，光思维链实测就要 2300~3700 tok，
+    正文还要约 600，正好骑在 4000 上，单次约五成被截断。截断的正文里连个 `]`
+    都没有，下面那句 `re.search` 匹配不上就抛 ValueError，三次重试全中的话
+    整步失败 —— 而 ④c 是 fail-closed 的，失败就等于整卷一道动画都不做。
+    2025年北京卷就是这么丢掉的：③ 解完 20 题，④ 之后全程空转，页面停在「选题」。
+    """
+    body = json.dumps({"model": MODEL, "max_tokens": 32000, "temperature": 0,
                        "messages": [{"role": "user", "content": payload}]}).encode()
     for k in range(tries):
         try:
