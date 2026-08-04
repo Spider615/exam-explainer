@@ -1,0 +1,241 @@
+{
+ "id": "q10",
+ "stem": "绝缘轻质弹簧上端固定，下端悬挂磁铁，从弹簧原长位置由静止释放。情形一：桌面无线圈，磁铁仅受空气阻力，振动最终停止。情形二：磁铁正下方桌面上固定一个闭合铜线圈，同样从原长位置由静止释放，振动最终也停止（此时磁铁除空气阻力外还受线圈感应电流产生的安培力阻尼）。比较两种情形的运动过程。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "无线圈：磁铁仅受空气阻力"
+  },
+  {
+   "id": "c2",
+   "label": "有线圈：磁铁受空气阻力+线圈电磁阻尼"
+  }
+ ],
+ "title": "磁铁-弹簧振子在有/无闭合线圈时的阻尼振动对比",
+ "units": "长度x：m（弹簧原长处为原点，竖直向下为正）；速度v：m/s；加速度a：m/s²；力F_amp：N；能量Eloss：J；时间t：s；u为无量纲[0,1]归一化过程进度，两种情形各自独立映射到真实时间（t=u·T_case，T1≠T2，见constants）。",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。原题本身不含任何数值，为构造可验证动画，已在 constants 中给定一组自洽的示例参数（m,k,g,γ1,γ2 等），实现方直接代入下列公式计算，不得另设数值或改变力的形式。",
+  "equations": [
+   "初始条件：x(0)=0, v(0)=0（弹簧原长处由静止释放）",
+   "运动方程：m x'' = m g - k x - c x'，其中 c=2mγ",
+   "欠阻尼解析解：x(t) = x_eq·[1 - e^{-γt}(cos(ω_d t) + (γ/ω_d)·sin(ω_d t))]",
+   "v(t) = x_eq·(ω0²/ω_d)·e^{-γt}·sin(ω_d t)",
+   "a(t) = x_eq·(ω0²/ω_d)·e^{-γt}·(ω_d·cos(ω_d t) - γ·sin(ω_d t))",
+   "时间映射：t = u · T_case，T_case = ln(1/ε_stop)/γ（每种情形各自独立计算）",
+   "安培力：有线圈情形 F_amp(t) = c_EM·v(t)；无线圈情形 F_amp(t) ≡ 0",
+   "机械能损失：Eloss(t) = m g x(t) - (1/2) k x(t)² - (1/2) m v(t)²（可证明 Eloss(0)=0 且随 t 单调不减）"
+  ],
+  "definitions": [
+   "x：磁铁相对弹簧原长位置的竖直位移（向下为正）",
+   "x_eq = m g / k：弹簧弹力与重力平衡的位置（两种情形磁铁最终都停在此处）",
+   "y = x - x_eq：磁铁相对平衡位置的位移，满足标准阻尼振动方程",
+   "ω0 = sqrt(k/m)：无阻尼固有角频率",
+   "γ：阻尼系数（= c/(2m)，c为总阻尼力系数）；无线圈情形 γ=γ1（仅空气阻力）；有线圈情形 γ=γ2=γ1+Δγ（空气阻力+线圈电磁阻尼），γ2>γ1",
+   "ω_d = sqrt(ω0² - γ²)：欠阻尼情形下的阻尼振荡角频率",
+   "c_EM = 2m(γ2-γ1)：线圈引入的等效电磁阻尼系数",
+   "F_amp：线圈对磁铁的安培力大小，无线圈情形恒为0，有线圈情形 F_amp = c_EM·v",
+   "T_case：该情形下振动包络衰减到初始值 ε_stop（2%）以内所需的真实时间，T_case = ln(1/ε_stop)/γ",
+   "Eloss：从释放时刻起，磁铁+弹簧系统（计入重力势能）累计损失的机械能"
+  ],
+  "given_facts": [
+   "F1 · 有线圈时总阻尼系数 γ2>γ1（多了电磁阻尼），振动包络衰减更快，停止所需真实时间 T2<T1",
+   "F2 · 磁铁靠近线圈时穿过线圈的磁通量增大，由楞次定律，感应电流阻碍磁通量增大，线圈应有收缩（而非扩张）的趋势",
+   "F3 · 磁铁离线圈最近处对应位移 x 取最大值（振动折返点），此处速度 v=0，感应电动势、电流、安培力均为0，而非最大",
+   "F4 · 无论有无线圈，磁铁最终都静止于同一平衡位置 x=x_eq=mg/k",
+   "F5 · 两种情形初、末状态（位置、速度）完全相同，机械能损失只取决于保守力做功，与耗散方式无关，故两种情形损失的机械能相等，均为 (1/2)k·x_eq²",
+   "F6 · 释放瞬间(t=0)磁铁位于弹簧原长处，弹力为0，只受重力，故初始加速度 a(0)=g"
+  ],
+  "normalization": "取弹簧原长释放点为位移零点 x=0，竖直向下为正；取平衡位置 x_eq=mg/k 处的偏移量为归一化单位，本例参数使 x_eq=1（m）。",
+  "free_parameters": ""
+ },
+ "constants": {
+  "g": 10.0,
+  "k": 10.0,
+  "m": 1.0,
+  "T1": 13.040077,
+  "T2": 3.912023,
+  "c_EM": 1.4,
+  "x_eq": 1.0,
+  "gamma1": 0.3,
+  "gamma2": 1.0,
+  "omega0": 3.162278,
+  "omega_d1": 3.148015,
+  "omega_d2": 3.0,
+  "epsilon_stop": 0.02
+ },
+ "reference": "def probe(u, case):\n    m = 1.0\n    k = 10.0\n    g = 10.0\n    x_eq = m * g / k\n\n    omega0 = sqrt(k / m)\n    gamma1 = 0.3\n    gamma2 = 1.0\n    c_EM = 2.0 * m * (gamma2 - gamma1)\n    epsilon_stop = 0.02\n\n    if case == \"c1\":\n        gamma = gamma1\n    else:\n        gamma = gamma2\n\n    omega_d = sqrt(omega0 * omega0 - gamma * gamma)\n    T_case = log(1.0 / epsilon_stop) / gamma\n\n    t = u * T_case\n\n    e = exp(-gamma * t)\n    cos_wd = cos(omega_d * t)\n    sin_wd = sin(omega_d * t)\n\n    x = x_eq * (1.0 - e * (cos_wd + (gamma / omega_d) * sin_wd))\n    v = x_eq * (omega0 * omega0 / omega_d) * e * sin_wd\n    a = x_eq * (omega0 * omega0 / omega_d) * e * (omega_d * cos_wd - gamma * sin_wd)\n\n    if case == \"c1\":\n        F_amp = 0.0\n    else:\n        F_amp = c_EM * v\n\n    Eloss = m * g * x - 0.5 * k * x * x - 0.5 * m * v * v\n\n    return {\"u\": u, \"t\": t, \"x\": x, \"v\": v, \"a\": a, \"F_amp\": F_amp, \"Eloss\": Eloss}",
+ "invariants": [
+  {
+   "id": "c1-initial-accel",
+   "why": "F6：释放瞬间弹簧未形变，只受重力，a(0)=g=10",
+   "case": "c1",
+   "expr": "abs(a[0] - 10.0) <= 0.1",
+   "report": "a[0]"
+  },
+  {
+   "id": "c1-final-pos",
+   "why": "F4：磁铁最终停在平衡位置x_eq=1",
+   "case": "c1",
+   "expr": "abs(x[-1] - 1.0) <= 0.05",
+   "report": "x[-1]"
+  },
+  {
+   "id": "c1-final-vel",
+   "why": "F1/F4：u=1判定为'已停止'，速度应趋于0",
+   "case": "c1",
+   "expr": "abs(v[-1]) <= 0.1",
+   "report": "v[-1]"
+  },
+  {
+   "id": "c1-eloss-final",
+   "why": "F5：损失机械能=(1/2)k·x_eq²=5J",
+   "case": "c1",
+   "expr": "abs(Eloss[-1] - 5.0) <= 0.15",
+   "report": "Eloss[-1]"
+  },
+  {
+   "id": "c1-eloss-monotonic",
+   "why": "F5：机械能只能被耗散力持续消耗，Eloss应单调不减，覆盖全过程",
+   "case": "c1",
+   "expr": "min(diff(Eloss)) >= -0.05",
+   "report": "min(diff(Eloss))"
+  },
+  {
+   "id": "c1-turning-zero-v",
+   "why": "F3：磁铁离线圈最近（x取最大值）处即振动折返点，速度必须为0——检验x与其导数v的自洽性",
+   "case": "c1",
+   "expr": "abs(v[argmax(x)]) <= 0.1",
+   "report": "v[argmax(x)]"
+  },
+  {
+   "id": "c1-va-consistency",
+   "why": "自洽性检验：v取极值处(dv/dt=0)加速度a应趋于0，确保probe中v与a并非各算各的",
+   "case": "c1",
+   "expr": "abs(a[argmax(v)]) <= 0.15 * max(abs(a))",
+   "report": "abs(a[argmax(v)]) / max(abs(a))"
+  },
+  {
+   "id": "c1-total-time",
+   "why": "F1：无线圈情形停止所需真实时间T1，作为与有线圈情形对比的基准",
+   "case": "c1",
+   "expr": "abs(t[-1] - 13.040077) <= 0.2",
+   "report": "t[-1]"
+  },
+  {
+   "id": "c1-no-coil-force",
+   "why": "无线圈情形没有电磁阻尼，安培力恒为0，用于与有线圈情形（F1）形成对照",
+   "case": "c1",
+   "expr": "max(abs(F_amp)) <= 1e-6",
+   "report": "max(abs(F_amp))"
+  },
+  {
+   "id": "c2-initial-accel",
+   "why": "F6：释放瞬间弹簧未形变，只受重力，a(0)=g=10",
+   "case": "c2",
+   "expr": "abs(a[0] - 10.0) <= 0.1",
+   "report": "a[0]"
+  },
+  {
+   "id": "c2-final-pos",
+   "why": "F4：磁铁最终停在平衡位置x_eq=1，与无线圈情形相同",
+   "case": "c2",
+   "expr": "abs(x[-1] - 1.0) <= 0.05",
+   "report": "x[-1]"
+  },
+  {
+   "id": "c2-final-vel",
+   "why": "F1/F4：u=1判定为'已停止'，速度应趋于0",
+   "case": "c2",
+   "expr": "abs(v[-1]) <= 0.1",
+   "report": "v[-1]"
+  },
+  {
+   "id": "c2-eloss-final",
+   "why": "F5：损失机械能=(1/2)k·x_eq²=5J，与无线圈情形相同",
+   "case": "c2",
+   "expr": "abs(Eloss[-1] - 5.0) <= 0.15",
+   "report": "Eloss[-1]"
+  },
+  {
+   "id": "c2-eloss-monotonic",
+   "why": "F5：机械能只能被耗散力持续消耗，Eloss应单调不减，覆盖全过程",
+   "case": "c2",
+   "expr": "min(diff(Eloss)) >= -0.05",
+   "report": "min(diff(Eloss))"
+  },
+  {
+   "id": "c2-turning-zero-v",
+   "why": "F3：磁铁离线圈最近（x取最大值）处即振动折返点，速度必须为0——检验x与其导数v的自洽性",
+   "case": "c2",
+   "expr": "abs(v[argmax(x)]) <= 0.1",
+   "report": "v[argmax(x)]"
+  },
+  {
+   "id": "c2-va-consistency",
+   "why": "自洽性检验：v取极值处(dv/dt=0)加速度a应趋于0，确保probe中v与a并非各算各的",
+   "case": "c2",
+   "expr": "abs(a[argmax(v)]) <= 0.15 * max(abs(a))",
+   "report": "abs(a[argmax(v)]) / max(abs(a))"
+  },
+  {
+   "id": "c2-amp-force-near-closest",
+   "why": "F3：磁铁离线圈最近处速度为0，感应电流与安培力应趋于0而非最大——检验v与F_amp(∝v)的自洽性，直接反驳选项C",
+   "case": "c2",
+   "expr": "abs(F_amp[argmax(x)]) <= 0.1 * max(abs(F_amp))",
+   "report": "abs(F_amp[argmax(x)]) / max(abs(F_amp))"
+  },
+  {
+   "id": "c2-total-time",
+   "why": "F1：有线圈时阻尼更大，停止所需真实时间T2明显短于无线圈情形的T1(13.04s)",
+   "case": "c2",
+   "expr": "abs(t[-1] - 3.912023) <= 0.1",
+   "report": "t[-1]"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "t",
+  "x",
+  "v",
+  "a",
+  "F_amp",
+  "Eloss"
+ ],
+ "disclosures": [
+  {
+   "why": "避免观众把示例参数误当作题目给定条件",
+   "must_contain": "本题原题未给出任何数值，画面中的 m,k,g,γ1,γ2 等均为便于演示设定的示例参数，非原题条件"
+  },
+  {
+   "why": "防止把'相同的动画播放时长'误解为'相同的物理停止时间'，混淆选项A的判断",
+   "must_contain": "u是各情形各自独立的过程进度，不是播放时间；两种情形对应的真实时长 T1≈13.04s、T2≈3.91s 不同"
+  },
+  {
+   "why": "F4/F5的关键可视化证据，支持选项D",
+   "must_contain": "标注平衡位置x_eq，并清楚显示两种情形磁铁最终都停在同一位置"
+  },
+  {
+   "why": "F3的关键可视化证据，直接反驳选项C",
+   "must_contain": "有线圈情形下安培力F_amp(t)曲线，且磁铁离线圈最近瞬间F_amp应明显趋于0"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "a": "磁铁竖直加速度，向下为正，单位m/s²",
+  "t": "对应的真实时间(s)，t=u·T_case（c1对应T1，c2对应T2，见constants）",
+  "u": "归一化过程进度，等于传入的u；u=0为释放瞬间，u=1为该情形判定'已停止'的瞬间",
+  "v": "磁铁竖直速度，向下为正，单位m/s",
+  "x": "磁铁相对弹簧原长位置的竖直位移，向下为正，单位m",
+  "Eloss": "从释放时刻到当前时刻，磁铁+弹簧系统累计损失的机械能，单位J（Eloss(0)=0，随t单调不减）",
+  "F_amp": "线圈对磁铁的安培力大小；c1情形恒为0，c2情形等于c_EM·v，单位N"
+ },
+ "process_endpoints": "u=0：磁铁在弹簧原长位置由静止释放的瞬间；u=1：该情形下振动包络衰减到初始偏移量的2%（ε_stop）以内、视为'已停止'的时刻，对应真实时间为该情形的T_case（c1为T1，c2为T2）。",
+ "scene_requirements": [
+  "竖直方向的弹簧-磁铁示意图，标出自然长度位置(x=0)与平衡位置(x=x_eq)",
+  "磁铁位移 x(t) 随时间变化的轨迹曲线，无线圈/有线圈两种情形并排或叠加对比",
+  "磁铁速度 v(t) 的曲线或速度矢量指示",
+  "有线圈情形下，磁铁正下方桌面上的闭合线圈图示，标注磁铁靠近时线圈的感应电流方向及'收缩趋势'的视觉提示，并给出安培力大小 F_amp(t) 曲线，在磁铁离线圈最近的瞬间应清晰显示 F_amp≈0",
+  "机械能损失 Eloss(t) 累计曲线，展示两种情形最终损失值相同",
+  "明确标注两种情形达到'停止'判据所需的真实时间 T1、T2，并可见 T2<T1"
+ ]
+}

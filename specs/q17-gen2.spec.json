@@ -1,0 +1,250 @@
+{
+ "id": "q17-gen2",
+ "stem": "某物体以初速度v0从地面竖直向上抛出，经时间t到达最高点。在最高点该物体炸裂成A、B两部分，质量分别为2m和m，A以速度v沿水平方向飞出。重力加速度为g，不计空气阻力。求：(1) v0；(2) 炸裂后瞬间B的速度大小vB；(3) A、B落地点之间的距离d。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "竖直上抛至最高点炸裂为A（2m，水平速度v）与B（m，水平速度vB）"
+  }
+ ],
+ "title": "竖直上抛物体最高点炸裂为A、B两部分的平抛运动",
+ "units": "g：m/s²；t：s；v0、v、vB：m/s；y、xA、xB、h、d：m；tau：s；u：无量纲（0到1）",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。",
+  "equations": [
+   "上升阶段：v0 - g·t = 0 → v0 = g·t",
+   "最高点高度：h = v0²/(2g) = g·t²/2",
+   "炸裂瞬间水平方向动量守恒（炸裂内力远大于重力，忽略炸裂过程的重力冲量）：0 = 2m·v - m·vB → vB = 2v，方向与A相反",
+   "炸裂对竖直分量无影响，故竖直方向A、B与炸裂前物体共用同一条y(τ)曲线：y(τ) = v0·τ - (1/2)g·τ²，τ∈[0,2t]，vy(τ)=v0-g·τ，ay=-g（全程恒定）",
+   "由h=(1/2)g·t'^2解得自由下落回地面所需时间t'=t，即总时长为2t，且t'=t与上升时间相等",
+   "炸裂后A做匀速水平运动：x_A(τ) = v·(τ-t)，τ≥t；vAx=v（τ≥t时恒定），τ<t时xA=vAx=0",
+   "炸裂后B做匀速水平运动（方向与A相反）：x_B(τ) = -vB·(τ-t)，τ≥t；vBx=-vB（τ≥t时恒定），τ<t时xB=vBx=0",
+   "落地点间距：d = x_A(2t) - x_B(2t) = v·t + vB·t = 3v·t"
+  ],
+  "definitions": [
+   "v0：抛出时初速度大小",
+   "t：抛出到最高点所用时间（已知量）",
+   "h：最高点相对地面的高度",
+   "v：炸裂后A沿水平方向的速度大小（已知量）",
+   "vB：炸裂后瞬间B的速度大小（待求）",
+   "g：重力加速度",
+   "tau：真实物理时间（s），tau=2t·u",
+   "u：归一化过程进度，u=0对应抛出瞬间，u=0.5对应最高点炸裂瞬间，u=1对应A、B同时落地瞬间"
+  ],
+  "given_facts": [
+   "F1 · 抛出到最高点时间为t",
+   "F2 · 最高点处竖直速度为零",
+   "F3 · 爆炸过程水平方向动量守恒（爆炸前总动量为零）",
+   "F4 · 爆炸后A、B竖直方向初速度均为零",
+   "F5 · 最高点高度为g·t²/2",
+   "F6 · 从最高点自由下落回地面所需时间也为t",
+   "F7 · A的水平位移为v·t",
+   "F8 · B的水平位移为2v·t",
+   "F9 · 落地点间距为3v·t"
+  ],
+  "normalization": "取物理过程总时长为2t（上升t+下落t，二者相等），u∈[0,1]为归一化进度，真实时间tau=2t·u。u=0.5为炸裂瞬间（最高点）。为便于动画具体化，取代表性数值 g=10 m/s²、t=1 s、v=2 m/s（题目未给数值，结论比例关系v0=gt、vB=2v、d=3vt对任意数值均成立，本spec直接固定数值以消除歧义，free_parameters留空）。",
+  "free_parameters": ""
+ },
+ "constants": {
+  "g": 10,
+  "t": 1,
+  "v": 2
+ },
+ "reference": "def probe(u, case):\n    g = 10.0\n    t = 1.0\n    v = 2.0\n    v0 = g * t\n    vB = 2.0 * v\n    tau = 2.0 * t * u\n    y = v0 * tau - 0.5 * g * tau * tau\n    vy = v0 - g * tau\n    ay = -g\n    if tau <= t:\n        xA = 0.0\n        vAx = 0.0\n        xB = 0.0\n        vBx = 0.0\n    else:\n        dt = tau - t\n        xA = v * dt\n        vAx = v\n        xB = -vB * dt\n        vBx = -vB\n    return {\n        \"u\": u,\n        \"tau\": tau,\n        \"y\": y,\n        \"vy\": vy,\n        \"ay\": ay,\n        \"xA\": xA,\n        \"vAx\": vAx,\n        \"xB\": xB,\n        \"vBx\": vBx,\n    }",
+ "invariants": [
+  {
+   "id": "c1-v0",
+   "why": "F1+F2：上升阶段速度线性减为零，v0=g·t=10",
+   "case": "c1",
+   "expr": "abs(vy[0] - 10) <= 0.1",
+   "report": "vy[0]"
+  },
+  {
+   "id": "c1-vtop-zero",
+   "why": "F2：最高点(y取最大值处)竖直速度须为零——检验y与vy互相自洽",
+   "case": "c1",
+   "expr": "abs(vy[argmax(y)]) <= 0.05",
+   "report": "vy[argmax(y)]"
+  },
+  {
+   "id": "c1-explosion-mid",
+   "why": "F1+F6：上升与下落用时都为t，炸裂时刻（最高点）应位于归一化进度u=0.5处",
+   "case": "c1",
+   "expr": "abs(u[argmax(y)] - 0.5) <= 0.01",
+   "report": "u[argmax(y)]"
+  },
+  {
+   "id": "c1-hmax",
+   "why": "F5：最高点高度h=g·t²/2=5",
+   "case": "c1",
+   "expr": "abs(max(y) - 5) <= 0.15",
+   "report": "max(y)"
+  },
+  {
+   "id": "c1-ay-const",
+   "why": "全程只受重力，炸裂只在水平方向施加内力，竖直加速度应恒为-g（对应F3/F4）",
+   "case": "c1",
+   "expr": "max(ay) - min(ay) <= 0.4",
+   "report": "max(ay)-min(ay)"
+  },
+  {
+   "id": "c1-ay-value",
+   "why": "竖直加速度大小应为g=10，支撑F5、F6中h、t'的推导",
+   "case": "c1",
+   "expr": "abs(mean(ay) - (-10)) <= 0.1",
+   "report": "mean(ay)"
+  },
+  {
+   "id": "c1-vy-ay-consistency",
+   "why": "vy对时间的数值导数须与探针给出的ay一致，防止二者各自独立计算而不自洽（F2/F5/F6相关）",
+   "case": "c1",
+   "expr": "abs(mean(diff(vy)/diff(tau)) - mean(ay)) <= 0.5",
+   "report": "mean(diff(vy)/diff(tau)) vs mean(ay)"
+  },
+  {
+   "id": "c1-y-vy-consistency",
+   "why": "y对时间的数值导数须与探针给出的vy一致（F1/F5自洽性）",
+   "case": "c1",
+   "expr": "abs(mean(diff(y)/diff(tau)) - mean(vy)) <= 0.5",
+   "report": "mean(diff(y)/diff(tau)) vs mean(vy)"
+  },
+  {
+   "id": "c1-y-mono-rise",
+   "why": "F1/F2：上升阶段高度应单调增大直至最高点",
+   "case": "c1",
+   "expr": "min(diff(y[:201])) >= -0.05",
+   "report": "min(diff(y[:201]))"
+  },
+  {
+   "id": "c1-y-mono-fall",
+   "why": "F6：下落阶段高度应单调减小回到地面",
+   "case": "c1",
+   "expr": "max(diff(y[201:])) <= 0.05",
+   "report": "max(diff(y[201:]))"
+  },
+  {
+   "id": "c1-vAx-zero-pre",
+   "why": "炸裂前物体仅竖直运动，水平速度为零（对应F1所述上升阶段）",
+   "case": "c1",
+   "expr": "max(abs(vAx[:201])) <= 0.05",
+   "report": "max(abs(vAx[:201]))"
+  },
+  {
+   "id": "c1-vAx-const-post",
+   "why": "F3/F7：炸裂后A不受水平力，水平速度恒为v",
+   "case": "c1",
+   "expr": "max(vAx[201:]) - min(vAx[201:]) <= 0.08",
+   "report": "max(vAx[201:])-min(vAx[201:])"
+  },
+  {
+   "id": "c1-xA-vAx-consistency",
+   "why": "A的水平位移变化率须与其水平速度一致，防止xA、vAx各自独立计算（F7自洽性）",
+   "case": "c1",
+   "expr": "abs(mean(diff(xA[201:])/diff(tau[201:])) - mean(vAx[201:])) <= 0.1",
+   "report": "diff(xA)/diff(tau) vs vAx（炸裂后）"
+  },
+  {
+   "id": "c1-vBx-zero-pre",
+   "why": "炸裂前B尚未分离，水平速度为零",
+   "case": "c1",
+   "expr": "max(abs(vBx[:201])) <= 0.05",
+   "report": "max(abs(vBx[:201]))"
+  },
+  {
+   "id": "c1-vBx-const-post",
+   "why": "F3/F8：炸裂后B不受水平力，水平速度恒为-vB",
+   "case": "c1",
+   "expr": "max(vBx[201:]) - min(vBx[201:]) <= 0.16",
+   "report": "max(vBx[201:])-min(vBx[201:])"
+  },
+  {
+   "id": "c1-xB-vBx-consistency",
+   "why": "B的水平位移变化率须与其水平速度一致，防止xB、vBx各自独立计算（F8自洽性）",
+   "case": "c1",
+   "expr": "abs(mean(diff(xB[201:])/diff(tau[201:])) - mean(vBx[201:])) <= 0.2",
+   "report": "diff(xB)/diff(tau) vs vBx（炸裂后）"
+  },
+  {
+   "id": "c1-vB-value",
+   "why": "F3：爆炸水平动量守恒 0=2m·v - m·vB，解得vB=2v=4，方向与A相反",
+   "case": "c1",
+   "expr": "abs(vBx[-1] + 4) <= 0.04",
+   "report": "vBx[-1]"
+  },
+  {
+   "id": "c1-xA-final",
+   "why": "F7：A的水平位移=v·t=2",
+   "case": "c1",
+   "expr": "abs(xA[-1] - 2) <= 0.06",
+   "report": "xA[-1]"
+  },
+  {
+   "id": "c1-xB-final",
+   "why": "F8：B的水平位移=2v·t=4（方向相反）",
+   "case": "c1",
+   "expr": "abs(xB[-1] + 4) <= 0.12",
+   "report": "xB[-1]"
+  },
+  {
+   "id": "c1-d-final",
+   "why": "F9：落地点间距d=3v·t=6，本题最终所求(3)",
+   "case": "c1",
+   "expr": "abs((xA[-1] - xB[-1]) - 6) <= 0.24",
+   "report": "xA[-1]-xB[-1]"
+  },
+  {
+   "id": "c1-land-y",
+   "why": "F6：下落时间等于t，故u=1时A、B同时落地，此刻高度应为0",
+   "case": "c1",
+   "expr": "abs(y[-1]) <= 0.1",
+   "report": "y[-1]"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "tau",
+  "y",
+  "vy",
+  "ay",
+  "xA",
+  "vAx",
+  "xB",
+  "vBx"
+ ],
+ "disclosures": [
+  {
+   "why": "题目未给具体数值，需让观众知道结论是比例关系（v0=gt、vB=2v、d=3vt）而非依赖特定数字",
+   "must_contain": "g=10 m/s²，t=1 s，v=2 m/s（示例取值）"
+  },
+  {
+   "why": "避免观众把播放快慢等同于物理时间，需显式标注炸裂是上升与下落的中点",
+   "must_contain": "u为物理过程进度（非播放时间），炸裂发生在u=0.5"
+  },
+  {
+   "why": "本题最终所求答案(3)，需要在画面中直接呈现，便于核对",
+   "must_contain": "落地点间距 d = 3vt"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "u": "归一化进度，等于传入的u",
+  "y": "竖直位移（m），炸裂前后A、B共用同一竖直运动曲线（炸裂只改变水平速度分量）",
+  "ay": "竖直加速度（m/s²），全程恒为-g",
+  "vy": "竖直速度（m/s）",
+  "xA": "A的水平位移（m），u≤0.5时为0，u>0.5后随时间线性增大",
+  "xB": "B的水平位移（m），u≤0.5时为0，u>0.5后随时间线性变化（方向与A相反）",
+  "tau": "真实物理时间（s），tau=2t·u；u=0对应抛出瞬间，u=0.5对应最高点炸裂瞬间，u=1对应A、B落地瞬间",
+  "vAx": "A的水平速度（m/s），u≤0.5时为0，u>0.5后恒为v",
+  "vBx": "B的水平速度（m/s），u≤0.5时为0，u>0.5后恒为-vB"
+ },
+ "process_endpoints": "u=0：物体从地面竖直抛出的瞬间（竖直速度v0=gt，水平速度为0）；u=0.5：物体到达最高点并瞬间炸裂为A、B的瞬间（竖直速度为0，水平速度发生跳变）；u=1：A、B同时落回地面的瞬间（下落用时等于上升时间t）。",
+ "scene_requirements": [
+  "地面基线（y=0）与竖直发射点标记",
+  "物体沿竖直方向上升的轨迹（炸裂前水平位置保持不变）",
+  "最高点处的炸裂/分裂视觉效果，并标注A（2m）与B（m）",
+  "炸裂后A、B分别沿相反水平方向做平抛运动的轨迹，A方向标注速度v，B方向标注速度vB",
+  "A、B同时落地的时刻与落地点标记",
+  "两落地点之间水平间距d的可视化标注及数值",
+  "关键数值读出：v0、vB、最高点高度h、落地间距d"
+ ]
+}

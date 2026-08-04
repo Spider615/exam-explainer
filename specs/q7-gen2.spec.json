@@ -1,0 +1,188 @@
+{
+ "id": "q7-gen2",
+ "stem": "嫦娥六号探测器在圆形轨道1上绕月球飞行，在A点变轨后进入椭圆轨道2，B为远月点（A为轨道2的近月点，也是轨道1与轨道2的切点）。比较探测器在轨道2上从A运动到B过程中动能、加速度的变化，以及轨道1与轨道2机械能的关系。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "轨道2：探测器从A(近月点)运动到B(远月点)"
+  },
+  {
+   "id": "c2",
+   "label": "轨道1：探测器沿圆轨道匀速运动（用于与轨道2机械能对比）"
+  }
+ ],
+ "title": "嫦娥六号变轨：椭圆轨道2上从近月点到远月点的动能、加速度与机械能",
+ "units": "长度以r_p（轨道1半径/轨道2近月点距离）为单位1；GM_月归一化为1；由此速度单位=sqrt(GM/r_p)，加速度单位=GM/r_p^2，比能量(KE/PE/mechE)单位=GM/r_p；探测器质量取1，故能量量均为单位质量下的『比』能量。",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式（月球引力为平方反比有心力，探测器机械能守恒于同一轨道内）。",
+  "equations": [
+   "开普勒方程：π·u = E - e·sin(E)，对每个u用牛顿迭代解出E(u)（初值E0=u<0.8?u*π:π 均可，迭代到收敛）",
+   "r(u) = a·(1 - e·cos(E(u)))",
+   "活力公式：v(u)^2 = GM·(2/r(u) - 1/a)，v(u) = sqrt(max(v(u)^2, 0))",
+   "角动量守恒：vt(u) = L / r(u)，L = sqrt(GM·a·(1-e^2))",
+   "径向速度：vr(u) = sqrt(max(v(u)^2 - vt(u)^2, 0))（A→B段r单调增大，取正号；u=0和u=1处应约为0）",
+   "KE(u) = 0.5·v(u)^2；PE(u) = -GM/r(u)；mechE(u) = KE(u) + PE(u)",
+   "acc(u) = GM / r(u)^2",
+   "case c2（圆轨道1）：对任意u，r=r_p=1（常量），v1=sqrt(GM/r_p)，KE=0.5·v1^2，PE=-GM/r_p，mechE=KE+PE，acc=GM/r_p^2，vr=0，vt=v1，均不随u变化"
+  ],
+  "definitions": [
+   "r_p：椭圆轨道2近月点(A点)到月心距离 = 1（= 圆轨道1半径）",
+   "r_a：椭圆轨道2远月点(B点)到月心距离 = 2",
+   "a：椭圆轨道2半长轴 = (r_p + r_a)/2 = 1.5",
+   "e：椭圆轨道2偏心率 = (r_a - r_p)/(r_a + r_p) = 1/3",
+   "L：椭圆轨道2比角动量（守恒量）= sqrt(GM·a·(1-e^2))",
+   "M(u)：平近点角，A点为M=0，B点为M=π，M(u) = π·u（M与真实运动时间成正比，故u即物理过程进度）",
+   "E(u)：偏近点角，由开普勒方程 M = E - e·sin(E) 解出，E∈[0,π]",
+   "r(u)：探测器到月心距离 = a·(1 - e·cos(E(u)))",
+   "v(u)：轨道速率，由活力公式给出",
+   "vt(u)：切向速度分量 = L / r(u)（角动量守恒）",
+   "vr(u)：径向速度分量，A→B段r单调增大，取非负根",
+   "KE(u)：比动能 = 0.5·v(u)^2",
+   "PE(u)：比势能 = -GM/r(u)",
+   "mechE(u)：比机械能 = KE(u) + PE(u)（同一轨道内应为常数）",
+   "acc(u)：引力加速度大小 = GM / r(u)^2",
+   "轨道1（case c2，圆轨道）：r≡r_p=1，v1=sqrt(GM/r_p)=1，KE1=0.5·v1^2=0.5，PE1=-GM/r_p=-1，mechE1=KE1+PE1=-0.5，acc1=GM/r_p^2=1，vr≡0，vt≡v1，均为常量，不随u变化"
+  ],
+  "given_facts": [
+   "F1 · 探测器在轨道2上从A(近月点)向B(远月点)运动过程中，万有引力做负功，动能逐渐减小",
+   "F2 · 从A到B距离月球越来越远，万有引力（引力加速度）逐渐减小",
+   "F3 · 从圆形轨道1变轨进入椭圆轨道2需在A点加速，轨道2的机械能大于轨道1的机械能，二者不相等",
+   "F4 · 仅利用引力常量G和轨道1周期无法求出月球质量，还需已知轨道半径（该事实为『信息是否充分』的定性判断，不对应可连续采样的物理量，不纳入invariants）"
+  ],
+  "normalization": "取月球引力参数 GM_月 = 1；取圆轨道1半径（= 椭圆轨道2近月点A到月心距离 r_p）= 1；题目未给出轨道2远月点具体距离，为使动画和数值断言确定，本spec设计取远月点距离 r_a = 2·r_p = 2（该比值不改变题目定性结论，仅用于生成可验证的具体数值）。探测器质量取1，故动能/势能/机械能均为『比』（单位质量）量。",
+  "free_parameters": ""
+ },
+ "constants": {
+  "GM": 1,
+  "r_a": 2,
+  "r_p": 1
+ },
+ "reference": "def probe(u, case):\n    GM = 1.0\n    r_p = 1.0\n    r_a = 2.0\n    a = (r_p + r_a) / 2.0\n    e = (r_a - r_p) / (r_a + r_p)\n    L = sqrt(GM * a * (1 - e * e))\n\n    if case == \"c2\":\n        r = r_p\n        v = sqrt(GM / r_p)\n        vt = v\n        vr = 0.0\n        KE = 0.5 * v * v\n        PE = -GM / r\n        mechE = KE + PE\n        acc = GM / (r * r)\n        return {\"u\": u, \"r\": r, \"v\": v, \"vr\": vr, \"vt\": vt, \"KE\": KE, \"acc\": acc, \"mechE\": mechE}\n\n    M = pi * u\n    E = M if u < 0.8 else pi\n    for _ in range(100):\n        f = E - e * sin(E) - M\n        fp = 1 - e * cos(E)\n        dE = f / fp\n        E = E - dE\n        if abs(dE) < 1e-14:\n            break\n\n    r = a * (1 - e * cos(E))\n    v2 = GM * (2.0 / r - 1.0 / a)\n    v2 = v2 if v2 > 0.0 else 0.0\n    v = sqrt(v2)\n    vt = L / r\n    vr2 = v2 - vt * vt\n    vr2 = vr2 if vr2 > 0.0 else 0.0\n    vr = sqrt(vr2)\n    KE = 0.5 * v2\n    PE = -GM / r\n    mechE = KE + PE\n    acc = GM / (r * r)\n\n    return {\"u\": u, \"r\": r, \"v\": v, \"vr\": vr, \"vt\": vt, \"KE\": KE, \"acc\": acc, \"mechE\": mechE}",
+ "invariants": [
+  {
+   "id": "c1-ke-terminal-ratio",
+   "why": "F1：A→B动能减小，终值比 KE_B/KE_A = (r_p/r_a)^2 = 0.25",
+   "case": "c1",
+   "expr": "abs(KE[-1]/KE[0] - 0.25) <= 0.02",
+   "report": "KE[-1]/KE[0]"
+  },
+  {
+   "id": "c1-ke-monotonic",
+   "why": "F1：动能应全程逐渐减小，不应出现回升",
+   "case": "c1",
+   "expr": "max(diff(KE)) <= 0.003",
+   "report": "max(diff(KE))"
+  },
+  {
+   "id": "c1-acc-terminal-ratio",
+   "why": "F2：加速度终值比 = (r_p/r_a)^2 = 0.25，用于排除选项B(加速度增大)",
+   "case": "c1",
+   "expr": "abs(acc[-1]/acc[0] - 0.25) <= 0.015",
+   "report": "acc[-1]/acc[0]"
+  },
+  {
+   "id": "c1-acc-monotonic",
+   "why": "F2：A→B过程中加速度应逐渐减小，不应增大",
+   "case": "c1",
+   "expr": "max(diff(acc)) <= 0.004",
+   "report": "max(diff(acc))"
+  },
+  {
+   "id": "c1-r-monotonic",
+   "why": "F1、F2成立的运动学前提：探测器到月心距离在A→B过程中单调增大",
+   "case": "c1",
+   "expr": "min(diff(r)) >= -0.005",
+   "report": "min(diff(r))"
+  },
+  {
+   "id": "c1-vr-perilune-zero",
+   "why": "自洽性检验：A点是r的极小值点，径向速度须为0，验证r与其变化率vr内部一致",
+   "case": "c1",
+   "expr": "abs(vr[0]) <= 0.03",
+   "report": "vr[0]"
+  },
+  {
+   "id": "c1-vr-apolune-zero",
+   "why": "自洽性检验：B点是r的极大值点，径向速度须为0，验证r与其变化率vr内部一致",
+   "case": "c1",
+   "expr": "abs(vr[-1]) <= 0.03",
+   "report": "vr[-1]"
+  },
+  {
+   "id": "c1-mechE-conserved",
+   "why": "自洽性检验：轨道2上机械能守恒，验证由v算出的KE与由r算出的PE是否内部一致",
+   "case": "c1",
+   "expr": "max(mechE) - min(mechE) <= 0.02",
+   "report": "max(mechE) - min(mechE)"
+  },
+  {
+   "id": "c1-mechE-value",
+   "why": "F3：轨道2机械能 = -GM/(2a) = -1/3，作为与轨道1对比的数值基准",
+   "case": "c1",
+   "expr": "abs(mechE[0] + 0.3333) <= 0.02",
+   "report": "mechE[0]"
+  },
+  {
+   "id": "c2-mechE-value",
+   "why": "F3：轨道1(圆轨道)机械能 = -GM/(2r_p) = -0.5，与轨道2的-1/3不同，说明选项C(机械能相等)错误",
+   "case": "c2",
+   "expr": "abs(mechE[0] + 0.5) <= 0.02",
+   "report": "mechE[0]"
+  },
+  {
+   "id": "c2-r-constant",
+   "why": "圆轨道1半径应恒定，为F3的机械能对比提供有效基准",
+   "case": "c2",
+   "expr": "max(r) - min(r) <= 0.01",
+   "report": "max(r) - min(r)"
+  },
+  {
+   "id": "c2-vr-zero",
+   "why": "自洽性检验：圆轨道上r恒定，其变化率vr应恒为0",
+   "case": "c2",
+   "expr": "max(abs(vr)) <= 0.01",
+   "report": "max(abs(vr))"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "r",
+  "v",
+  "vr",
+  "vt",
+  "KE",
+  "acc",
+  "mechE"
+ ],
+ "disclosures": [
+  {
+   "why": "所有数值断言均基于此无量纲化，不披露则观众无法解读画面中的数值",
+   "must_contain": "归一化换算：GM_月=1，r_p(轨道1半径/轨道2近月点距离)=1，r_a(轨道2远月点距离)=2"
+  },
+  {
+   "why": "直接支持F3/选项C的判断依据，需要在画面上可见对比，否则『机械能不相等』无法被验证",
+   "must_contain": "轨道1机械能与轨道2机械能的数值对比（mechE1≈-0.5，mechE2≈-0.333）"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "r": "探测器到月心的距离（以r_p=1为单位）",
+  "u": "归一化进度，等于传入的u；case c1中对应平近点角M=π·u，从A(u=0)到B(u=1)；case c2中表示圆轨道上运动的进度，各物理量为常数",
+  "v": "探测器速率",
+  "KE": "比动能 = 0.5·v^2",
+  "vr": "径向速度分量（沿月心-探测器连线方向）",
+  "vt": "切向速度分量（垂直于月心-探测器连线方向）",
+  "acc": "引力加速度大小 = GM/r^2",
+  "mechE": "比机械能 = KE - GM/r"
+ },
+ "process_endpoints": "case c1：u=0对应探测器经过A点（轨道2近月点）的时刻，u=1对应探测器到达B点（轨道2远月点）的时刻，u与物理时间成正比（半个轨道周期内均匀流逝）。case c2：u=0到u=1对应探测器沿圆轨道1运动一段弧（匀速圆周运动），仅作为与轨道2机械能对比的基准，各量恒定不随u变化。",
+ "scene_requirements": [
+  "月球（作为圆轨道1圆心、椭圆轨道2的一个焦点）",
+  "圆形轨道1（虚线圆，半径为r_p）",
+  "椭圆轨道2（近月点A、远月点B需标出，A为轨道1与轨道2的公共切点）",
+  "探测器沿轨道2从A运动到B的动画，越靠近B运动越慢（对应真实的开普勒非匀速运动，而非匀速播放）",
+  "探测器沿轨道1做匀速圆周运动的对比动画（或静态标注其恒定物理量）",
+  "实时数值面板：显示当前u下的r、v、KE、acc、mechE",
+  "轨道1与轨道2机械能数值的并排对比展示"
+ ]
+}

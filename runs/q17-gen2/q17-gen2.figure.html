@@ -1,0 +1,61 @@
+<figure data-scene="q17-gen2"><svg viewBox="0 0 560 300" role="img" aria-label="竖直上抛物体在最高点炸裂为A、B两部分的平抛运动演示">
+  <!-- 坐标：地面 y=230(像素)，比例尺 S=30px/m，抛出点 x=220(像素) -->
+
+  <text x="12" y="16" class="u">示例取值：g=10 m/s²，t=1 s，v=2 m/s（比例关系对任意数值成立）</text>
+
+  <!-- 地面基线 -->
+  <line x1="20" y1="230" x2="540" y2="230" class="sk" stroke-width="2"/>
+  <text x="24" y="244" class="u">地面(y=0)</text>
+
+  <!-- 高度测量支架 h -->
+  <line x1="170" y1="230" x2="170" y2="80" class="sh" marker-start="url(#ak)" marker-end="url(#ak)"/>
+  <line x1="170" y1="80" x2="220" y2="80" class="sh" stroke-dasharray="3 3"/>
+  <text x="176" y="158">h</text>
+
+  <!-- 竖直发射点标记 -->
+  <circle cx="220" cy="230" r="3" class="fk"/>
+  <text x="200" y="248" class="u">抛出点</text>
+
+  <!-- 炸裂前：沿竖直方向上升的轨迹（随时间增长） -->
+  <line id="q17-gen2-riselane" x1="220" y1="230" x2="220" y2="230" class="sk" stroke-width="2"/>
+
+  <!-- 炸裂后 A、B 的平抛参考轨迹（预先算好的抛物线，静态展示） -->
+  <path id="q17-gen2-pathA" d="" class="sa" stroke-dasharray="5 4" fill="none"/>
+  <path id="q17-gen2-pathB" d="" class="sr" stroke-dasharray="5 4" fill="none"/>
+
+  <!-- 炸裂前的物体（质量3m） -->
+  <circle id="q17-gen2-obj" cx="220" cy="230" r="13" class="fk"/>
+
+  <!-- 炸裂后 A（2m）与 B（m） -->
+  <circle id="q17-gen2-ballA" cx="220" cy="80" r="10" class="fa" opacity="0"/>
+  <circle id="q17-gen2-ballB" cx="220" cy="80" r="7" class="fr" opacity="0"/>
+  <text id="q17-gen2-labelA" x="225" y="70" class="a" opacity="0">A(2m) v=2m/s</text>
+  <text id="q17-gen2-labelB" x="180" y="70" class="r" opacity="0">B(m) vB=4m/s</text>
+
+  <!-- 速度方向指示箭头（随 A、B 移动） -->
+  <line id="q17-gen2-arrowA" x1="220" y1="80" x2="245" y2="80" class="sa" marker-end="url(#aa)" opacity="0"/>
+  <line id="q17-gen2-arrowB" x1="220" y1="80" x2="195" y2="80" class="sr" marker-end="url(#ar)" opacity="0"/>
+
+  <!-- 落地点标记 -->
+  <line id="q17-gen2-landA" x1="280" y1="230" x2="280" y2="215" class="sa" stroke-width="2" opacity="0"/>
+  <line id="q17-gen2-landB" x1="100" y1="230" x2="100" y2="215" class="sr" stroke-width="2" opacity="0"/>
+
+  <!-- 落地间距 d 标注 -->
+  <line id="q17-gen2-dspan" x1="100" y1="255" x2="280" y2="255" class="sk" marker-start="url(#ak)" marker-end="url(#ak)" opacity="0"/>
+  <text id="q17-gen2-dlabel" x="145" y="270" class="n" opacity="0">d = 3vt = 6 m</text>
+
+  <!-- 右侧关键数值读出面板 -->
+  <text x="356" y="18" class="u">关键读出</text>
+  <text x="356" y="38" class="n">v0 = 10 m/s</text>
+  <text x="356" y="56" class="n">v(已知) = 2 m/s</text>
+  <text x="356" y="74" class="n r">vB = 4 m/s</text>
+  <text x="356" y="92" class="n">h = 5 m</text>
+  <text x="356" y="110" class="n r">d = 3vt = 6 m</text>
+
+  <!-- 实时状态 -->
+  <text id="q17-gen2-tau-display" x="356" y="140" class="n">τ = 0.00 s</text>
+  <text id="q17-gen2-u-display" x="356" y="158" class="n">u = 0.00</text>
+  <text id="q17-gen2-phase-display" x="356" y="176" class="u">阶段：上升</text>
+  <text id="q17-gen2-y-display" x="356" y="194" class="n">y = 0.00 m</text>
+</svg>
+<figcaption>竖直上抛物体（初速v0）经时间t到达最高点后炸裂为A（2m）、B（m）两部分：A以水平速度v飞出，B以速度vB反向飞出。u为物理过程进度（非播放时间），炸裂发生在u=0.5。图中固定取g=10 m/s²，t=1 s，v=2 m/s（示例取值），结论v0=gt、vB=2v、落地点间距 d = 3vt 对任意数值均成立。</figcaption></figure>

@@ -1,0 +1,533 @@
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --stem:#FAFBFC;
+  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
+  --line:#C9D2DE; --hair:#E4E9F0;
+  --acc:#2B5490; --acc2:#E9EFF8;
+  --cy:#0C8CAE; --cy2:#E2F2F6;
+  --red:#AE3B2B; --red2:#FBEBE7;
+  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"Times New Roman",Georgia,serif;
+  --song:Songti SC,SimSun,serif;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk)}
+figure{margin:0;background:var(--panel);border:1px solid var(--line)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px solid var(--hair)}
+svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
+svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
+svg text.n{font-family:var(--mono);font-style:normal;font-size:11px;fill:var(--ink2)}
+svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
+.sk{stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.sh{stroke:var(--line);fill:none;stroke-width:1}
+.sa{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sr{stroke:var(--red);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sc{stroke:var(--cy);fill:none;stroke-width:1.5;stroke-dasharray:5 4}
+.fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
+.wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}.wash-c{fill:var(--cy);opacity:.16}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-top:1px solid var(--hair)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+input[type=range]{width:120px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--acc)"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cy)"/></marker>
+</defs></svg>
+
+<figure data-scene="q10"><svg viewBox="0 0 560 340" role="img" aria-label="磁铁-弹簧振子在有/无闭合线圈时的阻尼振动对比">
+
+  <text class="u" x="14" y="16">磁铁-弹簧阻尼振动：情形一(无线圈) vs 情形二(有线圈)</text>
+
+  <line class="sa" x1="300" y1="24" x2="316" y2="24"></line>
+  <text class="u a" x="320" y="27">情形一(无线圈)</text>
+  <line class="sr" x1="420" y1="24" x2="436" y2="24"></line>
+  <text class="u r" x="440" y="27">情形二(有线圈)</text>
+
+  <!-- ===== 左侧：弹簧-磁铁竖直示意图 ===== -->
+  <text class="u" x="16" y="34">情形一：无线圈</text>
+  <text class="u" x="176" y="34">情形二：有线圈</text>
+
+  <rect x="82" y="38" width="16" height="6" class="fk"></rect>
+  <rect x="227" y="38" width="16" height="6" class="fk"></rect>
+
+  <line class="sh" x1="50" y1="70" x2="268" y2="70"></line>
+  <text class="n" x="270" y="74">x=0</text>
+  <line class="sc" x1="50" y1="136" x2="268" y2="136"></line>
+  <text class="n" x="270" y="140">x_eq</text>
+
+  <path id="q10-spring1" class="sk" fill="none" d="M 90 44 L 90 70"></path>
+  <path id="q10-spring2" class="sk" fill="none" d="M 235 44 L 235 70"></path>
+
+  <g id="q10-magnet1" transform="translate(90,70)">
+    <rect x="-16" y="-7" width="16" height="14" class="fk"></rect>
+    <rect x="0" y="-7" width="16" height="14" class="fr"></rect>
+  </g>
+  <g id="q10-magnet2" transform="translate(235,70)">
+    <rect x="-16" y="-7" width="16" height="14" class="fk"></rect>
+    <rect x="0" y="-7" width="16" height="14" class="fr"></rect>
+  </g>
+
+  <line id="q10-varrow1" class="sa" x1="108" y1="70" x2="108" y2="70" marker-end="url(#aa)"></line>
+  <line id="q10-varrow2" class="sr" x1="253" y1="70" x2="253" y2="70" marker-end="url(#ar)"></line>
+
+  <line class="sh" x1="56" y1="228" x2="126" y2="228"></line>
+
+  <line class="sh" x1="200" y1="228" x2="270" y2="228"></line>
+  <ellipse cx="235" cy="224" rx="24" ry="7" class="sc" fill="none"></ellipse>
+  <ellipse cx="235" cy="224" rx="15" ry="4.2" class="sc" fill="none"></ellipse>
+  <text class="u c" x="176" y="246">闭合线圈</text>
+
+  <g id="q10-coilShrink" opacity="0">
+    <path d="M 208 224 L 218 220 L 218 228 Z" class="fc"></path>
+    <path d="M 262 224 L 252 220 L 252 228 Z" class="fc"></path>
+  </g>
+  <path id="q10-coilCurrent" class="sc" fill="none" marker-end="url(#ac)" d="M 218 212 A 18 7 0 1 1 252 212" opacity="0.15"></path>
+
+  <text id="q10-status1" class="u a" x="16" y="258">运动中</text>
+  <text id="q10-status2" class="u r" x="176" y="258">运动中</text>
+
+  <!-- ===== 右侧：x(t)、Eloss(t)、F_amp(t) 曲线 ===== -->
+
+  <!-- x(t) -->
+  <line class="sh" x1="300" y1="108" x2="548" y2="108"></line>
+  <line class="sh" x1="300" y1="34" x2="300" y2="108"></line>
+  <text class="u" x="300" y="30">x(t)/m</text>
+  <text class="n" x="520" y="104">t/s</text>
+  <text class="n" x="282" y="112">0</text>
+  <text class="n" x="270" y="75">1.0</text>
+  <text class="n" x="270" y="39">2.0</text>
+  <line class="sc" x1="300" y1="71" x2="548" y2="71"></line>
+
+  <path id="q10-curveX1" class="sa" fill="none" stroke-width="2" d=""></path>
+  <path id="q10-curveX2" class="sr" fill="none" stroke-width="2" d=""></path>
+  <path id="q10-curveX2flat" class="sh" fill="none" stroke-dasharray="2 3" d=""></path>
+
+  <circle id="q10-dotX1" class="fa" cx="300" cy="108" r="3.5"></circle>
+  <circle id="q10-dotX2" class="fr" cx="300" cy="108" r="3.5"></circle>
+
+  <!-- Eloss(t) -->
+  <line class="sh" x1="300" y1="180" x2="548" y2="180"></line>
+  <line class="sh" x1="300" y1="118" x2="300" y2="180"></line>
+  <text class="u" x="300" y="114">Eloss(t)/J</text>
+  <text class="n" x="282" y="184">0</text>
+  <text class="n" x="278" y="132">5</text>
+
+  <path id="q10-curveE1" class="sa" fill="none" stroke-width="2" d=""></path>
+  <path id="q10-curveE2" class="sr" fill="none" stroke-width="2" d=""></path>
+  <path id="q10-curveE2flat" class="sh" fill="none" stroke-dasharray="2 3" d=""></path>
+
+  <circle id="q10-dotE1" class="fa" cx="300" cy="180" r="3.5"></circle>
+  <circle id="q10-dotE2" class="fr" cx="300" cy="180" r="3.5"></circle>
+
+  <!-- F_amp(t)（情形二） -->
+  <line class="sh" x1="300" y1="234" x2="548" y2="234"></line>
+  <line class="sh" x1="300" y1="190" x2="300" y2="252"></line>
+  <text class="u" x="300" y="186">F_amp(t)/N（情形二）</text>
+  <text class="n" x="282" y="194">5</text>
+  <text class="n" x="282" y="238">0</text>
+
+  <path id="q10-curveF2" class="sr" fill="none" stroke-width="2" d=""></path>
+  <circle id="q10-dotF2" class="fr" cx="300" cy="234" r="3.5"></circle>
+  <circle id="q10-turnMark" class="fc" cx="320" cy="234" r="3"></circle>
+  <text id="q10-turnLabel" class="u c" x="305" y="226">此处F≈0</text>
+
+  <!-- 数值读出 -->
+  <text class="u" x="14" y="278">情形一(无线圈)：</text>
+  <text id="q10-rt1" class="n" x="140" y="278"></text>
+  <text class="u" x="14" y="298">情形二(有线圈)：</text>
+  <text id="q10-rt2" class="n" x="140" y="298"></text>
+  <text class="n" x="14" y="318">T1≈13.04s   T2≈3.91s（T2&lt;T1）</text>
+
+</svg>
+<figcaption class="u">演示磁铁-弹簧振子在有/无闭合线圈时的阻尼振动过程对比。本题原题未给出任何数值，画面中的 m,k,g,γ1,γ2 等均为便于演示设定的示例参数，非原题条件。u是各情形各自独立的过程进度，不是播放时间；两种情形对应的真实时长 T1≈13.04s、T2≈3.91s 不同。标注平衡位置x_eq，并清楚显示两种情形磁铁最终都停在同一位置。有线圈情形下安培力F_amp(t)曲线，且磁铁离线圈最近瞬间F_amp应明显趋于0。</figcaption></figure>
+
+
+<script>window.Scenes = {};</script>
+<script>window.Scenes["q10"] = function (fig) {
+  var svg = fig.querySelector('svg');
+
+  // ---- 物理常量（示例参数，取自 spec.constants，与 reference 完全一致）----
+  var G = 10.0, K = 10.0, M = 1.0;
+  var X_EQ = M * G / K;
+  var OMEGA0 = Math.sqrt(K / M);
+  var GAMMA1 = 0.3, GAMMA2 = 1.0;
+  var C_EM = 2.0 * M * (GAMMA2 - GAMMA1);
+  var EPS_STOP = 0.02;
+  var OMEGA_D1 = Math.sqrt(OMEGA0 * OMEGA0 - GAMMA1 * GAMMA1);
+  var OMEGA_D2 = Math.sqrt(OMEGA0 * OMEGA0 - GAMMA2 * GAMMA2);
+  var T1 = Math.log(1.0 / EPS_STOP) / GAMMA1;
+  var T2 = Math.log(1.0 / EPS_STOP) / GAMMA2;
+
+  // 权威解析解：与 spec.physics.equations 完全一致，step 与 probe 共用
+  function stateAt(t, caseId) {
+    var gamma = caseId === 'c1' ? GAMMA1 : GAMMA2;
+    var omega_d = caseId === 'c1' ? OMEGA_D1 : OMEGA_D2;
+    var e = Math.exp(-gamma * t);
+    var cos_wd = Math.cos(omega_d * t);
+    var sin_wd = Math.sin(omega_d * t);
+    var x = X_EQ * (1.0 - e * (cos_wd + (gamma / omega_d) * sin_wd));
+    var v = X_EQ * (OMEGA0 * OMEGA0 / omega_d) * e * sin_wd;
+    var a = X_EQ * (OMEGA0 * OMEGA0 / omega_d) * e * (omega_d * cos_wd - gamma * sin_wd);
+    var F_amp = caseId === 'c1' ? 0.0 : C_EM * v;
+    var Eloss = M * G * x - 0.5 * K * x * x - 0.5 * M * v * v;
+    return { t: t, x: x, v: v, a: a, F_amp: F_amp, Eloss: Eloss };
+  }
+
+  // ---- 引用 ----
+  var spring1 = svg.querySelector('#q10-spring1');
+  var spring2 = svg.querySelector('#q10-spring2');
+  var magnet1 = svg.querySelector('#q10-magnet1');
+  var magnet2 = svg.querySelector('#q10-magnet2');
+  var varrow1 = svg.querySelector('#q10-varrow1');
+  var varrow2 = svg.querySelector('#q10-varrow2');
+  var coilShrink = svg.querySelector('#q10-coilShrink');
+  var coilCurrent = svg.querySelector('#q10-coilCurrent');
+  var status1 = svg.querySelector('#q10-status1');
+  var status2 = svg.querySelector('#q10-status2');
+  var dotX1 = svg.querySelector('#q10-dotX1');
+  var dotX2 = svg.querySelector('#q10-dotX2');
+  var dotE1 = svg.querySelector('#q10-dotE1');
+  var dotE2 = svg.querySelector('#q10-dotE2');
+  var dotF2 = svg.querySelector('#q10-dotF2');
+  var rt1 = svg.querySelector('#q10-rt1');
+  var rt2 = svg.querySelector('#q10-rt2');
+  var curveX1 = svg.querySelector('#q10-curveX1');
+  var curveX2 = svg.querySelector('#q10-curveX2');
+  var curveX2flat = svg.querySelector('#q10-curveX2flat');
+  var curveE1 = svg.querySelector('#q10-curveE1');
+  var curveE2 = svg.querySelector('#q10-curveE2');
+  var curveE2flat = svg.querySelector('#q10-curveE2flat');
+  var curveF2 = svg.querySelector('#q10-curveF2');
+  var turnMark = svg.querySelector('#q10-turnMark');
+  var turnLabel = svg.querySelector('#q10-turnLabel');
+
+  // ---- 示意图几何 ----
+  var CX1 = 90, CX2 = 235, CEIL_Y = 44, Y0 = 70, PXPM = 66;
+
+  // ---- 曲线坐标映射 ----
+  var GX0 = 300, GX1 = 548;
+  function t2px(t) { return GX0 + (t / T1) * (GX1 - GX0); }
+
+  var G1_Y0 = 108;
+  function xVal2px(x) { return G1_Y0 - 37.0 * x; }
+
+  var G2_Y0 = 180, G2_TOP = 118;
+  var E_SCALE = (G2_Y0 - G2_TOP) / 6.0;
+  function eVal2px(ev) { return G2_Y0 - E_SCALE * ev; }
+
+  var G3_ZERO = 234;
+  var F_SCALE = (252 - 190) / 7.0;
+  function fVal2px(fv) { return G3_ZERO - F_SCALE * fv; }
+
+  function buildPath(n, tStart, tEnd, caseId, mapY, keyFn) {
+    var d = '';
+    for (var i = 0; i <= n; i++) {
+      var t = tStart + (tEnd - tStart) * (i / n);
+      var s = stateAt(t, caseId);
+      var px = t2px(t);
+      var py = mapY(keyFn(s));
+      d += (i === 0 ? 'M ' : ' L ') + px.toFixed(2) + ' ' + py.toFixed(2);
+    }
+    return d;
+  }
+
+  // ---- 预计算静态参考曲线（只算一次）----
+  curveX1.setAttribute('d', buildPath(160, 0, T1, 'c1', xVal2px, function (s) { return s.x; }));
+  curveX2.setAttribute('d', buildPath(160, 0, T2, 'c2', xVal2px, function (s) { return s.x; }));
+  curveE1.setAttribute('d', buildPath(160, 0, T1, 'c1', eVal2px, function (s) { return s.Eloss; }));
+  curveE2.setAttribute('d', buildPath(160, 0, T2, 'c2', eVal2px, function (s) { return s.Eloss; }));
+  curveF2.setAttribute('d', buildPath(160, 0, T2, 'c2', fVal2px, function (s) { return s.F_amp; }));
+
+  var finalState2 = stateAt(T2, 'c2');
+  var flatX2y = xVal2px(finalState2.x);
+  var flatE2y = eVal2px(finalState2.Eloss);
+  curveX2flat.setAttribute('d', 'M ' + t2px(T2).toFixed(2) + ' ' + flatX2y.toFixed(2) +
+    ' L ' + t2px(T1).toFixed(2) + ' ' + flatX2y.toFixed(2));
+  curveE2flat.setAttribute('d', 'M ' + t2px(T2).toFixed(2) + ' ' + flatE2y.toFixed(2) +
+    ' L ' + t2px(T1).toFixed(2) + ' ' + flatE2y.toFixed(2));
+
+  var tTurn2 = Math.PI / OMEGA_D2;
+  var sTurn2 = stateAt(tTurn2, 'c2');
+  turnMark.setAttribute('cx', t2px(tTurn2).toFixed(2));
+  turnMark.setAttribute('cy', fVal2px(sTurn2.F_amp).toFixed(2));
+  turnLabel.setAttribute('x', (t2px(tTurn2) - 15).toFixed(2));
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  var PAUSE = 2.2;
+  var PERIOD = T1 + PAUSE;
+
+  function render(tGlobal) {
+    var tm = tGlobal % PERIOD;
+    if (tm < 0) tm += PERIOD;
+    var t1r = Math.min(tm, T1);
+    var t2r = Math.min(tm, T2);
+    var s1 = stateAt(t1r, 'c1');
+    var s2 = stateAt(t2r, 'c2');
+
+    var y1 = Y0 + PXPM * s1.x;
+    var y2 = Y0 + PXPM * s2.x;
+    spring1.setAttribute('d', 'M ' + CX1 + ' ' + CEIL_Y + ' L ' + CX1 + ' ' + y1.toFixed(2));
+    spring2.setAttribute('d', 'M ' + CX2 + ' ' + CEIL_Y + ' L ' + CX2 + ' ' + y2.toFixed(2));
+    magnet1.setAttribute('transform', 'translate(' + CX1 + ',' + y1.toFixed(2) + ')');
+    magnet2.setAttribute('transform', 'translate(' + CX2 + ',' + y2.toFixed(2) + ')');
+
+    var VSCALE = 9;
+    varrow1.setAttribute('x1', CX1 + 18); varrow1.setAttribute('y1', y1.toFixed(2));
+    varrow1.setAttribute('x2', CX1 + 18); varrow1.setAttribute('y2', (y1 + clamp(s1.v * VSCALE, -36, 36)).toFixed(2));
+    varrow2.setAttribute('x1', CX2 + 18); varrow2.setAttribute('y1', y2.toFixed(2));
+    varrow2.setAttribute('x2', CX2 + 18); varrow2.setAttribute('y2', (y2 + clamp(s2.v * VSCALE, -36, 36)).toFixed(2));
+
+    var approaching = s2.v > 0.03;
+    coilShrink.setAttribute('opacity', approaching ? '1' : '0');
+    coilCurrent.setAttribute('opacity', Math.abs(s2.v) > 0.02 ? '1' : '0.15');
+    coilCurrent.setAttribute('transform', s2.v >= 0 ? '' : 'translate(470,0) scale(-1,1)');
+
+    status1.textContent = (t1r >= T1 - 1e-6) ? '已停止' : '运动中';
+    status2.textContent = (t2r >= T2 - 1e-6) ? '已停止' : '运动中';
+
+    dotX1.setAttribute('cx', t2px(t1r).toFixed(2)); dotX1.setAttribute('cy', xVal2px(s1.x).toFixed(2));
+    dotX2.setAttribute('cx', t2px(t2r).toFixed(2)); dotX2.setAttribute('cy', xVal2px(s2.x).toFixed(2));
+    dotE1.setAttribute('cx', t2px(t1r).toFixed(2)); dotE1.setAttribute('cy', eVal2px(s1.Eloss).toFixed(2));
+    dotE2.setAttribute('cx', t2px(t2r).toFixed(2)); dotE2.setAttribute('cy', eVal2px(s2.Eloss).toFixed(2));
+    dotF2.setAttribute('cx', t2px(t2r).toFixed(2)); dotF2.setAttribute('cy', fVal2px(s2.F_amp).toFixed(2));
+
+    rt1.textContent = 't=' + s1.t.toFixed(2) + 's x=' + s1.x.toFixed(3) + 'm v=' + s1.v.toFixed(2) +
+      'm/s Eloss=' + s1.Eloss.toFixed(2) + 'J';
+    rt2.textContent = 't=' + s2.t.toFixed(2) + 's x=' + s2.x.toFixed(3) + 'm v=' + s2.v.toFixed(2) +
+      'm/s F_amp=' + s2.F_amp.toFixed(2) + 'N Eloss=' + s2.Eloss.toFixed(2) + 'J';
+  }
+
+  render(0);
+
+  return {
+    step: function (t) { render(t); },
+    reset: function () { render(0); },
+    probe: function (u, caseId) {
+      var Tc = caseId === 'c1' ? T1 : T2;
+      var t = u * Tc;
+      var s = stateAt(t, caseId);
+      return { u: u, t: s.t, x: s.x, v: s.v, a: s.a, F_amp: s.F_amp, Eloss: s.Eloss };
+    }
+  };
+};
+</script>
+<script>/* ===== 动画运行时 ===== */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var live = [];
+
+  function build(fig) {
+    var id = fig.getAttribute('data-scene');
+    var factory = window.Scenes[id];
+    if (typeof factory !== 'function') return null;
+    var api;
+    try { api = factory(fig); } catch (e) { console.error('[scene ' + id + '] setup failed', e); return null; }
+    if (!api || typeof api.step !== 'function') { console.error('[scene ' + id + '] bad contract'); return null; }
+
+    var bar = document.createElement('div');
+    bar.className = 'ctlbar';
+    var pp = document.createElement('button');
+    pp.type = 'button'; pp.className = 'btn pp';
+    var rp = document.createElement('button');
+    rp.type = 'button'; rp.className = 'btn'; rp.textContent = '重播';
+    var tag = document.createElement('span');
+    tag.className = 'livebadge'; tag.textContent = 'LIVE';
+    bar.appendChild(pp); bar.appendChild(rp); bar.appendChild(tag);
+    var own = fig.querySelector('.ctl');
+    if (own) bar.appendChild(own);
+    var cap = fig.querySelector('figcaption');
+    fig.insertBefore(bar, cap);
+
+    window.__api = window.__api || {}; window.__api[id] = api;
+    var s = { id: id, api: api, t: 0, playing: !reduce, visible: true, fig: fig, pp: pp };
+    function paint() {
+      pp.textContent = s.playing ? '暂停' : '播放';
+      pp.setAttribute('aria-pressed', s.playing ? 'true' : 'false');
+      pp.setAttribute('aria-label', (s.playing ? '暂停' : '播放') + '动画');
+      tag.style.opacity = s.playing ? '.9' : '.3';
+    }
+    pp.addEventListener('click', function () { s.playing = !s.playing; paint(); });
+    rp.addEventListener('click', function () {
+      s.t = 0;
+      try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] reset', e); }
+    });
+    paint();
+    try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] first frame', e); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { s.visible = es[0].isIntersecting; },
+        { rootMargin: '120px' }).observe(fig);
+    }
+    return s;
+  }
+
+  function boot() {
+    var figs = document.querySelectorAll('figure[data-scene]');
+    for (var i = 0; i < figs.length; i++) {
+      var s = build(figs[i]);
+      if (s) live.push(s);
+    }
+    var g = document.getElementById('gswitch');
+    if (g) {
+      g.addEventListener('click', function () {
+        var anyOn = live.some(function (s) { return s.playing; });
+        live.forEach(function (s) { if (s.playing === anyOn) s.pp.click(); });
+        g.textContent = anyOn ? '▶ 全部播放' : '⏸ 全部暂停';
+      });
+      g.textContent = reduce ? '▶ 全部播放' : '⏸ 全部暂停';
+    }
+    var last = 0;
+    function frame(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 0;
+      last = now;
+      for (var i = 0; i < live.length; i++) {
+        var s = live[i];
+        if (!s.playing || !s.visible) continue;
+        s.t += dt;
+        try { s.api.step(s.t); }
+        catch (e) { console.error('[scene ' + s.id + '] step', e); s.playing = false; }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<script>
+function __runProbe(){
+  var out = {ok:false, errors:[], render:[], scenes:[], series:{}, notes:[]};
+  function rec(e){ out.errors.push(String(e && e.stack || e)); }
+  window.onerror = function(m,s,l,c,e){ rec(m + " @" + l + ":" + c); };
+  var _ce = console.error; console.error = function(){ rec([].join.call(arguments," ")); _ce.apply(console, arguments); };
+  try {
+    var SID = "q10", SPEC = {"id": "q10", "stem": "绝缘轻质弹簧上端固定，下端悬挂磁铁，从弹簧原长位置由静止释放。情形一：桌面无线圈，磁铁仅受空气阻力，振动最终停止。情形二：磁铁正下方桌面上固定一个闭合铜线圈，同样从原长位置由静止释放，振动最终也停止（此时磁铁除空气阻力外还受线圈感应电流产生的安培力阻尼）。比较两种情形的运动过程。", "cases": [{"id": "c1", "label": "无线圈：磁铁仅受空气阻力"}, {"id": "c2", "label": "有线圈：磁铁受空气阻力+线圈电磁阻尼"}], "title": "磁铁-弹簧振子在有/无闭合线圈时的阻尼振动对比", "units": "长度x：m（弹簧原长处为原点，竖直向下为正）；速度v：m/s；加速度a：m/s²；力F_amp：N；能量Eloss：J；时间t：s；u为无量纲[0,1]归一化过程进度，两种情形各自独立映射到真实时间（t=u·T_case，T1≠T2，见constants）。", "physics": {"note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。原题本身不含任何数值，为构造可验证动画，已在 constants 中给定一组自洽的示例参数（m,k,g,γ1,γ2 等），实现方直接代入下列公式计算，不得另设数值或改变力的形式。", "equations": ["初始条件：x(0)=0, v(0)=0（弹簧原长处由静止释放）", "运动方程：m x'' = m g - k x - c x'，其中 c=2mγ", "欠阻尼解析解：x(t) = x_eq·[1 - e^{-γt}(cos(ω_d t) + (γ/ω_d)·sin(ω_d t))]", "v(t) = x_eq·(ω0²/ω_d)·e^{-γt}·sin(ω_d t)", "a(t) = x_eq·(ω0²/ω_d)·e^{-γt}·(ω_d·cos(ω_d t) - γ·sin(ω_d t))", "时间映射：t = u · T_case，T_case = ln(1/ε_stop)/γ（每种情形各自独立计算）", "安培力：有线圈情形 F_amp(t) = c_EM·v(t)；无线圈情形 F_amp(t) ≡ 0", "机械能损失：Eloss(t) = m g x(t) - (1/2) k x(t)² - (1/2) m v(t)²（可证明 Eloss(0)=0 且随 t 单调不减）"], "definitions": ["x：磁铁相对弹簧原长位置的竖直位移（向下为正）", "x_eq = m g / k：弹簧弹力与重力平衡的位置（两种情形磁铁最终都停在此处）", "y = x - x_eq：磁铁相对平衡位置的位移，满足标准阻尼振动方程", "ω0 = sqrt(k/m)：无阻尼固有角频率", "γ：阻尼系数（= c/(2m)，c为总阻尼力系数）；无线圈情形 γ=γ1（仅空气阻力）；有线圈情形 γ=γ2=γ1+Δγ（空气阻力+线圈电磁阻尼），γ2>γ1", "ω_d = sqrt(ω0² - γ²)：欠阻尼情形下的阻尼振荡角频率", "c_EM = 2m(γ2-γ1)：线圈引入的等效电磁阻尼系数", "F_amp：线圈对磁铁的安培力大小，无线圈情形恒为0，有线圈情形 F_amp = c_EM·v", "T_case：该情形下振动包络衰减到初始值 ε_stop（2%）以内所需的真实时间，T_case = ln(1/ε_stop)/γ", "Eloss：从释放时刻起，磁铁+弹簧系统（计入重力势能）累计损失的机械能"], "given_facts": ["F1 · 有线圈时总阻尼系数 γ2>γ1（多了电磁阻尼），振动包络衰减更快，停止所需真实时间 T2<T1", "F2 · 磁铁靠近线圈时穿过线圈的磁通量增大，由楞次定律，感应电流阻碍磁通量增大，线圈应有收缩（而非扩张）的趋势", "F3 · 磁铁离线圈最近处对应位移 x 取最大值（振动折返点），此处速度 v=0，感应电动势、电流、安培力均为0，而非最大", "F4 · 无论有无线圈，磁铁最终都静止于同一平衡位置 x=x_eq=mg/k", "F5 · 两种情形初、末状态（位置、速度）完全相同，机械能损失只取决于保守力做功，与耗散方式无关，故两种情形损失的机械能相等，均为 (1/2)k·x_eq²", "F6 · 释放瞬间(t=0)磁铁位于弹簧原长处，弹力为0，只受重力，故初始加速度 a(0)=g"], "normalization": "取弹簧原长释放点为位移零点 x=0，竖直向下为正；取平衡位置 x_eq=mg/k 处的偏移量为归一化单位，本例参数使 x_eq=1（m）。", "free_parameters": ""}, "constants": {"g": 10.0, "k": 10.0, "m": 1.0, "T1": 13.040077, "T2": 3.912023, "c_EM": 1.4, "x_eq": 1.0, "gamma1": 0.3, "gamma2": 1.0, "omega0": 3.162278, "omega_d1": 3.148015, "omega_d2": 3.0, "epsilon_stop": 0.02}, "reference": "def probe(u, case):\n    m = 1.0\n    k = 10.0\n    g = 10.0\n    x_eq = m * g / k\n\n    omega0 = sqrt(k / m)\n    gamma1 = 0.3\n    gamma2 = 1.0\n    c_EM = 2.0 * m * (gamma2 - gamma1)\n    epsilon_stop = 0.02\n\n    if case == \"c1\":\n        gamma = gamma1\n    else:\n        gamma = gamma2\n\n    omega_d = sqrt(omega0 * omega0 - gamma * gamma)\n    T_case = log(1.0 / epsilon_stop) / gamma\n\n    t = u * T_case\n\n    e = exp(-gamma * t)\n    cos_wd = cos(omega_d * t)\n    sin_wd = sin(omega_d * t)\n\n    x = x_eq * (1.0 - e * (cos_wd + (gamma / omega_d) * sin_wd))\n    v = x_eq * (omega0 * omega0 / omega_d) * e * sin_wd\n    a = x_eq * (omega0 * omega0 / omega_d) * e * (omega_d * cos_wd - gamma * sin_wd)\n\n    if case == \"c1\":\n        F_amp = 0.0\n    else:\n        F_amp = c_EM * v\n\n    Eloss = m * g * x - 0.5 * k * x * x - 0.5 * m * v * v\n\n    return {\"u\": u, \"t\": t, \"x\": x, \"v\": v, \"a\": a, \"F_amp\": F_amp, \"Eloss\": Eloss}", "invariants": [{"id": "c1-initial-accel", "why": "F6：释放瞬间弹簧未形变，只受重力，a(0)=g=10", "case": "c1", "expr": "abs(a[0] - 10.0) <= 0.1", "report": "a[0]"}, {"id": "c1-final-pos", "why": "F4：磁铁最终停在平衡位置x_eq=1", "case": "c1", "expr": "abs(x[-1] - 1.0) <= 0.05", "report": "x[-1]"}, {"id": "c1-final-vel", "why": "F1/F4：u=1判定为'已停止'，速度应趋于0", "case": "c1", "expr": "abs(v[-1]) <= 0.1", "report": "v[-1]"}, {"id": "c1-eloss-final", "why": "F5：损失机械能=(1/2)k·x_eq²=5J", "case": "c1", "expr": "abs(Eloss[-1] - 5.0) <= 0.15", "report": "Eloss[-1]"}, {"id": "c1-eloss-monotonic", "why": "F5：机械能只能被耗散力持续消耗，Eloss应单调不减，覆盖全过程", "case": "c1", "expr": "min(diff(Eloss)) >= -0.05", "report": "min(diff(Eloss))"}, {"id": "c1-turning-zero-v", "why": "F3：磁铁离线圈最近（x取最大值）处即振动折返点，速度必须为0——检验x与其导数v的自洽性", "case": "c1", "expr": "abs(v[argmax(x)]) <= 0.1", "report": "v[argmax(x)]"}, {"id": "c1-va-consistency", "why": "自洽性检验：v取极值处(dv/dt=0)加速度a应趋于0，确保probe中v与a并非各算各的", "case": "c1", "expr": "abs(a[argmax(v)]) <= 0.15 * max(abs(a))", "report": "abs(a[argmax(v)]) / max(abs(a))"}, {"id": "c1-total-time", "why": "F1：无线圈情形停止所需真实时间T1，作为与有线圈情形对比的基准", "case": "c1", "expr": "abs(t[-1] - 13.040077) <= 0.2", "report": "t[-1]"}, {"id": "c1-no-coil-force", "why": "无线圈情形没有电磁阻尼，安培力恒为0，用于与有线圈情形（F1）形成对照", "case": "c1", "expr": "max(abs(F_amp)) <= 1e-6", "report": "max(abs(F_amp))"}, {"id": "c2-initial-accel", "why": "F6：释放瞬间弹簧未形变，只受重力，a(0)=g=10", "case": "c2", "expr": "abs(a[0] - 10.0) <= 0.1", "report": "a[0]"}, {"id": "c2-final-pos", "why": "F4：磁铁最终停在平衡位置x_eq=1，与无线圈情形相同", "case": "c2", "expr": "abs(x[-1] - 1.0) <= 0.05", "report": "x[-1]"}, {"id": "c2-final-vel", "why": "F1/F4：u=1判定为'已停止'，速度应趋于0", "case": "c2", "expr": "abs(v[-1]) <= 0.1", "report": "v[-1]"}, {"id": "c2-eloss-final", "why": "F5：损失机械能=(1/2)k·x_eq²=5J，与无线圈情形相同", "case": "c2", "expr": "abs(Eloss[-1] - 5.0) <= 0.15", "report": "Eloss[-1]"}, {"id": "c2-eloss-monotonic", "why": "F5：机械能只能被耗散力持续消耗，Eloss应单调不减，覆盖全过程", "case": "c2", "expr": "min(diff(Eloss)) >= -0.05", "report": "min(diff(Eloss))"}, {"id": "c2-turning-zero-v", "why": "F3：磁铁离线圈最近（x取最大值）处即振动折返点，速度必须为0——检验x与其导数v的自洽性", "case": "c2", "expr": "abs(v[argmax(x)]) <= 0.1", "report": "v[argmax(x)]"}, {"id": "c2-va-consistency", "why": "自洽性检验：v取极值处(dv/dt=0)加速度a应趋于0，确保probe中v与a并非各算各的", "case": "c2", "expr": "abs(a[argmax(v)]) <= 0.15 * max(abs(a))", "report": "abs(a[argmax(v)]) / max(abs(a))"}, {"id": "c2-amp-force-near-closest", "why": "F3：磁铁离线圈最近处速度为0，感应电流与安培力应趋于0而非最大——检验v与F_amp(∝v)的自洽性，直接反驳选项C", "case": "c2", "expr": "abs(F_amp[argmax(x)]) <= 0.1 * max(abs(F_amp))", "report": "abs(F_amp[argmax(x)]) / max(abs(F_amp))"}, {"id": "c2-total-time", "why": "F1：有线圈时阻尼更大，停止所需真实时间T2明显短于无线圈情形的T1(13.04s)", "case": "c2", "expr": "abs(t[-1] - 3.912023) <= 0.1", "report": "t[-1]"}], "probe_keys": ["u", "t", "x", "v", "a", "F_amp", "Eloss"], "disclosures": [{"why": "避免观众把示例参数误当作题目给定条件", "must_contain": "本题原题未给出任何数值，画面中的 m,k,g,γ1,γ2 等均为便于演示设定的示例参数，非原题条件"}, {"why": "防止把'相同的动画播放时长'误解为'相同的物理停止时间'，混淆选项A的判断", "must_contain": "u是各情形各自独立的过程进度，不是播放时间；两种情形对应的真实时长 T1≈13.04s、T2≈3.91s 不同"}, {"why": "F4/F5的关键可视化证据，支持选项D", "must_contain": "标注平衡位置x_eq，并清楚显示两种情形磁铁最终都停在同一位置"}, {"why": "F3的关键可视化证据，直接反驳选项C", "must_contain": "有线圈情形下安培力F_amp(t)曲线，且磁铁离线圈最近瞬间F_amp应明显趋于0"}], "sample_points": 401, "probe_key_meaning": {"a": "磁铁竖直加速度，向下为正，单位m/s²", "t": "对应的真实时间(s)，t=u·T_case（c1对应T1，c2对应T2，见constants）", "u": "归一化过程进度，等于传入的u；u=0为释放瞬间，u=1为该情形判定'已停止'的瞬间", "v": "磁铁竖直速度，向下为正，单位m/s", "x": "磁铁相对弹簧原长位置的竖直位移，向下为正，单位m", "Eloss": "从释放时刻到当前时刻，磁铁+弹簧系统累计损失的机械能，单位J（Eloss(0)=0，随t单调不减）", "F_amp": "线圈对磁铁的安培力大小；c1情形恒为0，c2情形等于c_EM·v，单位N"}, "process_endpoints": "u=0：磁铁在弹簧原长位置由静止释放的瞬间；u=1：该情形下振动包络衰减到初始偏移量的2%（ε_stop）以内、视为'已停止'的时刻，对应真实时间为该情形的T_case（c1为T1，c2为T2）。", "scene_requirements": ["竖直方向的弹簧-磁铁示意图，标出自然长度位置(x=0)与平衡位置(x=x_eq)", "磁铁位移 x(t) 随时间变化的轨迹曲线，无线圈/有线圈两种情形并排或叠加对比", "磁铁速度 v(t) 的曲线或速度矢量指示", "有线圈情形下，磁铁正下方桌面上的闭合线圈图示，标注磁铁靠近时线圈的感应电流方向及'收缩趋势'的视觉提示，并给出安培力大小 F_amp(t) 曲线，在磁铁离线圈最近的瞬间应清晰显示 F_amp≈0", "机械能损失 Eloss(t) 累计曲线，展示两种情形最终损失值相同", "明确标注两种情形达到'停止'判据所需的真实时间 T1、T2，并可见 T2<T1"]};
+    out.scenes = Object.keys(window.Scenes || {});
+    var fig = document.querySelector('figure[data-scene="' + SID + '"]');
+    if (!fig) { out.errors.push("DOM 里找不到 figure[data-scene=" + SID + "]"); throw 0; }
+    var api = (window.__api || {})[SID];
+    if (!api) { out.errors.push("运行时未能构造该场景（工厂抛错或契约不符）"); throw 0; }
+    ["step","reset","probe"].forEach(function(k){
+      if (typeof api[k] !== "function") out.errors.push("api." + k + " 不是函数");
+    });
+    if (out.errors.length) throw 0;
+
+    var svg = fig.querySelector("svg");
+
+    // --- 渲染压力：跑 451 帧 step()，抓异常与脏数值 ---
+    try {
+      api.reset(); api.step(0);
+      for (var t = 0; t <= 18.0001; t += 0.04) api.step(t);
+    } catch (e) { rec("step() 抛异常: " + e); }
+    var dom = svg.outerHTML;
+    ["NaN","Infinity","undefined","null"].forEach(function(w){
+      var n = (dom.match(new RegExp(w, "g")) || []).length;
+      if (n) out.errors.push("渲染后 SVG 中出现 " + w + " ×" + n);
+    });
+
+    /* --- L3.5 渲染覆盖 ---
+       断言只跑 probe，看不见渲染。历史教训：把 translate(cx,cy) rotate(θ)
+       误写成 rotate(θ cx cy)，整组元素飞出画布，四层门禁 13/13 全绿放行。
+       这里补上：每个带 id 的 SVG 元素，必须在某一采样时刻真的画在 viewBox 内。
+       只查「位置」不查「可见性」—— opacity=0 的元素 getBBox 依然有效，
+       所以合法隐藏的结论框不会被误伤，而「整组飞出画布」是全时段的，必然被抓。*/
+    try {
+      api.reset();
+      var vb = svg.viewBox.baseVal;
+      var els = svg.querySelectorAll("[id]");
+      var ids = [], everOK = {}, everDrawn = {}, snaps = [];
+      for (var q0 = 0; q0 < els.length; q0++) ids.push(els[q0].getAttribute("id"));
+      /* 注意：不能用 el.getCTM() —— 它含 viewBox 缩放，返回的是渲染像素坐标，
+         拿去和 viewBox 数值比会把右下方的元素全部误判出界。
+         正确做法是经 svg 根的 screenCTM 求逆，换回 viewBox 用户单位。 */
+      for (var tq = 0; tq <= 20.0001; tq += 0.5) {
+        api.step(tq);
+        snaps.push(svg.innerHTML);
+        var rootM = svg.getScreenCTM();
+        if (!rootM) continue;
+        var invM = rootM.inverse();
+        for (var q1 = 0; q1 < els.length; q1++) {
+          var idq = ids[q1];
+          if (everOK[idq]) continue;
+          var bb, mm;
+          try { bb = els[q1].getBBox(); mm = els[q1].getScreenCTM(); } catch (err0) { continue; }
+          if (!mm) continue;
+          if (bb.width <= 0 && bb.height <= 0) continue;   /* 退化元素不判位置 */
+          everDrawn[idq] = true;
+          mm = invM.multiply(mm);                          /* → viewBox 用户单位 */
+          var cxq = bb.x + bb.width / 2, cyq = bb.y + bb.height / 2;
+          var XQ = mm.a * cxq + mm.c * cyq + mm.e;
+          var YQ = mm.b * cxq + mm.d * cyq + mm.f;
+          if (XQ >= vb.x - 2 && XQ <= vb.x + vb.width + 2 &&
+              YQ >= vb.y - 2 && YQ <= vb.y + vb.height + 2)
+            everOK[idq] = true;
+        }
+      }
+      var off = [], dead = [];
+      for (var q2 = 0; q2 < ids.length; q2++) {
+        if (!everDrawn[ids[q2]]) dead.push(ids[q2]);
+        else if (!everOK[ids[q2]]) off.push(ids[q2]);
+      }
+      if (off.length)
+        out.render.push("这些元素在全部 41 个采样时刻都画在 viewBox 之外（画面上看不到）：" + off.join(", "));
+      var moved = false;
+      for (var q3 = 1; q3 < snaps.length; q3++) if (snaps[q3] !== snaps[0]) { moved = true; break; }
+      if (!moved)
+        out.render.push("采样了 " + snaps.length + " 个不同时刻，SVG 内容完全没有变化——动画没有动");
+      out.notes.push("渲染覆盖：" + ids.length + " 个带 id 元素，" +
+                     Object.keys(everOK).length + " 个曾正常出现在画面内" +
+                     (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
+    } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
+
+    // --- probe 采样 ---
+    var N = SPEC.sample_points || 401;
+    for (var ci = 0; ci < SPEC.cases.length; ci++) {
+      var cid = SPEC.cases[ci].id;
+      var cols = {}; SPEC.probe_keys.forEach(function(k){ cols[k] = []; });
+
+      // 纯度 + 无副作用
+      var before = svg.outerHTML;
+      var a1 = api.probe(0.37, cid), a2 = api.probe(0.37, cid);
+      if (svg.outerHTML !== before) out.errors.push("[" + cid + "] probe() 修改了 DOM（必须是纯函数）");
+      SPEC.probe_keys.forEach(function(k){
+        if (!(k in a1)) out.errors.push("[" + cid + "] probe 返回值缺少键 " + k);
+        else if (a1[k] !== a2[k]) out.errors.push("[" + cid + "] probe 不纯：同一 u 两次调用 " + k + " 不同（" + a1[k] + " vs " + a2[k] + "）");
+      });
+
+      var nbad = 0;
+      for (var i = 0; i < N; i++) {
+        var u = i / (N - 1);
+        var r;
+        try { r = api.probe(u, cid); }
+        catch (e) { out.errors.push("[" + cid + "] probe(" + u.toFixed(3) + ") 抛异常: " + e); break; }
+        for (var ki = 0; ki < SPEC.probe_keys.length; ki++) {
+          var k = SPEC.probe_keys[ki], v = r ? r[k] : undefined;
+          if (typeof v !== "number" || !isFinite(v)) { nbad++; v = null; }
+          cols[k].push(v);
+        }
+      }
+      if (nbad) out.errors.push("[" + cid + "] probe 返回了 " + nbad + " 个非有限数值");
+      out.series[cid] = cols;
+    }
+    out.ok = out.errors.length === 0 && out.render.length === 0;
+  } catch (e) { if (e) rec(e); }
+  document.getElementById("TESTOUT").textContent = "@@" + JSON.stringify(out) + "@@";
+}
+/* 必须等运行时 boot 完（它也挂在 DOMContentLoaded 上，且注册在前），
+   同时保证 <pre id="TESTOUT"> 已经存在 */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", __runProbe);
+else __runProbe();
+</script>
+<pre id="TESTOUT"></pre>

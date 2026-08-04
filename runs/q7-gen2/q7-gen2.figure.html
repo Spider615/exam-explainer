@@ -1,0 +1,54 @@
+<figure data-scene="q7-gen2"><svg viewBox="0 0 560 308" role="img" aria-label="嫦娥六号变轨：轨道2椭圆上从近月点A到远月点B的动能、加速度变化，及与轨道1圆轨道机械能的对比">
+
+<text class="u" x="10" y="14">轨道1(圆)在A点变轨进入轨道2(椭圆)，A近月点，B远月点</text>
+<text class="u" x="10" y="27">归一化：GM_月=1，r_p=1，r_a=2（详见图注）</text>
+
+<ellipse id="q7-gen2-orbit2" class="sc" cx="165" cy="172" rx="120" ry="113.14"/>
+<circle id="q7-gen2-orbit1" class="sh" cx="125" cy="172" r="80"/>
+
+<line id="q7-gen2-rline" class="sc" x1="125" y1="172" x2="45" y2="172"/>
+
+<circle id="q7-gen2-moon" class="fk" cx="125" cy="172" r="5"/>
+<text class="u" x="125" y="196" text-anchor="middle">月球</text>
+
+<circle id="q7-gen2-Apt" class="fk" cx="45" cy="172" r="3"/>
+<text x="45" y="158" text-anchor="middle">A</text>
+<text class="u" x="45" y="146" text-anchor="middle">近月点</text>
+
+<circle id="q7-gen2-Bpt" class="fk" cx="285" cy="172" r="3"/>
+<text x="285" y="158" text-anchor="middle">B</text>
+<text class="u" x="285" y="146" text-anchor="middle">远月点</text>
+
+<text class="u" x="125" y="266" text-anchor="middle">轨道1：匀速圆周运动（对比）</text>
+<text class="u a" x="165" y="300" text-anchor="middle">轨道2：A→B 非匀速，越远越慢</text>
+
+<path id="q7-gen2-trail" class="sa" fill="none" d=""/>
+
+<line id="q7-gen2-aarrow" class="sr" marker-end="url(#ar)" x1="45" y1="172" x2="45" y2="172"/>
+<line id="q7-gen2-varrow" class="sa" marker-end="url(#aa)" x1="45" y1="172" x2="45" y2="172"/>
+
+<circle id="q7-gen2-sat1" class="fc" cx="45" cy="172" r="4"/>
+<circle id="q7-gen2-sat2" class="fa" cx="45" cy="172" r="4.2"/>
+
+<line id="q7-gen2-divider" class="sh" x1="364" y1="8" x2="364" y2="300"/>
+
+<text class="u" x="372" y="24">实时数据 · 轨道2 (A→B)</text>
+
+<text x="372" y="48">u</text><text class="n" id="q7-gen2-val-u" x="505" y="48">0.000</text>
+<text x="372" y="70">r</text><text class="n" id="q7-gen2-val-r" x="505" y="70">1.000</text>
+<text x="372" y="92">v</text><text class="n" id="q7-gen2-val-v" x="505" y="92">1.155</text>
+<text x="372" y="114">vr</text><text class="n" id="q7-gen2-val-vr" x="505" y="114">0.000</text>
+<text x="372" y="136">vt</text><text class="n" id="q7-gen2-val-vt" x="505" y="136">1.155</text>
+<text x="372" y="158">KE</text><text class="n" id="q7-gen2-val-KE" x="505" y="158">0.667</text>
+<text x="372" y="180">acc</text><text class="n" id="q7-gen2-val-acc" x="505" y="180">1.000</text>
+<text x="372" y="202">mechE</text><text class="n" id="q7-gen2-val-mechE" x="505" y="202">-0.333</text>
+
+<line class="sh" x1="372" y1="212" x2="548" y2="212"/>
+
+<text class="u" x="372" y="228">机械能对比（单位质量）</text>
+<text x="372" y="250">mechE1(轨道1)</text><text class="n" id="q7-gen2-val-mechE1" x="505" y="250">-0.500</text>
+<text x="372" y="270">mechE2(轨道2)</text><text class="n" id="q7-gen2-val-mechE2" x="505" y="270">-0.333</text>
+<text class="u r" x="372" y="290">二者不等：变轨改变机械能</text>
+
+</svg>
+<figcaption>归一化换算：GM_月=1，r_p(轨道1半径/轨道2近月点距离)=1，r_a(轨道2远月点距离)=2；探测器质量取1，故动能、势能、机械能均为单位质量下的比能量。开普勒方程 π·u=E-e·sin(E) 解出偏近点角E(u)，r(u)=a(1-e·cos(E))，活力公式给出v(u)，角动量守恒给出切向速度vt=L/r，径向速度vr由v²-vt²开方得到。A→B过程中r单调增大，故引力做负功、动能与加速度均单调减小；轨道1机械能与轨道2机械能的数值对比（mechE1≈-0.5，mechE2≈-0.333），二者不相等，说明在A点变轨加速使机械能增大。</figcaption></figure>

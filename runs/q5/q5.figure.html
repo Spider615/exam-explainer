@@ -1,0 +1,74 @@
+<figure data-scene="q5"><svg viewBox="0 0 560 300" role="img" aria-label="沿绳传播的横波：波源S与质点P的振动关系">
+
+  <!-- 传播方向说明 -->
+  <text class="u" x="60" y="24">波沿绳向右(+x方向)传播，S为波源、位于左端</text>
+
+  <!-- 方向箭头 -->
+  <line class="sa" x1="330" y1="50" x2="410" y2="50" marker-end="url(#aa)"></line>
+  <text class="a" x="416" y="54">+x</text>
+
+  <!-- 平衡线 -->
+  <line class="sh" x1="60" y1="140" x2="492" y2="140"></line>
+
+  <!-- S、P 竖直导轨：提示两点只做上下振动，不沿绳迁移 -->
+  <line class="sh" x1="60" y1="70" x2="60" y2="210"></line>
+  <line class="sh" x1="240" y1="70" x2="240" y2="210"></line>
+
+  <!-- 波前位置标记 -->
+  <line id="q5-front" class="sc" x1="60" y1="70" x2="60" y2="210"></line>
+
+  <!-- 绳形（随时间演化的波形） -->
+  <path id="q5-rope" class="sk" fill="none" d="M60 140 L492 140"></path>
+
+  <!-- S点：波源 -->
+  <circle id="q5-S" class="fr" cx="60" cy="140" r="5"></circle>
+  <text class="r" x="50" y="66">S</text>
+
+  <!-- P点：x=1.5λ处质点 -->
+  <circle id="q5-P" class="fa" cx="240" cy="140" r="5"></circle>
+  <text class="a" x="234" y="66">P</text>
+
+  <!-- 绳右端固定墙（带斜线阴影），波前在t∈[0,3]内始终不会到达 -->
+  <line class="sk" x1="492" y1="70" x2="492" y2="210"></line>
+  <line class="sh" x1="492" y1="70" x2="504" y2="58"></line>
+  <line class="sh" x1="492" y1="84" x2="504" y2="72"></line>
+  <line class="sh" x1="492" y1="98" x2="504" y2="86"></line>
+  <line class="sh" x1="492" y1="112" x2="504" y2="100"></line>
+  <line class="sh" x1="492" y1="126" x2="504" y2="114"></line>
+  <line class="sh" x1="492" y1="140" x2="504" y2="128"></line>
+  <line class="sh" x1="492" y1="154" x2="504" y2="142"></line>
+  <line class="sh" x1="492" y1="168" x2="504" y2="156"></line>
+  <line class="sh" x1="492" y1="182" x2="504" y2="170"></line>
+  <line class="sh" x1="492" y1="196" x2="504" y2="184"></line>
+  <line class="sh" x1="492" y1="210" x2="504" y2="198"></line>
+  <text class="u" x="462" y="226">墙(固定端)</text>
+
+  <!-- S、P间水平距离标注 -->
+  <line class="sh" x1="60" y1="220" x2="60" y2="230"></line>
+  <line class="sh" x1="240" y1="220" x2="240" y2="230"></line>
+  <line class="sh" x1="60" y1="225" x2="240" y2="225"></line>
+  <text class="u" x="95" y="238">S、P两点水平间距=1.5λ</text>
+
+  <!-- 波长λ标注 -->
+  <line class="sh" x1="60" y1="248" x2="60" y2="258"></line>
+  <line class="sh" x1="180" y1="248" x2="180" y2="258"></line>
+  <line class="sh" x1="60" y1="253" x2="180" y2="253"></line>
+  <text x="115" y="266">λ</text>
+
+  <!-- 振幅A标注 -->
+  <line class="sh" x1="30" y1="85" x2="40" y2="85"></line>
+  <line class="sh" x1="30" y1="140" x2="40" y2="140"></line>
+  <line class="sh" x1="35" y1="85" x2="35" y2="140"></line>
+  <text x="18" y="115">A</text>
+
+  <!-- 当前状态读数 -->
+  <text class="u" x="360" y="208">当前状态：</text>
+  <text id="q5-info-t" class="n" x="360" y="226">t = 0.00 T</text>
+  <text id="q5-info-yS" class="n" x="360" y="242">y_S = 0.00 A</text>
+  <text id="q5-info-yP" class="n" x="360" y="258">y_P = 0.00 A</text>
+
+  <!-- 归一化单位说明 -->
+  <text class="u" x="6" y="286">波长λ=1、周期T=1、振幅A=1(归一化单位)</text>
+
+</svg>
+<figcaption class="u">波源S在x=0处沿竖直方向做简谐振动(t=0时位于平衡位置且向上运动)，牵引绳产生沿+x方向传播的横波。质点P位于x=1.5λ处，波传到之前保持静止，波传到后(t=1.5T)重复S的振动。动画时长为3个周期(3T)；虚线为S、P的竖直导轨，提示两质点只沿竖直方向振动、不随波沿绳迁移。</figcaption></figure>

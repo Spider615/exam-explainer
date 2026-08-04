@@ -1,0 +1,94 @@
+<figure data-scene="q9-gen3"><svg viewBox="0 0 560 322" role="img" aria-label="开关闭合后A1A2A3三灯泡亮度变化与RLC暂态电路">
+
+<text id="q9-gen3-phase" class="u" x="6" y="20">刚闭合：C瞬间短路 / L瞬间断路</text>
+
+<!-- ================= 电路图 ================= -->
+<line class="sk" x1="55" y1="60" x2="64" y2="60"></line>
+<line class="sk" x1="64" y1="54" x2="64" y2="66"></line>
+<line class="sk" x1="74" y1="48" x2="74" y2="72"></line>
+<line class="sk" x1="74" y1="60" x2="96" y2="60"></line>
+<text x="58" y="40">E</text>
+
+<line class="sk" x1="96" y1="60" x2="112" y2="60"></line>
+<circle class="fk" cx="112" cy="60" r="2"></circle>
+<line class="sk" x1="112" y1="60" x2="146" y2="60"></line>
+<circle class="fk" cx="146" cy="60" r="2"></circle>
+<line class="sk" x1="146" y1="60" x2="162" y2="60"></line>
+<text x="120" y="48">S</text>
+
+<line class="sk" x1="162" y1="60" x2="183" y2="60"></line>
+<circle class="sk" cx="197" cy="60" r="14"></circle>
+<circle id="q9-gen3-a1-glow" class="fa" cx="197" cy="60" r="11" fill-opacity="0.5"></circle>
+<text x="188" y="86">A1</text>
+
+<line class="sk" x1="211" y1="60" x2="250" y2="60"></line>
+<circle class="fk" cx="250" cy="60" r="2.2"></circle>
+<line class="sk" x1="250" y1="60" x2="310" y2="60"></line>
+<circle class="fk" cx="310" cy="60" r="1.8"></circle>
+
+<!-- 支路1：A2 + C -->
+<line class="sk" x1="250" y1="60" x2="250" y2="91"></line>
+<circle class="sk" cx="250" cy="105" r="14"></circle>
+<circle id="q9-gen3-a2-glow" class="fr" cx="250" cy="105" r="11" fill-opacity="0.5"></circle>
+<text x="222" y="131">A2</text>
+<line class="sk" x1="250" y1="119" x2="250" y2="152"></line>
+<line class="sk" x1="234" y1="152" x2="266" y2="152"></line>
+<rect id="q9-gen3-cap-charge" class="fc" x="235" y="153" width="30" height="9" fill-opacity="0.08"></rect>
+<line class="sk" x1="234" y1="163" x2="266" y2="163"></line>
+<line class="sk" x1="250" y1="163" x2="250" y2="235"></line>
+<text x="270" y="161">C</text>
+
+<!-- 支路2：A3 + L -->
+<line class="sk" x1="310" y1="60" x2="310" y2="91"></line>
+<circle class="sk" cx="310" cy="105" r="14"></circle>
+<circle id="q9-gen3-a3-glow" class="fc" cx="310" cy="105" r="11" fill-opacity="0.08"></circle>
+<text x="326" y="131">A3</text>
+<line class="sk" x1="310" y1="119" x2="310" y2="140"></line>
+<path class="sk" d="M310,140 Q322,146 310,152 Q298,158 310,164 Q322,170 310,176 Q298,182 310,188" fill="none"></path>
+<path id="q9-gen3-coil-glow" class="sc" d="M310,140 Q322,146 310,152 Q298,158 310,164 Q322,170 310,176 Q298,182 310,188" fill="none" stroke-opacity="0.08"></path>
+<line class="sk" x1="310" y1="188" x2="310" y2="235"></line>
+<text x="326" y="168">L</text>
+
+<circle class="fk" cx="250" cy="235" r="2.2"></circle>
+<circle class="fk" cx="310" cy="235" r="2.2"></circle>
+<line class="sk" x1="250" y1="235" x2="310" y2="235"></line>
+<line class="sk" x1="55" y1="235" x2="250" y2="235"></line>
+<line class="sk" x1="55" y1="60" x2="55" y2="235"></line>
+
+<!-- ================= 曲线图 ================= -->
+<text class="u" x="385" y="42">I1·I2·I3 随进度u变化</text>
+<line class="sh" x1="385" y1="55" x2="385" y2="142"></line>
+<line class="sh" x1="385" y1="142" x2="535" y2="142"></line>
+<text class="n" x="382" y="154">0</text>
+<text class="n" x="529" y="154">1</text>
+<text class="n" x="366" y="146">0</text>
+<text class="n" x="356" y="73">.5</text>
+
+<path id="q9-gen3-curve-I1" class="sa" d="M385,69.5 L535,69.5" fill="none"></path>
+<path id="q9-gen3-curve-I2" class="sr" d="M385,69.5 L535,142" fill="none"></path>
+<path id="q9-gen3-curve-I3" class="sc" d="M385,142 L535,69.5" fill="none"></path>
+<circle id="q9-gen3-cursor-I1" class="fa" cx="385" cy="69.5" r="3"></circle>
+<circle id="q9-gen3-cursor-I2" class="fr" cx="385" cy="69.5" r="3"></circle>
+<circle id="q9-gen3-cursor-I3" class="fc" cx="385" cy="142" r="3"></circle>
+
+<line class="sa" x1="385" y1="168" x2="400" y2="168"></line>
+<text x="404" y="172">I1</text>
+<line class="sr" x1="430" y1="168" x2="445" y2="168"></line>
+<text x="449" y="172">I2</text>
+<line class="sc" x1="475" y1="168" x2="490" y2="168"></line>
+<text x="494" y="172">I3</text>
+
+<text id="q9-gen3-txt-I1" class="n" x="385" y="188">I1 = 0.500</text>
+<text id="q9-gen3-txt-I2" class="n" x="385" y="203">I2 = 0.500</text>
+<text id="q9-gen3-txt-I3" class="n" x="385" y="218">I3 = 0.000</text>
+<text id="q9-gen3-txt-Vc" class="n" x="385" y="233">Vc = 0.000</text>
+<text id="q9-gen3-txt-VL" class="n" x="385" y="248">VL = 0.500</text>
+<text id="q9-gen3-txt-t" class="n" x="385" y="263">t = 0.00 (u=0.00)</text>
+
+<!-- ================= 必要披露 ================= -->
+<text class="u" x="6" y="280">E、单灯泡电阻R、线圈自感L、电容C 已归一化为1(题目未给出具体数值)</text>
+<text class="u" x="6" y="296">开关闭合瞬间：电容器视为短路(初始电压为0)，线圈视为断路(初始电流为0)</text>
+<text class="u" x="6" y="312">稳态时：线圈(零电阻)视为短路，电容器视为断路(电流为0)</text>
+
+</svg>
+<figcaption>电源E、开关S、灯泡A1串联为干路，末端并联两支路：A2串联电容C，A3串联线圈L。闭合S后C先充电（I2由0.5单调减到0）、L后建流（I3由0单调增到0.5），过程中I1恒为0.5；稳态时A1与A3电流相等，电容电压为E/2、电荷量为CE/2（非CE）。</figcaption></figure>

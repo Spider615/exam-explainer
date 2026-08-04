@@ -1,0 +1,106 @@
+<figure data-scene="q10-gen2"><svg viewBox="0 0 560 340" role="img" aria-label="磁铁-弹簧振子在有/无闭合线圈时的阻尼振动对比">
+
+  <text class="u" x="14" y="16">磁铁-弹簧阻尼振动：情形一(无线圈) vs 情形二(有线圈)</text>
+
+  <line class="sa" x1="300" y1="24" x2="316" y2="24"></line>
+  <text class="u a" x="320" y="27">情形一(无线圈)</text>
+  <line class="sr" x1="420" y1="24" x2="436" y2="24"></line>
+  <text class="u r" x="440" y="27">情形二(有线圈)</text>
+
+  <!-- ===== 左侧：弹簧-磁铁竖直示意图 ===== -->
+  <text class="u" x="16" y="34">情形一：无线圈</text>
+  <text class="u" x="176" y="34">情形二：有线圈</text>
+
+  <rect x="82" y="38" width="16" height="6" class="fk"></rect>
+  <rect x="227" y="38" width="16" height="6" class="fk"></rect>
+
+  <line class="sh" x1="50" y1="70" x2="268" y2="70"></line>
+  <text class="n" x="270" y="74">x=0</text>
+  <line class="sc" x1="50" y1="136" x2="268" y2="136"></line>
+  <text class="n" x="270" y="140">x_eq</text>
+
+  <path id="q10-gen2-spring1" class="sk" fill="none" d="M 90 44 L 90 70"></path>
+  <path id="q10-gen2-spring2" class="sk" fill="none" d="M 235 44 L 235 70"></path>
+
+  <g id="q10-gen2-magnet1" transform="translate(90,70)">
+    <rect x="-16" y="-7" width="16" height="14" class="fk"></rect>
+    <rect x="0" y="-7" width="16" height="14" class="fr"></rect>
+  </g>
+  <g id="q10-gen2-magnet2" transform="translate(235,70)">
+    <rect x="-16" y="-7" width="16" height="14" class="fk"></rect>
+    <rect x="0" y="-7" width="16" height="14" class="fr"></rect>
+  </g>
+
+  <line id="q10-gen2-varrow1" class="sa" x1="108" y1="70" x2="108" y2="70" marker-end="url(#aa)"></line>
+  <line id="q10-gen2-varrow2" class="sr" x1="253" y1="70" x2="253" y2="70" marker-end="url(#ar)"></line>
+
+  <line class="sh" x1="56" y1="228" x2="126" y2="228"></line>
+
+  <line class="sh" x1="200" y1="228" x2="270" y2="228"></line>
+  <ellipse cx="235" cy="224" rx="24" ry="7" class="sc" fill="none"></ellipse>
+  <ellipse cx="235" cy="224" rx="15" ry="4.2" class="sc" fill="none"></ellipse>
+  <text class="u c" x="176" y="246">闭合线圈</text>
+
+  <g id="q10-gen2-coilShrink" opacity="0">
+    <path d="M 208 224 L 218 220 L 218 228 Z" class="fc"></path>
+    <path d="M 262 224 L 252 220 L 252 228 Z" class="fc"></path>
+  </g>
+  <path id="q10-gen2-coilCurrent" class="sc" fill="none" marker-end="url(#ac)" d="M 218 212 A 18 7 0 1 1 252 212" opacity="0.15"></path>
+
+  <text id="q10-gen2-status1" class="u a" x="16" y="258">运动中</text>
+  <text id="q10-gen2-status2" class="u r" x="176" y="258">运动中</text>
+
+  <!-- ===== 右侧：x(t)、Eloss(t)、F_amp(t) 曲线 ===== -->
+
+  <!-- x(t) -->
+  <line class="sh" x1="300" y1="108" x2="548" y2="108"></line>
+  <line class="sh" x1="300" y1="34" x2="300" y2="108"></line>
+  <text class="u" x="300" y="30">x(t)/m</text>
+  <text class="n" x="520" y="104">t/s</text>
+  <text class="n" x="282" y="112">0</text>
+  <text class="n" x="270" y="75">1.0</text>
+  <text class="n" x="270" y="39">2.0</text>
+  <line class="sc" x1="300" y1="71" x2="548" y2="71"></line>
+
+  <path id="q10-gen2-curveX1" class="sa" fill="none" stroke-width="2" d=""></path>
+  <path id="q10-gen2-curveX2" class="sr" fill="none" stroke-width="2" d=""></path>
+  <path id="q10-gen2-curveX2flat" class="sh" fill="none" stroke-dasharray="2 3" d=""></path>
+
+  <circle id="q10-gen2-dotX1" class="fa" cx="300" cy="108" r="3.5"></circle>
+  <circle id="q10-gen2-dotX2" class="fr" cx="300" cy="108" r="3.5"></circle>
+
+  <!-- Eloss(t) -->
+  <line class="sh" x1="300" y1="180" x2="548" y2="180"></line>
+  <line class="sh" x1="300" y1="118" x2="300" y2="180"></line>
+  <text class="u" x="300" y="114">Eloss(t)/J</text>
+  <text class="n" x="282" y="184">0</text>
+  <text class="n" x="278" y="132">5</text>
+
+  <path id="q10-gen2-curveE1" class="sa" fill="none" stroke-width="2" d=""></path>
+  <path id="q10-gen2-curveE2" class="sr" fill="none" stroke-width="2" d=""></path>
+  <path id="q10-gen2-curveE2flat" class="sh" fill="none" stroke-dasharray="2 3" d=""></path>
+
+  <circle id="q10-gen2-dotE1" class="fa" cx="300" cy="180" r="3.5"></circle>
+  <circle id="q10-gen2-dotE2" class="fr" cx="300" cy="180" r="3.5"></circle>
+
+  <!-- F_amp(t)（情形二） -->
+  <line class="sh" x1="300" y1="234" x2="548" y2="234"></line>
+  <line class="sh" x1="300" y1="190" x2="300" y2="252"></line>
+  <text class="u" x="300" y="186">F_amp(t)/N（情形二）</text>
+  <text class="n" x="282" y="194">5</text>
+  <text class="n" x="282" y="238">0</text>
+
+  <path id="q10-gen2-curveF2" class="sr" fill="none" stroke-width="2" d=""></path>
+  <circle id="q10-gen2-dotF2" class="fr" cx="300" cy="234" r="3.5"></circle>
+  <circle id="q10-gen2-turnMark" class="fc" cx="320" cy="234" r="3"></circle>
+  <text id="q10-gen2-turnLabel" class="u c" x="305" y="226">此处F≈0</text>
+
+  <!-- 数值读出 -->
+  <text class="u" x="14" y="278">情形一(无线圈)：</text>
+  <text id="q10-gen2-rt1" class="n" x="140" y="278"></text>
+  <text class="u" x="14" y="298">情形二(有线圈)：</text>
+  <text id="q10-gen2-rt2" class="n" x="140" y="298"></text>
+  <text class="n" x="14" y="318">T1≈13.04s   T2≈3.91s（T2&lt;T1）</text>
+
+</svg>
+<figcaption class="u">演示磁铁-弹簧振子在有/无闭合线圈时的阻尼振动过程对比。本题原题未给出任何数值，画面中的 m,k,g,γ1,γ2 等均为便于演示设定的示例参数，非原题条件。u是各情形各自独立的过程进度，不是播放时间；两种情形对应的真实时长 T1≈13.04s、T2≈3.91s 不同。标注平衡位置x_eq，并清楚显示两种情形磁铁最终都停在同一位置。有线圈情形下安培力F_amp(t)曲线，且磁铁离线圈最近瞬间F_amp应明显趋于0。</figcaption></figure>

@@ -1,0 +1,486 @@
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --stem:#FAFBFC;
+  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
+  --line:#C9D2DE; --hair:#E4E9F0;
+  --acc:#2B5490; --acc2:#E9EFF8;
+  --cy:#0C8CAE; --cy2:#E2F2F6;
+  --red:#AE3B2B; --red2:#FBEBE7;
+  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"Times New Roman",Georgia,serif;
+  --song:Songti SC,SimSun,serif;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk)}
+figure{margin:0;background:var(--panel);border:1px solid var(--line)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px solid var(--hair)}
+svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
+svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
+svg text.n{font-family:var(--mono);font-style:normal;font-size:11px;fill:var(--ink2)}
+svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
+.sk{stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.sh{stroke:var(--line);fill:none;stroke-width:1}
+.sa{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sr{stroke:var(--red);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sc{stroke:var(--cy);fill:none;stroke-width:1.5;stroke-dasharray:5 4}
+.fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
+.wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}.wash-c{fill:var(--cy);opacity:.16}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-top:1px solid var(--hair)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+input[type=range]{width:120px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--acc)"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cy)"/></marker>
+</defs></svg>
+
+<figure data-scene="q9-gen3"><svg viewBox="0 0 560 322" role="img" aria-label="开关闭合后A1A2A3三灯泡亮度变化与RLC暂态电路">
+
+<text id="q9-gen3-phase" class="u" x="6" y="20">刚闭合：C瞬间短路 / L瞬间断路</text>
+
+<!-- ================= 电路图 ================= -->
+<line class="sk" x1="55" y1="60" x2="64" y2="60"></line>
+<line class="sk" x1="64" y1="54" x2="64" y2="66"></line>
+<line class="sk" x1="74" y1="48" x2="74" y2="72"></line>
+<line class="sk" x1="74" y1="60" x2="96" y2="60"></line>
+<text x="58" y="40">E</text>
+
+<line class="sk" x1="96" y1="60" x2="112" y2="60"></line>
+<circle class="fk" cx="112" cy="60" r="2"></circle>
+<line class="sk" x1="112" y1="60" x2="146" y2="60"></line>
+<circle class="fk" cx="146" cy="60" r="2"></circle>
+<line class="sk" x1="146" y1="60" x2="162" y2="60"></line>
+<text x="120" y="48">S</text>
+
+<line class="sk" x1="162" y1="60" x2="183" y2="60"></line>
+<circle class="sk" cx="197" cy="60" r="14"></circle>
+<circle id="q9-gen3-a1-glow" class="fa" cx="197" cy="60" r="11" fill-opacity="0.5"></circle>
+<text x="188" y="86">A1</text>
+
+<line class="sk" x1="211" y1="60" x2="250" y2="60"></line>
+<circle class="fk" cx="250" cy="60" r="2.2"></circle>
+<line class="sk" x1="250" y1="60" x2="310" y2="60"></line>
+<circle class="fk" cx="310" cy="60" r="1.8"></circle>
+
+<!-- 支路1：A2 + C -->
+<line class="sk" x1="250" y1="60" x2="250" y2="91"></line>
+<circle class="sk" cx="250" cy="105" r="14"></circle>
+<circle id="q9-gen3-a2-glow" class="fr" cx="250" cy="105" r="11" fill-opacity="0.5"></circle>
+<text x="222" y="131">A2</text>
+<line class="sk" x1="250" y1="119" x2="250" y2="152"></line>
+<line class="sk" x1="234" y1="152" x2="266" y2="152"></line>
+<rect id="q9-gen3-cap-charge" class="fc" x="235" y="153" width="30" height="9" fill-opacity="0.08"></rect>
+<line class="sk" x1="234" y1="163" x2="266" y2="163"></line>
+<line class="sk" x1="250" y1="163" x2="250" y2="235"></line>
+<text x="270" y="161">C</text>
+
+<!-- 支路2：A3 + L -->
+<line class="sk" x1="310" y1="60" x2="310" y2="91"></line>
+<circle class="sk" cx="310" cy="105" r="14"></circle>
+<circle id="q9-gen3-a3-glow" class="fc" cx="310" cy="105" r="11" fill-opacity="0.08"></circle>
+<text x="326" y="131">A3</text>
+<line class="sk" x1="310" y1="119" x2="310" y2="140"></line>
+<path class="sk" d="M310,140 Q322,146 310,152 Q298,158 310,164 Q322,170 310,176 Q298,182 310,188" fill="none"></path>
+<path id="q9-gen3-coil-glow" class="sc" d="M310,140 Q322,146 310,152 Q298,158 310,164 Q322,170 310,176 Q298,182 310,188" fill="none" stroke-opacity="0.08"></path>
+<line class="sk" x1="310" y1="188" x2="310" y2="235"></line>
+<text x="326" y="168">L</text>
+
+<circle class="fk" cx="250" cy="235" r="2.2"></circle>
+<circle class="fk" cx="310" cy="235" r="2.2"></circle>
+<line class="sk" x1="250" y1="235" x2="310" y2="235"></line>
+<line class="sk" x1="55" y1="235" x2="250" y2="235"></line>
+<line class="sk" x1="55" y1="60" x2="55" y2="235"></line>
+
+<!-- ================= 曲线图 ================= -->
+<text class="u" x="385" y="42">I1·I2·I3 随进度u变化</text>
+<line class="sh" x1="385" y1="55" x2="385" y2="142"></line>
+<line class="sh" x1="385" y1="142" x2="535" y2="142"></line>
+<text class="n" x="382" y="154">0</text>
+<text class="n" x="529" y="154">1</text>
+<text class="n" x="366" y="146">0</text>
+<text class="n" x="356" y="73">.5</text>
+
+<path id="q9-gen3-curve-I1" class="sa" d="M385,69.5 L535,69.5" fill="none"></path>
+<path id="q9-gen3-curve-I2" class="sr" d="M385,69.5 L535,142" fill="none"></path>
+<path id="q9-gen3-curve-I3" class="sc" d="M385,142 L535,69.5" fill="none"></path>
+<circle id="q9-gen3-cursor-I1" class="fa" cx="385" cy="69.5" r="3"></circle>
+<circle id="q9-gen3-cursor-I2" class="fr" cx="385" cy="69.5" r="3"></circle>
+<circle id="q9-gen3-cursor-I3" class="fc" cx="385" cy="142" r="3"></circle>
+
+<line class="sa" x1="385" y1="168" x2="400" y2="168"></line>
+<text x="404" y="172">I1</text>
+<line class="sr" x1="430" y1="168" x2="445" y2="168"></line>
+<text x="449" y="172">I2</text>
+<line class="sc" x1="475" y1="168" x2="490" y2="168"></line>
+<text x="494" y="172">I3</text>
+
+<text id="q9-gen3-txt-I1" class="n" x="385" y="188">I1 = 0.500</text>
+<text id="q9-gen3-txt-I2" class="n" x="385" y="203">I2 = 0.500</text>
+<text id="q9-gen3-txt-I3" class="n" x="385" y="218">I3 = 0.000</text>
+<text id="q9-gen3-txt-Vc" class="n" x="385" y="233">Vc = 0.000</text>
+<text id="q9-gen3-txt-VL" class="n" x="385" y="248">VL = 0.500</text>
+<text id="q9-gen3-txt-t" class="n" x="385" y="263">t = 0.00 (u=0.00)</text>
+
+<!-- ================= 必要披露 ================= -->
+<text class="u" x="6" y="280">E、单灯泡电阻R、线圈自感L、电容C 已归一化为1(题目未给出具体数值)</text>
+<text class="u" x="6" y="296">开关闭合瞬间：电容器视为短路(初始电压为0)，线圈视为断路(初始电流为0)</text>
+<text class="u" x="6" y="312">稳态时：线圈(零电阻)视为短路，电容器视为断路(电流为0)</text>
+
+</svg>
+<figcaption>电源E、开关S、灯泡A1串联为干路，末端并联两支路：A2串联电容C，A3串联线圈L。闭合S后C先充电（I2由0.5单调减到0）、L后建流（I3由0单调增到0.5），过程中I1恒为0.5；稳态时A1与A3电流相等，电容电压为E/2、电荷量为CE/2（非CE）。</figcaption></figure>
+
+
+<script>window.Scenes = {};</script>
+<script>window.Scenes["q9-gen3"] = function (fig) {
+  var svg = fig.querySelector('svg');
+
+  var E = 1.0, R = 1.0, L = 1.0, C = 1.0, T_end = 15.0;
+
+  function derivs(i3, vc) {
+    var d_i3 = (E + vc - 3.0 * i3 * R) / (2.0 * L);
+    var d_vc = (E - i3 * R - vc) / (2.0 * R * C);
+    return [d_i3, d_vc];
+  }
+
+  // 与 spec.reference 完全一致的 RK4 数值积分：状态方程组由基尔霍夫电流/电压定律联立导出
+  function computeState(u) {
+    var t = u * T_end;
+    var I3 = 0.0, Vc = 0.0;
+    var N = 3000;
+    if (t > 0.0) {
+      var dt = t / N;
+      for (var i = 0; i < N; i++) {
+        var k1 = derivs(I3, Vc);
+        var k2 = derivs(I3 + 0.5 * dt * k1[0], Vc + 0.5 * dt * k1[1]);
+        var k3 = derivs(I3 + 0.5 * dt * k2[0], Vc + 0.5 * dt * k2[1]);
+        var k4 = derivs(I3 + dt * k3[0], Vc + dt * k3[1]);
+        I3 = I3 + (dt / 6.0) * (k1[0] + 2.0 * k2[0] + 2.0 * k3[0] + k4[0]);
+        Vc = Vc + (dt / 6.0) * (k1[1] + 2.0 * k2[1] + 2.0 * k3[1] + k4[1]);
+      }
+    }
+    var I2 = (E - I3 * R - Vc) / (2.0 * R);
+    var V = I2 * R + Vc;
+    var VL = V - I3 * R;
+    var I1 = I2 + I3;
+    return { u: u, t: t, I1: I1, I2: I2, I3: I3, Vc: Vc, VL: VL };
+  }
+
+  function clamp01(x) { return x < 0 ? 0 : (x > 1 ? 1 : x); }
+
+  // ---- 图内引用 ----
+  var elA1 = svg.querySelector('#q9-gen3-a1-glow');
+  var elA2 = svg.querySelector('#q9-gen3-a2-glow');
+  var elA3 = svg.querySelector('#q9-gen3-a3-glow');
+  var elCap = svg.querySelector('#q9-gen3-cap-charge');
+  var elCoil = svg.querySelector('#q9-gen3-coil-glow');
+  var elCurveI1 = svg.querySelector('#q9-gen3-curve-I1');
+  var elCurveI2 = svg.querySelector('#q9-gen3-curve-I2');
+  var elCurveI3 = svg.querySelector('#q9-gen3-curve-I3');
+  var elCurI1 = svg.querySelector('#q9-gen3-cursor-I1');
+  var elCurI2 = svg.querySelector('#q9-gen3-cursor-I2');
+  var elCurI3 = svg.querySelector('#q9-gen3-cursor-I3');
+  var elTxtI1 = svg.querySelector('#q9-gen3-txt-I1');
+  var elTxtI2 = svg.querySelector('#q9-gen3-txt-I2');
+  var elTxtI3 = svg.querySelector('#q9-gen3-txt-I3');
+  var elTxtVc = svg.querySelector('#q9-gen3-txt-Vc');
+  var elTxtVL = svg.querySelector('#q9-gen3-txt-VL');
+  var elTxtT = svg.querySelector('#q9-gen3-txt-t');
+  var elPhase = svg.querySelector('#q9-gen3-phase');
+
+  // ---- 曲线图坐标映射（固定量程，不随时间变化）----
+  var CH_X0 = 385, CH_X1 = 535, CH_Y0 = 142, CH_Y1 = 55, YMAX = 0.6;
+  function chartX(u) { return CH_X0 + u * (CH_X1 - CH_X0); }
+  function chartY(v) { return CH_Y0 - (clamp01(v / YMAX)) * (CH_Y0 - CH_Y1); }
+
+  // 曲线形状只取决于物理本身，预先算好、画一次即可
+  (function drawCurves() {
+    var N = 120;
+    var d1 = '', d2 = '', d3 = '';
+    for (var i = 0; i <= N; i++) {
+      var uu = i / N;
+      var st = computeState(uu);
+      var x = chartX(uu).toFixed(2);
+      var p = (i === 0 ? 'M' : 'L');
+      d1 += p + x + ',' + chartY(st.I1).toFixed(2) + ' ';
+      d2 += p + x + ',' + chartY(st.I2).toFixed(2) + ' ';
+      d3 += p + x + ',' + chartY(st.I3).toFixed(2) + ' ';
+    }
+    elCurveI1.setAttribute('d', d1);
+    elCurveI2.setAttribute('d', d2);
+    elCurveI3.setAttribute('d', d3);
+  })();
+
+  // ---- 动画时序：t=0+ 定格 -> 暂态推进 -> 稳态定格 -> 循环 ----
+  var HOLD0 = 1.0, ANIM = 10.0, HOLD1 = 2.5;
+  var CYCLE = HOLD0 + ANIM + HOLD1;
+
+  function uFromT(t) {
+    var phase = t % CYCLE;
+    if (phase < 0) phase += CYCLE;
+    if (phase < HOLD0) return 0;
+    if (phase < HOLD0 + ANIM) return (phase - HOLD0) / ANIM;
+    return 1;
+  }
+
+  function render(u) {
+    var st = computeState(u);
+    var IMAX = 0.5;
+    var b1 = clamp01(st.I1 / IMAX), b2 = clamp01(st.I2 / IMAX), b3 = clamp01(st.I3 / IMAX);
+
+    elA1.setAttribute('fill-opacity', (0.10 + 0.85 * b1).toFixed(3));
+    elA2.setAttribute('fill-opacity', (0.08 + 0.85 * b2).toFixed(3));
+    elA3.setAttribute('fill-opacity', (0.08 + 0.85 * b3).toFixed(3));
+    elCap.setAttribute('fill-opacity', (0.08 + 0.85 * clamp01(st.Vc / IMAX)).toFixed(3));
+    elCoil.setAttribute('stroke-opacity', (0.08 + 0.85 * b3).toFixed(3));
+
+    var cx = chartX(u);
+    elCurI1.setAttribute('cx', cx.toFixed(2)); elCurI1.setAttribute('cy', chartY(st.I1).toFixed(2));
+    elCurI2.setAttribute('cx', cx.toFixed(2)); elCurI2.setAttribute('cy', chartY(st.I2).toFixed(2));
+    elCurI3.setAttribute('cx', cx.toFixed(2)); elCurI3.setAttribute('cy', chartY(st.I3).toFixed(2));
+
+    elTxtI1.textContent = 'I1 = ' + st.I1.toFixed(3);
+    elTxtI2.textContent = 'I2 = ' + st.I2.toFixed(3);
+    elTxtI3.textContent = 'I3 = ' + st.I3.toFixed(3);
+    elTxtVc.textContent = 'Vc = ' + st.Vc.toFixed(3);
+    elTxtVL.textContent = 'VL = ' + st.VL.toFixed(3);
+    elTxtT.textContent = 't = ' + st.t.toFixed(2) + ' (u=' + u.toFixed(2) + ')';
+
+    if (u <= 0.001) elPhase.textContent = '刚闭合：C瞬间短路 / L瞬间断路';
+    else if (u >= 0.999) elPhase.textContent = '稳态：C视为断路，L视为短路';
+    else elPhase.textContent = '暂态过程：电容充电、线圈建流';
+  }
+
+  function step(t) { render(uFromT(t)); }
+  function reset() { render(0); }
+
+  reset();
+
+  return {
+    step: step,
+    reset: reset,
+    probe: function (u, caseId) {
+      var st = computeState(u);
+      return { u: st.u, t: st.t, I1: st.I1, I2: st.I2, I3: st.I3, Vc: st.Vc, VL: st.VL };
+    }
+  };
+};
+</script>
+<script>/* ===== 动画运行时 ===== */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var live = [];
+
+  function build(fig) {
+    var id = fig.getAttribute('data-scene');
+    var factory = window.Scenes[id];
+    if (typeof factory !== 'function') return null;
+    var api;
+    try { api = factory(fig); } catch (e) { console.error('[scene ' + id + '] setup failed', e); return null; }
+    if (!api || typeof api.step !== 'function') { console.error('[scene ' + id + '] bad contract'); return null; }
+
+    var bar = document.createElement('div');
+    bar.className = 'ctlbar';
+    var pp = document.createElement('button');
+    pp.type = 'button'; pp.className = 'btn pp';
+    var rp = document.createElement('button');
+    rp.type = 'button'; rp.className = 'btn'; rp.textContent = '重播';
+    var tag = document.createElement('span');
+    tag.className = 'livebadge'; tag.textContent = 'LIVE';
+    bar.appendChild(pp); bar.appendChild(rp); bar.appendChild(tag);
+    var own = fig.querySelector('.ctl');
+    if (own) bar.appendChild(own);
+    var cap = fig.querySelector('figcaption');
+    fig.insertBefore(bar, cap);
+
+    window.__api = window.__api || {}; window.__api[id] = api;
+    var s = { id: id, api: api, t: 0, playing: !reduce, visible: true, fig: fig, pp: pp };
+    function paint() {
+      pp.textContent = s.playing ? '暂停' : '播放';
+      pp.setAttribute('aria-pressed', s.playing ? 'true' : 'false');
+      pp.setAttribute('aria-label', (s.playing ? '暂停' : '播放') + '动画');
+      tag.style.opacity = s.playing ? '.9' : '.3';
+    }
+    pp.addEventListener('click', function () { s.playing = !s.playing; paint(); });
+    rp.addEventListener('click', function () {
+      s.t = 0;
+      try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] reset', e); }
+    });
+    paint();
+    try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] first frame', e); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { s.visible = es[0].isIntersecting; },
+        { rootMargin: '120px' }).observe(fig);
+    }
+    return s;
+  }
+
+  function boot() {
+    var figs = document.querySelectorAll('figure[data-scene]');
+    for (var i = 0; i < figs.length; i++) {
+      var s = build(figs[i]);
+      if (s) live.push(s);
+    }
+    var g = document.getElementById('gswitch');
+    if (g) {
+      g.addEventListener('click', function () {
+        var anyOn = live.some(function (s) { return s.playing; });
+        live.forEach(function (s) { if (s.playing === anyOn) s.pp.click(); });
+        g.textContent = anyOn ? '▶ 全部播放' : '⏸ 全部暂停';
+      });
+      g.textContent = reduce ? '▶ 全部播放' : '⏸ 全部暂停';
+    }
+    var last = 0;
+    function frame(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 0;
+      last = now;
+      for (var i = 0; i < live.length; i++) {
+        var s = live[i];
+        if (!s.playing || !s.visible) continue;
+        s.t += dt;
+        try { s.api.step(s.t); }
+        catch (e) { console.error('[scene ' + s.id + '] step', e); s.playing = false; }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<script>
+function __runProbe(){
+  var out = {ok:false, errors:[], render:[], scenes:[], series:{}, notes:[]};
+  function rec(e){ out.errors.push(String(e && e.stack || e)); }
+  window.onerror = function(m,s,l,c,e){ rec(m + " @" + l + ":" + c); };
+  var _ce = console.error; console.error = function(){ rec([].join.call(arguments," ")); _ce.apply(console, arguments); };
+  try {
+    var SID = "q9-gen3", SPEC = {"id": "q9-gen3", "stem": "如图所示电路：电源(电动势E，内阻不计)、开关S和小灯泡A1依次串联构成干路；干路末端分成两条并联支路后汇合回到电源，一条支路由灯泡A2与电容器C串联而成，另一条支路由灯泡A3与自感线圈L(线圈电阻不计)串联而成。A1、A2、A3是三个完全相同的小灯泡。开关S原来断开，电容器不带电、线圈中电流为零。将S闭合，分析三灯泡亮度随时间的变化情况，判断下列说法是否正确：A.闭合瞬间A1与A3同时亮起；B.闭合后A2亮起后亮度不变；C.稳定后A1与A3亮度一样；D.稳定后电容器电荷量为CE。", "cases": [{"id": "c1", "label": "开关闭合后电容C充电、线圈L建立电流，直至电路达到稳态的完整暂态过程"}], "title": "开关闭合后 A1/A2/A3 三灯泡亮度变化的RLC暂态过程", "units": "电流、电压、电阻、电感、电容均为以 E=1、单灯泡电阻R=1 为基准的归一化无量纲值；时间以该归一化下的自然时间常数(=RC=L/R=1)为单位", "physics": {"note": "以下为权威解法(电路微分方程数值积分)，实现必须与之一致：不得改动各支路欧姆定律/电容电感微分关系的形式，不得省略两支路电流对干路电流的合成关系。", "equations": ["I1 = I2 + I3  (基尔霍夫电流定律：干路电流等于两支路电流之和)", "E = I1*R + V  (主回路：电源电动势 = A1压降 + 并联段两端电压)", "V = I2*R + Vc  (A2-C支路：A2压降 + 电容电压)", "V = I3*R + VL, 其中 VL = L * d(I3)/dt  (A3-L支路：A3压降 + 线圈电压)", "d(Vc)/dt = I2 / C  (电容电流定义)", "联立消去V、I2可得状态方程: d(I3)/dt = (E + Vc - 3*I3*R) / (2*L)", "d(Vc)/dt = (E - I3*R - Vc) / (2*R*C)", "初始条件: I3(0)=0, Vc(0)=0 (电感电流、电容电压不能突变，断开时二者均为0)", "由状态量导出: I2 = (E - I3*R - Vc) / (2*R); V = I2*R + Vc; VL = V - I3*R; I1 = I2 + I3"], "definitions": ["I1: 流过A1的电流(干路电流)", "I2: 流过A2的电流(电容支路/充电电流)", "I3: 流过A3的电流(线圈支路电流)", "Vc: 电容器C两端电压", "V: 两条并联支路公共两端(节点X到节点Y)的电压", "VL: 自感线圈L两端的电压", "R: 单个灯泡的电阻(三灯泡相同)", "t: 物理时间, t = u * T_end", "u: 归一化过程进度, 0对应开关闭合瞬间, 1对应稳态"], "given_facts": ["F1 · 闭合开关瞬间线圈支路初始电流为0", "F2 · 闭合开关瞬间电容器初始两端电压为0", "F3 · 直流稳态下电容支路电流为0", "F4 · 直流稳态下零电阻电感两端电压为0", "F5 · 稳态时流过A1的电流与流过A3的电流大小相等", "F6 · 稳态时电容器两端电压为E/2，带电量为CE/2", "F7 · 电容充电过程中流过A2的电流单调减小至0"], "normalization": "电源电动势E归一化为1；三个灯泡电阻(线性定值电阻)均归一化为R=1；线圈自感L与电容C均未在题目中给出数值，取L=1、C=1(与R同量纲基准)，该取值恰使电路处于临界阻尼状态，保证A2支路电流单调衰减、A3支路(线圈)电流单调建立、不出现LC振荡过冲；整个暂态过程归一化时长取T_end=15个时间常数，足以使系统收敛到稳态(在此参数下稳态残差<1e-6)。", "free_parameters": "灯泡电阻R、线圈自感L、电容C、电源电动势E题目均未给出具体数值(只有比例关系有意义)。本spec归一化取 E=1, R=1(每个灯泡), L=1, C=1；其中L=C的取值使电路恰好处于临界阻尼，不仅保证A2、A3支路电流分别单调变化不振荡，还使 I3(t)≡Vc(t) 对任意t成立，从而干路电流 I1(t) 在整个暂态过程中恒为 E/(2R)=0.5(即A1亮度自始至终不变)。过程总时长取 T_end=15(以此归一化下的自然时间常数为单位)，足以让系统收敛到稳态。"}, "constants": {"C": 1.0, "E": 1.0, "L": 1.0, "R": 1.0, "T_end": 15.0}, "reference": "def probe(u, case):\n    E = 1.0\n    R = 1.0\n    L = 1.0\n    C = 1.0\n    T_end = 15.0\n\n    t = u * T_end\n\n    I3 = 0.0\n    Vc = 0.0\n\n    def derivs(i3, vc):\n        d_i3 = (E + vc - 3.0 * i3 * R) / (2.0 * L)\n        d_vc = (E - i3 * R - vc) / (2.0 * R * C)\n        return d_i3, d_vc\n\n    N = 3000\n    if t > 0.0:\n        dt = t / N\n        for _ in range(N):\n            k1_i3, k1_vc = derivs(I3, Vc)\n            k2_i3, k2_vc = derivs(I3 + 0.5 * dt * k1_i3, Vc + 0.5 * dt * k1_vc)\n            k3_i3, k3_vc = derivs(I3 + 0.5 * dt * k2_i3, Vc + 0.5 * dt * k2_vc)\n            k4_i3, k4_vc = derivs(I3 + dt * k3_i3, Vc + dt * k3_vc)\n            I3 = I3 + (dt / 6.0) * (k1_i3 + 2.0 * k2_i3 + 2.0 * k3_i3 + k4_i3)\n            Vc = Vc + (dt / 6.0) * (k1_vc + 2.0 * k2_vc + 2.0 * k3_vc + k4_vc)\n\n    I2 = (E - I3 * R - Vc) / (2.0 * R)\n    V = I2 * R + Vc\n    VL = V - I3 * R\n    I1 = I2 + I3\n\n    return {\"u\": u, \"t\": t, \"I1\": I1, \"I2\": I2, \"I3\": I3, \"Vc\": Vc, \"VL\": VL}", "invariants": [{"id": "c1-init-I3-zero", "why": "对应F1：闭合开关瞬间线圈支路初始电流为0", "case": "c1", "expr": "abs(I3[0]) <= 0.01", "report": "I3[0]"}, {"id": "c1-init-Vc-zero", "why": "对应F2：闭合开关瞬间电容器初始两端电压为0", "case": "c1", "expr": "abs(Vc[0]) <= 0.01", "report": "Vc[0]"}, {"id": "c1-init-I2-half", "why": "由F1、F2导出：闭合瞬间电容视为短路，A1与A2构成通路，I2(0)=E/(2R)=0.5，对应A项分析依据", "case": "c1", "expr": "abs(I2[0] - 0.5) <= 0.02", "report": "I2[0]"}, {"id": "c1-final-I2-zero", "why": "对应F3：直流稳态下电容支路电流为0", "case": "c1", "expr": "abs(I2[-1]) <= 0.02", "report": "I2[-1]"}, {"id": "c1-final-VL-zero", "why": "对应F4：直流稳态下零电阻电感两端电压为0", "case": "c1", "expr": "abs(VL[-1]) <= 0.02", "report": "VL[-1]"}, {"id": "c1-final-I1-eq-I3", "why": "对应F5：稳态时流过A1的电流与流过A3的电流大小相等，对应正确选项C", "case": "c1", "expr": "abs(I1[-1] - I3[-1]) <= 0.02", "report": "I1[-1]-I3[-1]"}, {"id": "c1-final-I3-value", "why": "对应F5、F6：稳态时A1、A3串联分压，稳态电流为E/(2R)=0.5", "case": "c1", "expr": "abs(I3[-1] - 0.5) <= 0.02", "report": "I3[-1]"}, {"id": "c1-final-Vc-value", "why": "对应F6：稳态时电容器两端电压为E/2=0.5(带电量CE/2)，用于否定D选项(CE)", "case": "c1", "expr": "abs(Vc[-1] - 0.5) <= 0.02", "report": "Vc[-1]"}, {"id": "c1-mono-I2-decreasing", "why": "对应F7：电容充电过程中流过A2的电流单调减小，覆盖全过程，用于否定B选项(亮度不变)", "case": "c1", "expr": "max(diff(I2)) <= 1e-6", "report": "max(diff(I2))"}, {"id": "c1-mono-I3-increasing", "why": "由F1(初值0)与F5/F6(终值0.5)之间的建立过程决定：线圈电流在临界阻尼下单调上升，不发生振荡，覆盖全过程", "case": "c1", "expr": "min(diff(I3)) >= -1e-6", "report": "min(diff(I3))"}, {"id": "c1-conserve-I1-constant", "why": "由F1、F2、F5、F6共同决定：在L=C的归一化下 I3(t)≡Vc(t)，干路电流I1在整个暂态过程中恒为E/(2R)=0.5，即A1亮度自始至终不变，这是覆盖全过程的守恒量检验", "case": "c1", "expr": "max(I1) - min(I1) <= 0.02", "report": "max(I1)-min(I1)"}, {"id": "c1-kcl-consistency", "why": "对应equations中的基尔霍夫电流定律 I1=I2+I3(电路拓扑决定)，检验probe内部I1与I2、I3是否自洽计算，而非各自独立编造", "case": "c1", "expr": "max(abs(I1 - I2 - I3)) <= 1e-6", "report": "max(abs(I1-I2-I3))"}, {"id": "c1-selfconsistency-I3-VL", "why": "对应F4：VL是I3的导数(VL=L*dI3/dt)，I3单调上升在其取值最大处(稳态)导数必须为0，即线圈两端电压为0，检验I3与VL两条曲线是否自洽而非各算各的", "case": "c1", "expr": "abs(VL[argmax(I3)]) <= 0.02", "report": "VL[argmax(I3)]"}, {"id": "c1-selfconsistency-Vc-I2", "why": "对应F3：I2是Vc的导数(I2=C*dVc/dt)，Vc单调上升在其取值最大处(稳态)导数必须为0，即电容支路电流为0，检验Vc与I2两条曲线是否自洽而非各算各的", "case": "c1", "expr": "abs(I2[argmax(Vc)]) <= 0.02", "report": "I2[argmax(Vc)]"}], "probe_keys": ["u", "t", "I1", "I2", "I3", "Vc", "VL"], "disclosures": [{"why": "题目只给符号变量未给数值，须向读者披露动画中的具体数值是为演示选取的归一化值，不代表题目给定数值，避免误导", "must_contain": "E、单灯泡电阻R、线圈自感L、电容C 已归一化为1(题目未给出具体数值)"}, {"why": "对应F1、F2，是判断A项(A1与A3是否同时亮起)正确性的关键依据，必须在画面中明确呈现，否则观众无法理解为何A3不立即亮起", "must_contain": "开关闭合瞬间：电容器视为短路(初始电压为0)，线圈视为断路(初始电流为0)"}, {"why": "对应F3、F4，是判断C项(A1与A3稳态亮度是否相同)和D项(电容电荷量)正确性的关键依据", "must_contain": "稳态时：线圈(零电阻)视为短路，电容器视为断路(电流为0)"}], "sample_points": 401, "probe_key_meaning": {"t": "物理时间, t = u * 15 (以归一化时间常数为单位)", "u": "归一化进度，等于传入的u", "I1": "流过A1(干路)的电流", "I2": "流过A2(电容支路)的电流，即电容充电电流", "I3": "流过A3(线圈支路)的电流", "VL": "自感线圈L两端的电压", "Vc": "电容器C两端电压"}, "process_endpoints": "u=0对应开关S闭合后的最初瞬间(t=0+，此时电容电压Vc=0、线圈电流I3=0，二者尚未来得及变化，但已按状态方程开始演化)；u=1对应电路达到直流稳态(t=15，此时I2、VL均已衰减至≈0，可视为稳态)。", "scene_requirements": ["电路图：电源E—开关S—A1 依次串联为干路，干路末端分为两条并联支路(A2串联C；A3串联L)，两支路汇合回电源", "三个灯泡用亮度(可用发光强度或颜色深浅)实时表示各自电流大小，A1亮度需在整个过程中直观展示其恒定不变", "电容器旁显示其电压/带电量随时间的变化(充电指示)，线圈旁显示其电流建立过程", "开关闭合的瞬间(u=0附近)需要有明显标记，并标注该瞬间电容视为短路、线圈视为断路", "稳态(u=1附近)需要有明显标记，并标注该状态电容视为断路、线圈视为短路", "可附带一条实时曲线图，展示 I1、I2、I3 随过程进度u的变化"]};
+    out.scenes = Object.keys(window.Scenes || {});
+    var fig = document.querySelector('figure[data-scene="' + SID + '"]');
+    if (!fig) { out.errors.push("DOM 里找不到 figure[data-scene=" + SID + "]"); throw 0; }
+    var api = (window.__api || {})[SID];
+    if (!api) { out.errors.push("运行时未能构造该场景（工厂抛错或契约不符）"); throw 0; }
+    ["step","reset","probe"].forEach(function(k){
+      if (typeof api[k] !== "function") out.errors.push("api." + k + " 不是函数");
+    });
+    if (out.errors.length) throw 0;
+
+    var svg = fig.querySelector("svg");
+
+    // --- 渲染压力：跑 451 帧 step()，抓异常与脏数值 ---
+    try {
+      api.reset(); api.step(0);
+      for (var t = 0; t <= 18.0001; t += 0.04) api.step(t);
+    } catch (e) { rec("step() 抛异常: " + e); }
+    var dom = svg.outerHTML;
+    ["NaN","Infinity","undefined","null"].forEach(function(w){
+      var n = (dom.match(new RegExp(w, "g")) || []).length;
+      if (n) out.errors.push("渲染后 SVG 中出现 " + w + " ×" + n);
+    });
+
+    /* --- L3.5 渲染覆盖 ---
+       断言只跑 probe，看不见渲染。历史教训：把 translate(cx,cy) rotate(θ)
+       误写成 rotate(θ cx cy)，整组元素飞出画布，四层门禁 13/13 全绿放行。
+       这里补上：每个带 id 的 SVG 元素，必须在某一采样时刻真的画在 viewBox 内。
+       只查「位置」不查「可见性」—— opacity=0 的元素 getBBox 依然有效，
+       所以合法隐藏的结论框不会被误伤，而「整组飞出画布」是全时段的，必然被抓。*/
+    try {
+      api.reset();
+      var vb = svg.viewBox.baseVal;
+      var els = svg.querySelectorAll("[id]");
+      var ids = [], everOK = {}, everDrawn = {}, snaps = [];
+      for (var q0 = 0; q0 < els.length; q0++) ids.push(els[q0].getAttribute("id"));
+      /* 注意：不能用 el.getCTM() —— 它含 viewBox 缩放，返回的是渲染像素坐标，
+         拿去和 viewBox 数值比会把右下方的元素全部误判出界。
+         正确做法是经 svg 根的 screenCTM 求逆，换回 viewBox 用户单位。 */
+      for (var tq = 0; tq <= 20.0001; tq += 0.5) {
+        api.step(tq);
+        snaps.push(svg.innerHTML);
+        var rootM = svg.getScreenCTM();
+        if (!rootM) continue;
+        var invM = rootM.inverse();
+        for (var q1 = 0; q1 < els.length; q1++) {
+          var idq = ids[q1];
+          if (everOK[idq]) continue;
+          var bb, mm;
+          try { bb = els[q1].getBBox(); mm = els[q1].getScreenCTM(); } catch (err0) { continue; }
+          if (!mm) continue;
+          if (bb.width <= 0 && bb.height <= 0) continue;   /* 退化元素不判位置 */
+          everDrawn[idq] = true;
+          mm = invM.multiply(mm);                          /* → viewBox 用户单位 */
+          var cxq = bb.x + bb.width / 2, cyq = bb.y + bb.height / 2;
+          var XQ = mm.a * cxq + mm.c * cyq + mm.e;
+          var YQ = mm.b * cxq + mm.d * cyq + mm.f;
+          if (XQ >= vb.x - 2 && XQ <= vb.x + vb.width + 2 &&
+              YQ >= vb.y - 2 && YQ <= vb.y + vb.height + 2)
+            everOK[idq] = true;
+        }
+      }
+      var off = [], dead = [];
+      for (var q2 = 0; q2 < ids.length; q2++) {
+        if (!everDrawn[ids[q2]]) dead.push(ids[q2]);
+        else if (!everOK[ids[q2]]) off.push(ids[q2]);
+      }
+      if (off.length)
+        out.render.push("这些元素在全部 41 个采样时刻都画在 viewBox 之外（画面上看不到）：" + off.join(", "));
+      var moved = false;
+      for (var q3 = 1; q3 < snaps.length; q3++) if (snaps[q3] !== snaps[0]) { moved = true; break; }
+      if (!moved)
+        out.render.push("采样了 " + snaps.length + " 个不同时刻，SVG 内容完全没有变化——动画没有动");
+      out.notes.push("渲染覆盖：" + ids.length + " 个带 id 元素，" +
+                     Object.keys(everOK).length + " 个曾正常出现在画面内" +
+                     (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
+    } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
+
+    // --- probe 采样 ---
+    var N = SPEC.sample_points || 401;
+    for (var ci = 0; ci < SPEC.cases.length; ci++) {
+      var cid = SPEC.cases[ci].id;
+      var cols = {}; SPEC.probe_keys.forEach(function(k){ cols[k] = []; });
+
+      // 纯度 + 无副作用
+      var before = svg.outerHTML;
+      var a1 = api.probe(0.37, cid), a2 = api.probe(0.37, cid);
+      if (svg.outerHTML !== before) out.errors.push("[" + cid + "] probe() 修改了 DOM（必须是纯函数）");
+      SPEC.probe_keys.forEach(function(k){
+        if (!(k in a1)) out.errors.push("[" + cid + "] probe 返回值缺少键 " + k);
+        else if (a1[k] !== a2[k]) out.errors.push("[" + cid + "] probe 不纯：同一 u 两次调用 " + k + " 不同（" + a1[k] + " vs " + a2[k] + "）");
+      });
+
+      var nbad = 0;
+      for (var i = 0; i < N; i++) {
+        var u = i / (N - 1);
+        var r;
+        try { r = api.probe(u, cid); }
+        catch (e) { out.errors.push("[" + cid + "] probe(" + u.toFixed(3) + ") 抛异常: " + e); break; }
+        for (var ki = 0; ki < SPEC.probe_keys.length; ki++) {
+          var k = SPEC.probe_keys[ki], v = r ? r[k] : undefined;
+          if (typeof v !== "number" || !isFinite(v)) { nbad++; v = null; }
+          cols[k].push(v);
+        }
+      }
+      if (nbad) out.errors.push("[" + cid + "] probe 返回了 " + nbad + " 个非有限数值");
+      out.series[cid] = cols;
+    }
+    out.ok = out.errors.length === 0 && out.render.length === 0;
+  } catch (e) { if (e) rec(e); }
+  document.getElementById("TESTOUT").textContent = "@@" + JSON.stringify(out) + "@@";
+}
+/* 必须等运行时 boot 完（它也挂在 DOMContentLoaded 上，且注册在前），
+   同时保证 <pre id="TESTOUT"> 已经存在 */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", __runProbe);
+else __runProbe();
+</script>
+<pre id="TESTOUT"></pre>
