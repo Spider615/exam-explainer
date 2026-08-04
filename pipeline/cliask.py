@@ -28,19 +28,67 @@ cliask.py —— 用**订阅**跑一次 claude，拿回文本
 （实测单题 6 轮 165 秒 $0.41）。纯文本那条路没有这个问题。
 所以 ③ 的视觉升级如果在意成本，豆包仍然是更划算的选择。
 """
-import os, subprocess, sys
+import os, shutil, subprocess, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-CLI = next((p for p in ("/opt/homebrew/bin/claude",
-                        os.path.expanduser("~/.nvm/versions/node/v25.2.1/bin/claude"),
-                        "/usr/local/bin/claude") if os.path.exists(p)), None)
+# 和管线里其它模块一样自己读一遍 .env。下面 CLI / PROXY 是模块级求值的，
+# 不能指望「先 import store 顺带把 .env 灌进来」——那是隐式的导入顺序依赖。
+for _l in (open(os.path.join(ROOT, ".env"), encoding="utf-8")
+           if os.path.exists(os.path.join(ROOT, ".env")) else []):
+    if "=" in _l and not _l.strip().startswith("#"):
+        _k, _v = _l.strip().split("=", 1)
+        os.environ.setdefault(_k.strip(), _v.strip())
+
+
+def find_cli():
+    """
+    找 claude 可执行文件。
+
+    原来这里是三条写死的路径，其中一条把 nvm 的 node 版本钉成了 v25.2.1。
+    机器上的 node 换到 v24.15.0 之后三条全部落空，`available()` 变成 False，
+    ④⑤ 直接退化成「订阅通道不可用」——**而且是静默的**，因为调用方只看到
+    一个 RuntimeError，看不出根因是路径。所以：先认显式指定，再走老清单，
+    最后交给 PATH 兜底。
+    """
+    cands = [os.environ.get("EXAM_CLAUDE_CLI", ""),
+             "/opt/homebrew/bin/claude",
+             os.path.expanduser("~/.nvm/versions/node/v25.2.1/bin/claude"),
+             "/usr/local/bin/claude"]
+    return next((p for p in cands if p and os.path.exists(p)), None) \
+        or shutil.which("claude")
+
+
+CLI = find_cli()
 
 MODEL = os.environ.get("EXAM_CLI_MODEL", "claude-sonnet-5")
 
 # 这几个一旦存在，CLI 就会去连它们指向的中转而不是订阅。
 # 显式声明用订阅，就不能因为环境里恰好有个 key 就偷偷改道。
 ANTHROPIC_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN")
+
+# claude 的端点这台机器直连不通（实测 403 Request not allowed），要走本地代理。
+# 交互式 shell 里这件事是 ~/.zshrc 的 alias 做的，而 launchd 起的后端没有 alias
+# —— 所以代理得显式传给子进程，否则上线后 ④⑤ 全灭而 ②③ 正常，很难查。
+# 只加给 claude：DeepSeek 和方舟都在墙内，不该被绕一圈。
+PROXY = os.environ.get("EXAM_CLI_PROXY", "")
+# 垫片（clishim / arkshim）监听 127.0.0.1，代理必须放行本地，否则 relay
+# 和 ark-cli 两条 backend 会把请求发给代理去连本机。
+NO_PROXY = os.environ.get("EXAM_CLI_NO_PROXY", "localhost,127.0.0.1,::1")
+
+
+def cli_env(base=None, drop_anthropic=True):
+    """给 claude 子进程用的环境变量。"""
+    env = dict(os.environ if base is None else base)
+    if drop_anthropic:
+        for k in ANTHROPIC_VARS:
+            env.pop(k, None)
+    if PROXY:
+        env.setdefault("HTTPS_PROXY", PROXY)
+        env.setdefault("HTTP_PROXY", PROXY)
+        env.setdefault("NO_PROXY", NO_PROXY)
+        env.setdefault("no_proxy", NO_PROXY)
+    return env
 
 
 def available():
@@ -56,7 +104,7 @@ def ask(prompt, images=None, model=None, timeout=1800):
     """
     if not CLI:
         raise RuntimeError("找不到 claude 可执行文件，订阅通道不可用")
-    env = {k: v for k, v in os.environ.items() if k not in ANTHROPIC_VARS}
+    env = cli_env()
     cmd = [CLI, "-p", "--model", model or MODEL]
     if images:
         # CLI 读不了 stdin 里的图，只能把绝对路径写进 prompt 让它用 Read 读

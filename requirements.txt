@@ -1,0 +1,11 @@
+# 运行时依赖。三方调用（DeepSeek / 方舟）走 urllib，没有额外 SDK。
+# ④⑤ 走本机 claude CLI 订阅，⑥ 门禁用系统里的 Chrome 无头模式，都不是 pip 装的。
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20   # FastAPI 的 UploadFile 靠它解 multipart
+psycopg[binary]==3.2.3
+boto3==1.35.92             # MinIO 走 S3 协议
+numpy==2.2.1               # harness/verify.py 的数值断言
+pdfplumber==0.11.5         # ① PDF 摄入
+pypdf==5.1.0
+Pillow==11.1.0

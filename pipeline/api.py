@@ -116,6 +116,24 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s.]+\.[^@\s]+$")
 IP_QUOTA = int(os.environ.get("EXAM_CODE_IP_QUOTA", "20"))
 IP_HITS = {}
 
+# 上线走 Cloudflare Tunnel：cloudflared 从本机回源，于是 request.client.host
+# 对每个请求都是 127.0.0.1 —— 全世界的人共用一个桶，第 21 封信开始整站 429。
+# 所以对端是回环时改看 Cloudflare 放进来的真实来源。
+#
+# 只在对端是回环时才信这个头：这个服务只绑 127.0.0.1，除了同机的 cloudflared
+# 没人连得进来，所以回环 == 来自我们自己的隧道。要是哪天改成绑 0.0.0.0，
+# 这个前提就没了 —— 那时任何人都能自带一个 CF-Connecting-IP 把配额刷空。
+LOOPBACK = ("127.0.0.1", "::1", "localhost")
+
+
+def client_ip(request):
+    peer = request.client.host if request.client else "?"
+    if peer not in LOOPBACK:
+        return peer
+    fwd = request.headers.get("cf-connecting-ip") \
+        or (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    return fwd or peer
+
 
 def ip_allow(ip):
     now = time.time()
@@ -173,7 +191,7 @@ def auth_code(request: Request, email: str = Body(..., embed=True)):
     email = store.norm_email(email)
     if not EMAIL_RE.match(email) or len(email) > 254:
         raise HTTPException(400, "邮箱格式不对")
-    if not ip_allow(request.client.host if request.client else "?"):
+    if not ip_allow(client_ip(request)):
         raise HTTPException(429, "要得太频繁了，过一会儿再试")
 
     code = "%06d" % secrets.randbelow(1000000)
@@ -880,6 +898,13 @@ def send(name, row):
     代价是一次转发，换来的是**存储后端对前端完全透明** —— 从本地目录切到
     MinIO、以后再切到别处，前端的 URL 一个都不用改。
     资产是内容寻址的（key 是 sha256），所以可以放心让浏览器长期缓存。
+
+    是 private 不是 public。这个函数挂在 current_user + mine() 后面，返回的是
+    **按账号过滤过的**字节，而 URL 里只有卷名和文件名、没有那个 sha256 ——
+    换句话说同一条 URL 对不同的人应该给出不同的答案（或者 404）。声明成 public
+    等于允许中间缓存把它存下来，而缓存命中之后就不再回源、也就不再校验 cookie，
+    任何人猜到卷名就能取走。本地跑没有中间缓存所以看不出来，一挂 CDN 就成立。
+    private 只挡共享缓存，浏览器自己那份长缓存照旧。
     """
     if not row:
         raise HTTPException(404, "没有这份资产")
@@ -887,7 +912,7 @@ def send(name, row):
     if data is None:
         raise HTTPException(404, "资产记录在，文件不见了")
     return Response(data, media_type=row["content_type"],
-                    headers={"Cache-Control": "public, max-age=31536000, immutable"})
+                    headers={"Cache-Control": "private, max-age=31536000, immutable"})
 
 
 @app.get("/api/papers/{name}/page/{n}")

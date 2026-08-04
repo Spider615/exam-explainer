@@ -13,3 +13,6 @@ runs/**/_verify_log.jsonl
 
 # 后端运行日志（没配 SMTP 时验证码打在这里）
 logs/
+
+# 本机部署配置（含整条隧道的 ingress 表），不进公开仓库
+cloudflared-config.yml

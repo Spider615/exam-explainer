@@ -1,0 +1,29 @@
+# exam-explainer 的 Postgres —— 只给这个项目用，绑本机回环。
+#   docker compose up -d
+# 后端本身不在这里：④⑤ 要 shell 出去调本机 claude 订阅（凭据在 macOS 钥匙串里），
+# 进不了容器，所以后端走 launchd（ren.heartbeat.exam-explainer.plist）跑在宿主机上。
+name: exam-explainer
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: exam-explainer-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: jerry
+      POSTGRES_DB: exam_explainer
+      # DSN 里没有密码（postgresql://jerry@127.0.0.1:5434/exam_explainer），
+      # 所以容器内放开信任认证。只监听 127.0.0.1，公网进不来。
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "127.0.0.1:5434:5432"     # 5432 被 kb-studio-db 占、5433 被 momi-postgres 占
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jerry -d exam_explainer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

@@ -33,6 +33,7 @@ from concurrent.futures import ThreadPoolExecutor
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import store
+import cliask       # claude 可执行文件的定位、以及子进程要带的代理，只写一份
 import clishim      # 让 CLI 走中转的 key 而不是订阅
 import arkshim      # 让 CLI 被豆包驱动（Anthropic↔OpenAI 协议翻译）
 
@@ -42,9 +43,7 @@ for _l in (open(os.path.join(ROOT, ".env"), encoding="utf-8")
         _k, _v = _l.strip().split("=", 1)
         os.environ.setdefault(_k.strip(), _v.strip())
 
-CLI = next((p for p in ("/opt/homebrew/bin/claude",
-                        os.path.expanduser("~/.nvm/versions/node/v25.2.1/bin/claude"),
-                        "/usr/local/bin/claude") if os.path.exists(p)), None)
+CLI = cliask.CLI        # 定位规则见 cliask.find_cli()，两处别再各写一份
 SPECS = os.path.join(ROOT, "specs")
 RUNS = os.path.join(ROOT, "runs")
 GUARD = os.path.join(ROOT, ".readonly.sha256")
@@ -220,7 +219,7 @@ def run_agent(msg, workdir, model, timeout, backend="relay"):
         shim = arkshim.ensure()
         if not shim:
             raise RuntimeError("backend=ark-cli 但方舟垫片起不来（缺 EXAM_SCENE_ARK_KEY？）")
-        env = dict(os.environ, **shim)
+        env = cliask.cli_env(dict(os.environ, **shim), drop_anthropic=False)
     elif backend == "relay":
         # 走中转的 key。直连中转会 403（它的参数白名单里没有 context_management
         # 和 metadata），clishim 转发时把这两个字段摘掉。
@@ -229,13 +228,11 @@ def run_agent(msg, workdir, model, timeout, backend="relay"):
             raise RuntimeError("backend=relay 但拿不到中转环境（缺 CLAUDE_API_KEY "
                                "或垫片起不来）。要用订阅请显式设 "
                                "EXAM_SCENE_BACKEND=subscription")
-        env = dict(os.environ, **shim)
+        env = cliask.cli_env(dict(os.environ, **shim), drop_anthropic=False)
     else:
         # 订阅：把继承来的 ANTHROPIC_* 全部摘掉，否则 CLI 会去连中转而不是订阅。
         # 显式声明用订阅，就不能因为环境里恰好有个 key 就偷偷改道。
-        env = {k: v for k, v in os.environ.items()
-               if k not in ("ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL",
-                            "ANTHROPIC_AUTH_TOKEN")}
+        env = cliask.cli_env()
     p = subprocess.Popen(
         [CLI, "-p", "--model", model,
          "--allowed-tools", "Read,Write,Edit,Bash,Glob,Grep"],
