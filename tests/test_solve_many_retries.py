@@ -215,6 +215,68 @@ class AttemptBoundaryTests(unittest.TestCase):
             events,
         )
 
+    def test_terminal_failure_is_persisted_before_generation_unlock(self):
+        events = []
+        failure = Failure("configuration", "缺少配置", "视觉模型", False)
+
+        @contextmanager
+        def generation_lock(qid):
+            events.append(("lock", qid))
+            try:
+                yield
+            finally:
+                events.append(("unlock", qid))
+
+        def clear(qid):
+            events.append(("clear", qid))
+
+        def run_process(*_args, **_kwargs):
+            events.append(("process", None))
+            return ProcessResult(False, failure=failure)
+
+        def put_failure(qid, kind, reason, attempts, stage):
+            events.append(("persist", qid, kind, reason, attempts, stage))
+
+        q = question()
+        with (
+            patch.object(solve.store, "question_generation_lock", generation_lock),
+            patch.object(solve.store, "clear_solution_failure", side_effect=clear),
+            patch.object(solve.solve_attempt, "run_process", side_effect=run_process),
+            patch.object(solve.store, "put_solution_failure", side_effect=put_failure),
+            patch.object(solve, "RETRY_DELAY", 0),
+        ):
+            result = solve.attempt_question("paper", q, False, False)
+
+        self.assertFalse(result.ok)
+        self.assertEqual(
+            [
+                ("lock", q["id"]),
+                ("clear", q["id"]),
+                ("process", None),
+                ("persist", q["id"], "configuration", "缺少配置", 1, "视觉模型"),
+                ("unlock", q["id"]),
+            ],
+            events,
+        )
+
+    def test_keyboard_interrupt_escapes_without_terminal_persistence(self):
+        q = question()
+        with (
+            patch.object(
+                solve.store, "question_generation_lock", return_value=nullcontext()
+            ),
+            patch.object(solve.store, "clear_solution_failure"),
+            patch.object(
+                solve.solve_attempt, "run_process", side_effect=KeyboardInterrupt
+            ),
+            patch.object(solve.store, "put_solution_failure") as put_failure,
+            patch.object(solve, "RETRY_DELAY", 0),
+        ):
+            with self.assertRaises(KeyboardInterrupt):
+                solve.attempt_question("paper", q, False, False)
+
+        put_failure.assert_not_called()
+
     def test_real_process_can_import_solve_module(self):
         result = solve.solve_attempt.run_process(
             "solve", "key_answer", (" A ",), timeout_s=5
@@ -492,6 +554,18 @@ class CliFailureTests(unittest.TestCase):
         self.assert_safe_failure(caught, "configuration")
         self.assertFalse(caught.exception.failure.retryable)
 
+    def test_subscription_unrelated_1401_is_retryable_provider_failure(self):
+        with patch.object(
+            solve.cliask,
+            "ask",
+            side_effect=RuntimeError("provider request 1401 failed secret"),
+        ):
+            with self.assertRaises(solve.solve_attempt.SolveFailure) as caught:
+                solve.ask_subscription("question", [])
+
+        self.assert_safe_failure(caught, "provider")
+        self.assertTrue(caught.exception.failure.retryable)
+
     def test_subscription_invalid_answer_is_safe_invalid_response(self):
         with patch.object(solve.cliask, "ask", return_value="secret malformed answer"):
             with self.assertRaises(solve.solve_attempt.SolveFailure) as caught:
@@ -620,18 +694,23 @@ class CliFailureTests(unittest.TestCase):
 class EffectiveSettingsTests(unittest.TestCase):
     def test_positive_and_nonnegative_env_values_fall_back_safely(self):
         cases = [
-            ("bad", 300, 1, 300),
-            ("0", 300, 1, 300),
-            ("-4", 3, 0, 3),
-            ("0", 3, 0, 0),
-            ("12", 3, 1, 12),
+            ("bad", 300, 1, None, 300),
+            ("0", 300, 1, 300, 300),
+            ("-4", 3, 0, None, 3),
+            ("0", 3, 0, None, 0),
+            ("12", 3, 1, 300, 12),
+            ("301", 300, 1, 300, 300),
+            ("600", 300, 1, 300, 300),
+            ("299", 300, 1, 300, 299),
         ]
-        for raw, default, minimum, expected in cases:
-            with self.subTest(raw=raw, minimum=minimum):
+        for raw, default, minimum, maximum, expected in cases:
+            with self.subTest(raw=raw, minimum=minimum, maximum=maximum):
                 with patch.dict(os.environ, {"EXAM_TEST_SETTING": raw}):
                     self.assertEqual(
                         expected,
-                        solve.env_int("EXAM_TEST_SETTING", default, minimum),
+                        solve.env_int(
+                            "EXAM_TEST_SETTING", default, minimum, maximum
+                        ),
                     )
 
     def test_attempt_timeout_reason_uses_effective_setting(self):

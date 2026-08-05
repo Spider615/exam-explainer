@@ -215,13 +215,16 @@ def validate_answer(value, stage):
     return value
 
 
-def env_int(name, default, minimum):
+def env_int(name, default, minimum, maximum=None):
     """Read an integer setting without allowing invalid values to disable work."""
+    fallback = min(default, maximum) if maximum is not None else default
     try:
         value = int(os.environ.get(name, str(default)))
     except (TypeError, ValueError):
-        return default
-    return value if value >= minimum else default
+        return fallback
+    if value < minimum:
+        return fallback
+    return min(value, maximum) if maximum is not None else value
 
 
 def timeout_span(seconds):
@@ -232,8 +235,8 @@ def timeout_span(seconds):
 # 一次调用的上限。正常几秒到一两分钟，**5 分钟不回基本就是卡死而不是在算** ——
 # 实测两次都是请求挂在本机代理（127.0.0.1:7897）上，连接还在、CPU 0%、永远等不到响应。
 # 原来给 900 秒，等于一道题白白堵掉 15 分钟；重试一条新连接通常几秒就出结果。
-HTTP_TIMEOUT = env_int("EXAM_HTTP_TIMEOUT", 300, 1)
-ATTEMPT_TIMEOUT = env_int("EXAM_SOLVE_ATTEMPT_TIMEOUT", 300, 1)
+HTTP_TIMEOUT = env_int("EXAM_HTTP_TIMEOUT", 300, 1, 300)
+ATTEMPT_TIMEOUT = env_int("EXAM_SOLVE_ATTEMPT_TIMEOUT", 300, 1, 300)
 MAX_ATTEMPTS = 3
 RETRY_DELAY = env_int("EXAM_SOLVE_RETRY_DELAY", 3, 0)
 
@@ -341,7 +344,7 @@ def ask_claude(text, imgs):
 
 CLI_CONFIGURATION_MARKERS = (
     "insufficient account balance", "余额不足", "failed to authenticate",
-    "invalid api key", "401", "403", "authentication_error",
+    "invalid api key", "authentication_error",
     "credit balance is too low", "not logged in", "login required",
     "unauthorized", "forbidden", "permission", "invalid model",
     "model not found", "billing", "balance", "credit", "api key",
@@ -351,7 +354,8 @@ CLI_CONFIGURATION_MARKERS = (
 
 def cli_configuration_error(text):
     low = (text or "").casefold()
-    return any(marker.casefold() in low for marker in CLI_CONFIGURATION_MARKERS)
+    return (any(marker.casefold() in low for marker in CLI_CONFIGURATION_MARKERS)
+            or re.search(r"\b(?:http\s*)?(?:401|403)\b", low) is not None)
 
 
 def raise_cli_failure(text):
@@ -574,32 +578,49 @@ def _safe_attempt_result(result):
 def attempt_question(name, q, force, crosscheck, on_retry=None):
     """在独立进程中最多尝试三次完整解题。"""
     with store.question_generation_lock(q["id"]):
-        store.clear_solution_failure(q["id"])
+        try:
+            store.clear_solution_failure(q["id"])
 
-        def attempt(_number):
-            try:
-                with tempfile.TemporaryDirectory() as tmp:
-                    result = solve_attempt.run_process(
-                        "solve",
-                        "solve_one",
-                        (name, q, tmp, force, crosscheck),
-                        timeout_s=ATTEMPT_TIMEOUT,
+            def attempt(_number):
+                try:
+                    with tempfile.TemporaryDirectory() as tmp:
+                        result = solve_attempt.run_process(
+                            "solve",
+                            "solve_one",
+                            (name, q, tmp, force, crosscheck),
+                            timeout_s=ATTEMPT_TIMEOUT,
+                        )
+                except Exception:
+                    return solve_attempt.ProcessResult(
+                        False,
+                        failure=solve_attempt.Failure(
+                            "internal", "完整解题发生内部错误", "完整解题", False
+                        ),
                     )
-            except Exception:
-                return solve_attempt.ProcessResult(
-                    False,
-                    failure=solve_attempt.Failure(
-                        "internal", "完整解题发生内部错误", "完整解题", False
-                    ),
-                )
-            return _safe_attempt_result(result)
+                return _safe_attempt_result(result)
 
-        return solve_attempt.retry(
-            attempt,
-            max_attempts=MAX_ATTEMPTS,
-            delay_s=RETRY_DELAY,
-            on_retry=on_retry,
-        )
+            result = solve_attempt.retry(
+                attempt,
+                max_attempts=MAX_ATTEMPTS,
+                delay_s=RETRY_DELAY,
+                on_retry=on_retry,
+            )
+        except Exception:
+            result = solve_attempt.RetryResult(
+                False,
+                failure=solve_attempt.Failure(
+                    "internal", "完整解题发生内部错误", "完整解题", False
+                ),
+                attempts=1,
+            )
+        if not result.ok:
+            failure = result.failure or solve_attempt.Failure(
+                "internal", "完整解题发生内部错误", "完整解题", False
+            )
+            store.put_solution_failure(
+                q["id"], failure.kind, failure.reason, result.attempts, failure.stage
+            )
+        return result
 
 
 # ③ 跑到一半时回头刷一次 ③b 目录，每 N 题一次。0 = 关掉。
@@ -672,32 +693,21 @@ def solve_many(name, qs, jobs=4, force=False, on_done=None, on_start=None,
         if on_start:
             with lock:
                 on_start(q)
-        try:
-            def retrying(number, failure):
-                with lock:
-                    if on_retry:
-                        on_retry(q, number, failure)
-                    else:
-                        print("   → 第%d题第%d次失败：%s；准备第%d次"
-                              % (q["n"], number, failure.reason, number + 1), flush=True)
+        def retrying(number, failure):
+            with lock:
+                if on_retry:
+                    on_retry(q, number, failure)
+                else:
+                    print("   → 第%d题第%d次失败：%s；准备第%d次"
+                          % (q["n"], number, failure.reason, number + 1), flush=True)
 
-            result = attempt_question(name, q, force, crosscheck, retrying)
-            if result.ok:
-                fresh, note = result.value
-                r = (q["n"], "ok" if fresh else "skip", note)
-        except Exception:
-            failure = solve_attempt.Failure(
-                "internal", "完整解题发生内部错误", "完整解题", False
-            )
-            result = solve_attempt.RetryResult(
-                False, failure=failure, attempts=1
-            )
-        if not result.ok:
+        result = attempt_question(name, q, force, crosscheck, retrying)
+        if result.ok:
+            fresh, note = result.value
+            r = (q["n"], "ok" if fresh else "skip", note)
+        else:
             failure = result.failure or solve_attempt.Failure(
                 "internal", "完整解题发生内部错误", "完整解题", False
-            )
-            store.put_solution_failure(
-                q["id"], failure.kind, failure.reason, result.attempts, failure.stage
             )
             r = (q["n"], "fail", "%s（已尝试 %d 次）"
                  % (failure.reason, result.attempts))
