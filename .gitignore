@@ -1,5 +1,6 @@
 .env
 .venv/
+.worktrees/
 work/
 __pycache__/
 *.pyc
