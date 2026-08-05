@@ -103,7 +103,7 @@ export default function PaperView({ name }: { name: string }) {
         setPg(p)
         const solutionFailures = p.solutionFailures ?? 0
         const key = [p.solutions, solutionFailures, p.labels, p.specs, p.judged, p.scenes,
-                     p.assembled].join('-')
+                     p.assembled, p.lastChange ?? 0].join('-')
         if (seen && key !== seen) load()      // 有新东西落库了，把整卷重新拉一遍
         seen = key
       } catch { /* 服务重启中之类，下一轮再说 */ }

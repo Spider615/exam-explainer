@@ -142,6 +142,8 @@ export interface Progress {
   sceneTried: number
   assembled: boolean
   assembledFresh: boolean
+  /** 最近一次阶段产物或终态失败写入的 Unix 时间戳（秒）。 */
+  lastChange: number
   elapsedSeconds: number | null
   /** 网页上传的任务才有的细节（正在解哪道题）；命令行跑的是 null */
   step?: string | null
