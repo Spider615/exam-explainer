@@ -15,6 +15,8 @@ function Prog({ p }: { p: NonNullable<PaperSummary['progress']> }) {
   const at = p.total > 1 ? ` ${p.cur}/${p.total}` : ''
   if (p.failed) return <span className="pill w" title={p.failed}>失败</span>
   if (p.busy) return <span className="run"><i />{p.short}{at}</span>
+  if (p.done && p.solutionFailures)
+    return <span className="pill w">已完成 · {p.solutionFailures}题失败</span>
   if (p.done) return <span className="pill g">已完成</span>
   return (
     <span className="pill" title={`没有进程在跑，停在「${p.stage}」`}>

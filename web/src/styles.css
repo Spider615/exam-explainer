@@ -143,6 +143,10 @@ figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px so
 .missing{border:1px dashed var(--line);border-radius:3px;padding:13px;color:var(--ink3);
          font-size:13px;text-align:center;background:var(--stem)}
 .missing b{color:var(--ink2)}
+.solve-fail{display:flex;flex-direction:column;gap:5px;padding:12px 14px;
+  border:1px solid var(--red);border-left:3px solid var(--red);
+  background:var(--red2);color:var(--red);font-size:13px}
+.solve-fail small{font-family:var(--mono);color:var(--ink3)}
 
 svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
 svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
@@ -362,6 +366,13 @@ input[type=range]{width:118px}
          word-break:break-word}
 /* 没解出来的题照实写「尚未生成」，不留空格假装这一格是干净的 */
 .quick-a.none{color:var(--ink3);font-size:11px}
+.quick-a.failed{color:var(--red);font-size:11px;font-weight:600}
+
+.solve-fail-summary ul{margin:8px 0 0;padding-left:18px}
+.solve-fail-summary li{margin:4px 0}
+.solve-fail-summary button{border:0;background:none;color:var(--red);
+  padding:0 7px 0 0;text-decoration:underline;cursor:pointer;font:inherit}
+.solve-fail-summary button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 
 /* 进度带里的分项与计时。跑完之后 .idle 让它退成灰的，但不隐藏 ——
    「跑到哪儿停的」和「跑完了」是两回事，都得说得出来 */
@@ -370,6 +381,7 @@ input[type=range]{width:118px}
 .prog-sub{display:flex;gap:14px;flex-wrap:wrap;margin:7px 0 0;
           font-family:var(--mono);font-size:11px;color:var(--ink3);
           font-variant-numeric:tabular-nums}
+.prog-sub .prog-fail{color:var(--red);font-weight:600}
 .prog-sub .prog-t{margin-left:auto;color:var(--acc)}
 
 /* 列表里的「在跑」标记。跑动的点比一行文字更容易被扫到 */

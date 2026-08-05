@@ -38,15 +38,20 @@ const SHORT_MAX = 24
  * 中途滚动跑）。所以必然有一段时间是「题已经解出来了，短答案还没压出来」——
  * 那时候显示「尚未生成」是**错的**：它说的是这题还没解，而它已经解了。
  *
- * 所以分四种：
+ * 所以分五种：
  *   short    ③b 压好的一行答案
  *   raw      还没压，但完整答案本身就短（选择题的 `D`、多空的 `小于,等于,小于`）
  *            —— 整条显示，**不截断**。截一段得到的是「(1) α=30°，U_MN=3mv…」，
  *            既不完整也不好看，不如不给
  *   pending  已解出，但答案是一长串三问，等 ③b 压
+ *   failed   ③ 已经结束，但三次尝试都没有产出解法
  *   none     真的还没解
  */
-function shortOf(q: Question): { text: string; kind: 'short' | 'raw' | 'pending' | 'none' } {
+function shortOf(q: Question): {
+  text: string
+  kind: 'short' | 'raw' | 'pending' | 'failed' | 'none'
+} {
+  if (q.solutionFailure) return { text: '生成失败', kind: 'failed' }
   const s = q.solution
   if (!s) return { text: '尚未生成', kind: 'none' }
   const short = s.shortAnswer?.trim()
@@ -93,7 +98,7 @@ export default function PaperView({ name }: { name: string }) {
         const p = await getProgress(name)
         if (!alive) return
         setPg(p)
-        const key = [p.solutions, p.labels, p.specs, p.judged, p.scenes,
+        const key = [p.solutions, p.solutionFailures, p.labels, p.specs, p.judged, p.scenes,
                      p.assembled].join('-')
         if (seen && key !== seen) load()      // 有新东西落库了，把整卷重新拉一遍
         seen = key
@@ -141,6 +146,7 @@ export default function PaperView({ name }: { name: string }) {
   if (!paper || !stats) return <div className="empty">载入中…</div>
 
   const pct = pg && pg.stageTotal ? Math.round((pg.stageCur / pg.stageTotal) * 100) : null
+  const failedQuestions = paper.questions.filter((q) => q.solutionFailure)
   const toggleAll = () => {
     const next = !playing
     setPlaying(next)
@@ -176,7 +182,10 @@ export default function PaperView({ name }: { name: string }) {
           {/* 每个分母都用那一步自己的口径：④ 只做 ④c 选中的题，⑤ 只做自检通过的题。
               拿题数当分母的话，一份跑完的卷子会显示成「断言 6/16」，像是没做完 */}
           <div className="prog-sub">
-            <span>解题 {pg.solutions}/{pg.questions}</span>
+            <span>解题 {pg.solutions + pg.solutionFailures}/{pg.questions}</span>
+            {pg.solutionFailures > 0 && (
+              <span className="prog-fail">失败 {pg.solutionFailures}</span>
+            )}
             <span>选题 {pg.judged}/{pg.solutions}</span>
             <span>断言 {pg.specsWorth}{pg.worth ? `/${pg.worth}` : ''}</span>
             <span>自检 {pg.approved}/{pg.specs}</span>
@@ -186,6 +195,18 @@ export default function PaperView({ name }: { name: string }) {
             </span>}
           </div>
           {pg.step && <code className="prog-last">{pg.step}{pg.last ? ` · ${pg.last.trim()}` : ''}</code>}
+        </div>
+      )}
+
+      {failedQuestions.length > 0 && (
+        <div className="banner bad solve-fail-summary">
+          <b>有 {failedQuestions.length} 道题生成失败</b>
+          <ul>{failedQuestions.map((q) => (
+            <li key={q.n}>
+              <button type="button" onClick={() => jumpTo(q.n)}>第 {q.n} 题</button>
+              <span>{q.solutionFailure!.reason}</span>
+            </li>
+          ))}</ul>
         </div>
       )}
 
@@ -237,9 +258,11 @@ export default function PaperView({ name }: { name: string }) {
                   <button key={q.n} className="toc-i" onClick={() => jumpTo(q.n)}>
                     <span className="toc-n">{String(q.n).padStart(2, '0')}</span>
                     <span className="toc-l">{q.label || ''}</span>
-                    {/* 目录这一列窄，只放真答案；「待压缩」「尚未生成」留白 */}
-                    <span className="toc-a">
-                      {a.kind === 'short' || a.kind === 'raw' ? a.text : ''}
+                    {/* 目录这一列窄，只放真答案和终态失败；其余中间态留白 */}
+                    <span className="toc-a" title={a.kind === 'failed'
+                      ? q.solutionFailure?.reason : undefined}>
+                      {a.kind === 'short' || a.kind === 'raw' || a.kind === 'failed'
+                        ? a.text : ''}
                     </span>
                   </button>
                 )
@@ -259,8 +282,11 @@ export default function PaperView({ name }: { name: string }) {
                     <span className="quick-h">
                       {String(q.n).padStart(2, '0')} {q.type}
                     </span>
-                    <span className={`quick-a${a.kind === 'short' || a.kind === 'raw' ? '' : ' none'}`}
-                          title={a.kind === 'pending' ? '③b 目录会把它压成一行，点开看完整解法' : ''}>
+                    <span className={`quick-a${a.kind === 'failed' ? ' failed'
+                      : a.kind === 'short' || a.kind === 'raw' ? '' : ' none'}`}
+                          title={a.kind === 'failed' ? q.solutionFailure?.reason
+                            : a.kind === 'pending'
+                              ? '③b 目录会把它压成一行，点开看完整解法' : ''}>
                       {a.text}
                     </span>
                   </button>

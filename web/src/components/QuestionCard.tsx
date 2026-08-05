@@ -96,7 +96,16 @@ export default function QuestionCard({ q, paper }: { q: Question; paper: string 
         )}
 
         <h2 className="lbl">解题思路</h2>
-        {q.solution ? <SolutionBody s={q.solution} /> : (
+        {q.solution ? <SolutionBody s={q.solution} />
+          : q.solutionFailure ? (
+            <div className="solve-fail">
+              <b>生成失败</b>
+              <span>{q.solutionFailure.reason}</span>
+              <small>
+                {q.solutionFailure.stage} · 已尝试 {q.solutionFailure.attempts} 次
+              </small>
+            </div>
+          ) : (
           <div className="missing">
             <b>尚未生成</b><br />
             这道题还没跑过阶段③（解题）。
