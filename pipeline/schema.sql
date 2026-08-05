@@ -135,6 +135,16 @@ CREATE TABLE IF NOT EXISTS solutions (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS solution_failures (
+  question_id bigint PRIMARY KEY REFERENCES questions(id) ON DELETE CASCADE,
+  kind        text NOT NULL,
+  reason      text NOT NULL,
+  attempts    int NOT NULL,
+  stage       text NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
 -- 阶段④ 写 spec 与断言。
 --
 -- `status` 默认 draft：**断言是整条链上唯一没有下游检查的环节**。
