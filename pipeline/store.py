@@ -29,6 +29,7 @@ harness 那套无头 Chrome 门禁也要本地文件。让它们改说 SQL 只�
 管线搅乱，收益却只是少一步 publish。
 """
 import hashlib, json, mimetypes, os, sys
+from contextlib import contextmanager
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORK = os.path.join(ROOT, "work")
@@ -54,6 +55,19 @@ ASSET_DIRS = {"page": "page", "img": "img", "mathimg": "mathimg"}
 def connect():
     import psycopg
     return psycopg.connect(DSN, autocommit=False)
+
+
+@contextmanager
+def question_generation_lock(qid):
+    """Serialize complete solve generations for one question across processes."""
+    with connect() as c:
+        c.execute("SELECT pg_advisory_lock(%s)", (qid,))
+        c.commit()
+        try:
+            yield
+        finally:
+            c.execute("SELECT pg_advisory_unlock(%s)", (qid,))
+            c.commit()
 
 
 _s3 = None

@@ -34,8 +34,8 @@ solve.py —— 阶段③ 解题
 三个环节三个进程三份上下文。「写代码的那一方不能写断言」靠进程边界保证，
 不靠提示词里的一句嘱咐。
 """
-import argparse, base64, concurrent.futures as cf, hashlib, json, os, re
-import socket, subprocess, sys, tempfile, threading, time, urllib.error, urllib.parse, urllib.request
+import argparse, base64, concurrent.futures as cf, hashlib, http.client, json, os, re
+import socket, ssl, subprocess, sys, tempfile, threading, time, urllib.error, urllib.parse, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -188,13 +188,54 @@ def loads_json(txt):
         return json.loads(re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', m.group(0)))
 
 
+ANSWER_LIST_FIELDS = (
+    "figure_reading", "steps", "key_facts", "assumptions", "unreadable"
+)
+
+
+def validate_answer(value, stage):
+    """Validate the shared model-answer contract before any backend reports success."""
+    valid = isinstance(value, dict)
+    if valid:
+        answer = value.get("answer")
+        valid = isinstance(answer, str) and bool(answer.strip())
+    if valid:
+        valid = all(
+            field not in value
+            or (isinstance(value[field], list)
+                and all(isinstance(item, str) for item in value[field]))
+            for field in ANSWER_LIST_FIELDS
+        )
+    if valid and "confidence" in value:
+        valid = value["confidence"] in ("high", "medium", "low")
+    if not valid:
+        raise solve_attempt.SolveFailure(
+            "invalid_response", "模型返回内容无法解析为答案", stage, True
+        )
+    return value
+
+
+def env_int(name, default, minimum):
+    """Read an integer setting without allowing invalid values to disable work."""
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value >= minimum else default
+
+
+def timeout_span(seconds):
+    return ("%d 分钟" % (seconds // 60)
+            if seconds % 60 == 0 else "%d 秒" % seconds)
+
+
 # 一次调用的上限。正常几秒到一两分钟，**5 分钟不回基本就是卡死而不是在算** ——
 # 实测两次都是请求挂在本机代理（127.0.0.1:7897）上，连接还在、CPU 0%、永远等不到响应。
 # 原来给 900 秒，等于一道题白白堵掉 15 分钟；重试一条新连接通常几秒就出结果。
-HTTP_TIMEOUT = 300
-ATTEMPT_TIMEOUT = int(os.environ.get("EXAM_SOLVE_ATTEMPT_TIMEOUT", "300"))
-MAX_ATTEMPTS = int(os.environ.get("EXAM_SOLVE_ATTEMPTS", "3"))
-RETRY_DELAY = int(os.environ.get("EXAM_SOLVE_RETRY_DELAY", "3"))
+HTTP_TIMEOUT = env_int("EXAM_HTTP_TIMEOUT", 300, 1)
+ATTEMPT_TIMEOUT = env_int("EXAM_SOLVE_ATTEMPT_TIMEOUT", 300, 1)
+MAX_ATTEMPTS = 3
+RETRY_DELAY = env_int("EXAM_SOLVE_RETRY_DELAY", 3, 0)
 
 
 def post(base, key, payload, stage):
@@ -236,7 +277,7 @@ def post(base, key, payload, stage):
         ) from None
     except (TimeoutError, socket.timeout):
         raise solve_attempt.SolveFailure(
-            "timeout", "模型请求超过 5 分钟", stage, True
+            "timeout", "模型请求超过 %s" % timeout_span(HTTP_TIMEOUT), stage, True
         ) from None
     except urllib.error.URLError:
         raise solve_attempt.SolveFailure(
@@ -246,14 +287,19 @@ def post(base, key, payload, stage):
         raise solve_attempt.SolveFailure(
             "configuration", "模型服务地址或密钥配置无效", stage, False
         ) from None
+    except (ConnectionError, OSError, http.client.HTTPException, ssl.SSLError):
+        raise solve_attempt.SolveFailure(
+            "network", "无法连接模型服务", stage, True
+        ) from None
 
     try:
         d = json.loads(raw)
-        return loads_json(d["choices"][0]["message"]["content"])
+        answer = loads_json(d["choices"][0]["message"]["content"])
     except (json.JSONDecodeError, KeyError, IndexError, TypeError, RuntimeError, ValueError):
         raise solve_attempt.SolveFailure(
             "invalid_response", "模型返回内容无法解析为答案", stage, True
         ) from None
+    return validate_answer(answer, stage)
 
 
 def ask_deepseek(text):
@@ -293,6 +339,31 @@ def ask_claude(text, imgs):
                 "视觉模型")
 
 
+CLI_CONFIGURATION_MARKERS = (
+    "insufficient account balance", "余额不足", "failed to authenticate",
+    "invalid api key", "401", "403", "authentication_error",
+    "credit balance is too low", "not logged in", "login required",
+    "unauthorized", "forbidden", "permission", "invalid model",
+    "model not found", "billing", "balance", "credit", "api key",
+    "authentication",
+)
+
+
+def cli_configuration_error(text):
+    low = (text or "").casefold()
+    return any(marker.casefold() in low for marker in CLI_CONFIGURATION_MARKERS)
+
+
+def raise_cli_failure(text):
+    if cli_configuration_error(text):
+        raise solve_attempt.SolveFailure(
+            "configuration", "模型配置、认证或额度不可用", "视觉模型", False
+        ) from None
+    raise solve_attempt.SolveFailure(
+        "provider", "视觉模型调用失败", "视觉模型", True
+    ) from None
+
+
 def ask_subscription(text, imgs):
     """
     经 claude CLI 走订阅读图。
@@ -317,16 +388,21 @@ def ask_subscription(text, imgs):
             raise solve_attempt.SolveFailure(
                 "timeout", "视觉模型请求超时", "视觉模型", True
             ) from None
-        except Exception:
+        except (FileNotFoundError, PermissionError):
             raise solve_attempt.SolveFailure(
-                "provider", "视觉模型调用失败", "视觉模型", True
+                "configuration", "找不到或无法执行视觉模型命令", "视觉模型", False
             ) from None
+        except RuntimeError as error:
+            raise_cli_failure(str(error))
+        except Exception:
+            raise_cli_failure("")
         try:
-            return loads_json(answer)
+            parsed = loads_json(answer)
         except (json.JSONDecodeError, KeyError, IndexError, TypeError, RuntimeError, ValueError):
             raise solve_attempt.SolveFailure(
                 "invalid_response", "模型返回内容无法解析为答案", "视觉模型", True
             ) from None
+        return validate_answer(parsed, "视觉模型")
 
 
 def ask_vision(text, imgs):
@@ -373,20 +449,21 @@ def ask(text, imgs):
         raise solve_attempt.SolveFailure(
             "timeout", "视觉模型请求超时", "视觉模型", True
         ) from None
-    except Exception:
+    except (FileNotFoundError, PermissionError):
         raise solve_attempt.SolveFailure(
-            "provider", "视觉模型调用失败", "视觉模型", True
+            "configuration", "找不到或无法执行视觉模型命令", "视觉模型", False
         ) from None
+    except Exception:
+        raise_cli_failure("")
     if r.returncode != 0:
-        raise solve_attempt.SolveFailure(
-            "provider", "视觉模型调用失败", "视觉模型", True
-        )
+        raise_cli_failure("%s\n%s" % (r.stdout or "", r.stderr or ""))
     try:
-        return loads_json(r.stdout)
+        parsed = loads_json(r.stdout)
     except (json.JSONDecodeError, KeyError, IndexError, TypeError, RuntimeError, ValueError):
         raise solve_attempt.SolveFailure(
             "invalid_response", "模型返回内容无法解析为答案", "视觉模型", True
         ) from None
+    return validate_answer(parsed, "视觉模型")
 
 
 def key_answer(a):
@@ -485,7 +562,7 @@ def _safe_attempt_result(result):
     failure = result.failure
     if failure and failure.kind == "timeout" and failure.stage == "process":
         failure = solve_attempt.Failure(
-            "timeout", "完整解题超过 5 分钟", "完整解题", True
+            "timeout", "完整解题超过 %s" % timeout_span(ATTEMPT_TIMEOUT), "完整解题", True
         )
     elif failure and failure.kind == "internal" and failure.stage in ("process", "retry"):
         failure = solve_attempt.Failure(
@@ -496,32 +573,33 @@ def _safe_attempt_result(result):
 
 def attempt_question(name, q, force, crosscheck, on_retry=None):
     """在独立进程中最多尝试三次完整解题。"""
-    store.clear_solution_failure(q["id"])
+    with store.question_generation_lock(q["id"]):
+        store.clear_solution_failure(q["id"])
 
-    def attempt(_number):
-        try:
-            with tempfile.TemporaryDirectory() as tmp:
-                result = solve_attempt.run_process(
-                    "solve",
-                    "solve_one",
-                    (name, q, tmp, force, crosscheck),
-                    timeout_s=ATTEMPT_TIMEOUT,
+        def attempt(_number):
+            try:
+                with tempfile.TemporaryDirectory() as tmp:
+                    result = solve_attempt.run_process(
+                        "solve",
+                        "solve_one",
+                        (name, q, tmp, force, crosscheck),
+                        timeout_s=ATTEMPT_TIMEOUT,
+                    )
+            except Exception:
+                return solve_attempt.ProcessResult(
+                    False,
+                    failure=solve_attempt.Failure(
+                        "internal", "完整解题发生内部错误", "完整解题", False
+                    ),
                 )
-        except Exception:
-            return solve_attempt.ProcessResult(
-                False,
-                failure=solve_attempt.Failure(
-                    "internal", "完整解题发生内部错误", "完整解题", False
-                ),
-            )
-        return _safe_attempt_result(result)
+            return _safe_attempt_result(result)
 
-    return solve_attempt.retry(
-        attempt,
-        max_attempts=MAX_ATTEMPTS,
-        delay_s=RETRY_DELAY,
-        on_retry=on_retry,
-    )
+        return solve_attempt.retry(
+            attempt,
+            max_attempts=MAX_ATTEMPTS,
+            delay_s=RETRY_DELAY,
+            on_retry=on_retry,
+        )
 
 
 # ③ 跑到一半时回头刷一次 ③b 目录，每 N 题一次。0 = 关掉。

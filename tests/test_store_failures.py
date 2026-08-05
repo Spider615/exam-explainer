@@ -159,5 +159,44 @@ class SolutionFailureStoreTests(unittest.TestCase):
         self.assertIn("max(f.updated_at)", conn.calls[0][0])
 
 
+class QuestionGenerationLockTests(unittest.TestCase):
+    def test_generation_lock_commits_acquire_before_body_and_unlock_after(self):
+        conn = FakeConnection()
+        events = []
+        original_commit = conn.commit
+
+        def commit():
+            original_commit()
+            events.append(("commit", conn.commits))
+
+        conn.commit = commit
+        with patch.object(store, "connect", return_value=conn) as connect:
+            with store.question_generation_lock(17):
+                events.append(("body", None))
+                self.assertEqual(1, conn.commits)
+                self.assertIn("pg_advisory_lock", conn.calls[0][0])
+                self.assertEqual((17,), conn.calls[0][1])
+
+        connect.assert_called_once_with()
+        self.assertEqual(2, conn.commits)
+        self.assertIn("pg_advisory_unlock", conn.calls[1][0])
+        self.assertEqual((17,), conn.calls[1][1])
+        self.assertEqual(
+            [("commit", 1), ("body", None), ("commit", 2)], events
+        )
+
+    def test_generation_lock_unlocks_when_body_raises(self):
+        conn = FakeConnection()
+        with patch.object(store, "connect", return_value=conn):
+            with self.assertRaisesRegex(RuntimeError, "body failed"):
+                with store.question_generation_lock(23):
+                    raise RuntimeError("body failed")
+
+        self.assertEqual(2, conn.commits)
+        self.assertIn("pg_advisory_lock", conn.calls[0][0])
+        self.assertIn("pg_advisory_unlock", conn.calls[1][0])
+        self.assertEqual((23,), conn.calls[1][1])
+
+
 if __name__ == "__main__":
     unittest.main()

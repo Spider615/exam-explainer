@@ -1,4 +1,5 @@
 import io
+import http.client
 import json
 import os
 import socket
@@ -6,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 import urllib.error
+from contextlib import contextmanager, nullcontext
 from unittest.mock import patch
 
 from pipeline import solve
@@ -28,6 +30,9 @@ class SolveManyRetryTests(unittest.TestCase):
         with (
             patch.object(solve, "RETRY_DELAY", 0),
             patch.object(solve, "OUTLINE_EVERY", 0),
+            patch.object(
+                solve.store, "question_generation_lock", return_value=nullcontext()
+            ),
             patch.object(solve.solve_attempt, "run_process", side_effect=process_results) as run,
             patch.object(solve.store, "clear_solution_failure") as clear,
             patch.object(solve.store, "put_solution_failure") as put_failure,
@@ -129,6 +134,9 @@ class SolveManyRetryTests(unittest.TestCase):
             patch.object(solve, "RETRY_DELAY", 0),
             patch.object(solve, "OUTLINE_EVERY", 0),
             patch.object(
+                solve.store, "question_generation_lock", return_value=nullcontext()
+            ),
+            patch.object(
                 solve.solve_attempt,
                 "run_process",
                 return_value=ProcessResult(False, failure=failure),
@@ -147,16 +155,93 @@ class SolveManyRetryTests(unittest.TestCase):
             q["id"], "provider", "模型服务返回 HTTP 503", 3, "文本模型"
         )
 
+    def test_one_terminal_failure_does_not_stop_another_question(self):
+        first, second = question(1), question(2)
+        failure = Failure("provider", "模型服务返回 HTTP 503", "文本模型")
+        results = [ProcessResult(False, failure=failure)] * 3 + [
+            ProcessResult(True, value=(True, "第二题成功"))
+        ]
+        with (
+            patch.object(solve, "RETRY_DELAY", 0),
+            patch.object(solve, "OUTLINE_EVERY", 0),
+            patch.object(
+                solve.store, "question_generation_lock", return_value=nullcontext()
+            ),
+            patch.object(solve.solve_attempt, "run_process", side_effect=results),
+            patch.object(solve.store, "clear_solution_failure"),
+            patch.object(solve.store, "put_solution_failure") as put_failure,
+        ):
+            result = solve.solve_many("paper", [first, second], jobs=1)
+
+        self.assertEqual("fail", result[0][1])
+        self.assertEqual((2, "ok", "第二题成功"), result[1])
+        put_failure.assert_called_once_with(
+            first["id"], "provider", "模型服务返回 HTTP 503", 3, "文本模型"
+        )
+
+
+class AttemptBoundaryTests(unittest.TestCase):
+    def test_generation_lock_covers_clear_and_process_attempt(self):
+        events = []
+
+        @contextmanager
+        def generation_lock(qid):
+            events.append(("lock", qid))
+            try:
+                yield
+            finally:
+                events.append(("unlock", qid))
+
+        def clear(qid):
+            events.append(("clear", qid))
+
+        def run_process(*_args, **_kwargs):
+            events.append(("process", None))
+            return ProcessResult(True, value=(True, "done"))
+
+        q = question()
+        with (
+            patch.object(solve.store, "question_generation_lock", generation_lock),
+            patch.object(solve.store, "clear_solution_failure", side_effect=clear),
+            patch.object(solve.solve_attempt, "run_process", side_effect=run_process),
+            patch.object(solve, "RETRY_DELAY", 0),
+        ):
+            result = solve.attempt_question("paper", q, False, False)
+
+        self.assertTrue(result.ok)
+        self.assertEqual(
+            [("lock", q["id"]), ("clear", q["id"]), ("process", None),
+             ("unlock", q["id"])],
+            events,
+        )
+
+    def test_real_process_can_import_solve_module(self):
+        result = solve.solve_attempt.run_process(
+            "solve", "key_answer", (" A ",), timeout_s=5
+        )
+
+        self.assertTrue(result.ok, result.failure)
+        self.assertEqual("a", result.value)
+
 
 class FakeResponse:
     def __init__(self, value):
         self.value = value
 
     def read(self):
+        if isinstance(self.value, BaseException):
+            raise self.value
         return self.value
 
 
 class PostFailureTests(unittest.TestCase):
+    @staticmethod
+    def response_for(answer):
+        content = json.dumps(answer, ensure_ascii=False)
+        return json.dumps(
+            {"choices": [{"message": {"content": content}}]}, ensure_ascii=False
+        ).encode()
+
     def test_bad_endpoint_key_or_payload_is_safe_configuration_without_request(self):
         cases = [
             ("", "secret-key", {}, "empty base"),
@@ -235,6 +320,66 @@ class PostFailureTests(unittest.TestCase):
                 self.assertEqual("模型返回内容无法解析为答案", failure.reason)
                 self.assertEqual("文本模型", failure.stage)
                 self.assertTrue(failure.retryable)
+
+    def test_http_rejects_invalid_answer_schema(self):
+        invalid = [
+            {},
+            {"answer": "  "},
+            {"answer": "A", "steps": "not-a-list"},
+            {"answer": "A", "key_facts": ["ok", 3]},
+            {"answer": "A", "confidence": "certain"},
+        ]
+        for answer in invalid:
+            with self.subTest(answer=answer):
+                response = FakeResponse(self.response_for(answer))
+                with patch.object(solve.urllib.request, "urlopen", return_value=response):
+                    with self.assertRaises(solve.solve_attempt.SolveFailure) as caught:
+                        solve.post("https://example.invalid", "key", {}, "文本模型")
+
+                self.assertEqual("invalid_response", caught.exception.failure.kind)
+                self.assertEqual("文本模型", caught.exception.failure.stage)
+                self.assertTrue(caught.exception.failure.retryable)
+
+    def test_http_accepts_minimal_answer_and_need_figure(self):
+        for answer in ({"answer": "A"}, {"answer": solve.NEED_FIGURE}):
+            with self.subTest(answer=answer):
+                response = FakeResponse(self.response_for(answer))
+                with patch.object(solve.urllib.request, "urlopen", return_value=response):
+                    got = solve.post(
+                        "https://example.invalid", "key", {}, "文本模型"
+                    )
+
+                self.assertEqual(answer, got)
+
+    def test_response_body_transport_failures_are_network_errors(self):
+        errors = [
+            ConnectionResetError("secret reset"),
+            http.client.IncompleteRead(b"secret partial", 100),
+        ]
+        for error in errors:
+            with self.subTest(error=type(error).__name__):
+                with patch.object(
+                    solve.urllib.request, "urlopen", return_value=FakeResponse(error)
+                ):
+                    with self.assertRaises(solve.solve_attempt.SolveFailure) as caught:
+                        solve.post("https://example.invalid", "key", {}, "视觉模型")
+
+                failure = caught.exception.failure
+                self.assertEqual("network", failure.kind)
+                self.assertEqual("无法连接模型服务", failure.reason)
+                self.assertEqual("视觉模型", failure.stage)
+                self.assertTrue(failure.retryable)
+                self.assertNotIn("secret", str(caught.exception))
+
+    def test_http_timeout_reason_uses_effective_setting(self):
+        with (
+            patch.object(solve, "HTTP_TIMEOUT", 7),
+            patch.object(solve.urllib.request, "urlopen", side_effect=socket.timeout()),
+        ):
+            with self.assertRaises(solve.solve_attempt.SolveFailure) as caught:
+                solve.post("https://example.invalid", "key", {}, "文本模型")
+
+        self.assertEqual("模型请求超过 7 秒", caught.exception.failure.reason)
 
 
 class BackendConfigurationTests(unittest.TestCase):
@@ -335,6 +480,18 @@ class CliFailureTests(unittest.TestCase):
         self.assert_safe_failure(caught, "provider")
         self.assertTrue(caught.exception.failure.retryable)
 
+    def test_subscription_auth_failure_is_nonretryable_configuration(self):
+        with patch.object(
+            solve.cliask,
+            "ask",
+            side_effect=RuntimeError("HTTP 401 authentication secret credential"),
+        ):
+            with self.assertRaises(solve.solve_attempt.SolveFailure) as caught:
+                solve.ask_subscription("question", [])
+
+        self.assert_safe_failure(caught, "configuration")
+        self.assertFalse(caught.exception.failure.retryable)
+
     def test_subscription_invalid_answer_is_safe_invalid_response(self):
         with patch.object(solve.cliask, "ask", return_value="secret malformed answer"):
             with self.assertRaises(solve.solve_attempt.SolveFailure) as caught:
@@ -342,6 +499,30 @@ class CliFailureTests(unittest.TestCase):
 
         self.assert_safe_failure(caught, "invalid_response")
         self.assertTrue(caught.exception.failure.retryable)
+
+    def test_subscription_validates_decoded_answer_schema(self):
+        invalid = [
+            {},
+            {"answer": ""},
+            {"answer": "A", "assumptions": {}},
+            {"answer": "A", "confidence": "unknown"},
+        ]
+        for answer in invalid:
+            with self.subTest(answer=answer):
+                with patch.object(
+                    solve.cliask, "ask", return_value=json.dumps(answer)
+                ):
+                    with self.assertRaises(solve.solve_attempt.SolveFailure) as caught:
+                        solve.ask_subscription("question", [])
+
+                self.assert_safe_failure(caught, "invalid_response")
+
+        with patch.object(
+            solve.cliask, "ask", return_value=json.dumps({"answer": "A"})
+        ):
+            self.assertEqual(
+                {"answer": "A"}, solve.ask_subscription("question", [])
+            )
 
     def test_legacy_cli_timeout_is_safe_timeout(self):
         with (
@@ -370,6 +551,33 @@ class CliFailureTests(unittest.TestCase):
 
         self.assert_safe_failure(caught, "provider")
 
+    def test_legacy_cli_auth_failure_is_nonretryable_configuration(self):
+        completed = subprocess.CompletedProcess(
+            ["/secret/claude"], 1, stdout="", stderr="billing balance secret"
+        )
+        with (
+            patch.object(solve, "CLI", "/secret/claude"),
+            patch.object(solve.subprocess, "run", return_value=completed),
+        ):
+            with self.assertRaises(solve.solve_attempt.SolveFailure) as caught:
+                solve.ask("question", [])
+
+        self.assert_safe_failure(caught, "configuration")
+        self.assertFalse(caught.exception.failure.retryable)
+
+    def test_legacy_cli_launch_configuration_failure_is_nonretryable(self):
+        for error in (FileNotFoundError("secret path"), PermissionError("secret path")):
+            with self.subTest(error=type(error).__name__):
+                with (
+                    patch.object(solve, "CLI", "/secret/claude"),
+                    patch.object(solve.subprocess, "run", side_effect=error),
+                ):
+                    with self.assertRaises(solve.solve_attempt.SolveFailure) as caught:
+                        solve.ask("question", [])
+
+                self.assert_safe_failure(caught, "configuration")
+                self.assertFalse(caught.exception.failure.retryable)
+
     def test_legacy_cli_invalid_answer_is_safe_invalid_response(self):
         completed = subprocess.CompletedProcess(
             ["/secret/claude"], 0, stdout="secret malformed answer", stderr=""
@@ -382,6 +590,62 @@ class CliFailureTests(unittest.TestCase):
                 solve.ask("question", [])
 
         self.assert_safe_failure(caught, "invalid_response")
+
+    def test_legacy_cli_validates_decoded_answer_schema(self):
+        for answer in ({}, {"answer": " "}, {"answer": "A", "unreadable": "bad"},
+                       {"answer": "A", "confidence": "bad"}):
+            with self.subTest(answer=answer):
+                completed = subprocess.CompletedProcess(
+                    ["/secret/claude"], 0, stdout=json.dumps(answer), stderr=""
+                )
+                with (
+                    patch.object(solve, "CLI", "/secret/claude"),
+                    patch.object(solve.subprocess, "run", return_value=completed),
+                ):
+                    with self.assertRaises(solve.solve_attempt.SolveFailure) as caught:
+                        solve.ask("question", [])
+
+                self.assert_safe_failure(caught, "invalid_response")
+
+        completed = subprocess.CompletedProcess(
+            ["/secret/claude"], 0, stdout=json.dumps({"answer": "A"}), stderr=""
+        )
+        with (
+            patch.object(solve, "CLI", "/secret/claude"),
+            patch.object(solve.subprocess, "run", return_value=completed),
+        ):
+            self.assertEqual({"answer": "A"}, solve.ask("question", []))
+
+
+class EffectiveSettingsTests(unittest.TestCase):
+    def test_positive_and_nonnegative_env_values_fall_back_safely(self):
+        cases = [
+            ("bad", 300, 1, 300),
+            ("0", 300, 1, 300),
+            ("-4", 3, 0, 3),
+            ("0", 3, 0, 0),
+            ("12", 3, 1, 12),
+        ]
+        for raw, default, minimum, expected in cases:
+            with self.subTest(raw=raw, minimum=minimum):
+                with patch.dict(os.environ, {"EXAM_TEST_SETTING": raw}):
+                    self.assertEqual(
+                        expected,
+                        solve.env_int("EXAM_TEST_SETTING", default, minimum),
+                    )
+
+    def test_attempt_timeout_reason_uses_effective_setting(self):
+        result = ProcessResult(
+            False,
+            failure=Failure("timeout", "generic", "process"),
+        )
+        with patch.object(solve, "ATTEMPT_TIMEOUT", 7):
+            translated = solve._safe_attempt_result(result)
+
+        self.assertEqual("完整解题超过 7 秒", translated.failure.reason)
+
+    def test_hard_max_attempts_is_exactly_three(self):
+        self.assertEqual(3, solve.MAX_ATTEMPTS)
 
 
 if __name__ == "__main__":
