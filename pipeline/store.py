@@ -496,6 +496,7 @@ def progress(name):
     断言，所以「specs 少于 solutions」是常态而不是没跑完 —— 按旧口径算，
     一份跑完的卷子会永远停在「④ 写断言 6/16」。所以这里多给四个数，
     每个都对着管线里真正的那道闸门：
+      labels      已成功解出的题里有几道生成了目录标题（失败题即使残留标题也不算）
       specsWorth  选中的题里写了几份 spec        （④ 的分母是 worth，不是题数）
       drafts      还没过 ④b 自检的 spec          （animatable=false 的不算，
                                                   speccheck 根本不看它们）
@@ -508,7 +509,8 @@ def progress(name):
         cur.execute("""
             SELECT p.id, p.n_questions, p.assembled_at, p.run_started_at,
                    (SELECT count(*) FROM questions q WHERE q.paper_id=p.id),
-                   (SELECT count(*) FROM questions q WHERE q.paper_id=p.id AND q.label IS NOT NULL),
+                   (SELECT count(*) FROM solutions s JOIN questions q ON q.id=s.question_id
+                     WHERE q.paper_id=p.id AND q.label IS NOT NULL),
                    (SELECT count(*) FROM solutions s JOIN questions q ON q.id=s.question_id
                      WHERE q.paper_id=p.id),
                    (SELECT count(*) FROM solution_failures f JOIN questions q ON q.id=f.question_id

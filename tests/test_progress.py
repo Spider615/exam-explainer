@@ -73,6 +73,19 @@ class StageProgressTests(unittest.TestCase):
 
         self.assertEqual("done", code)
 
+    def test_all_failed_paper_needs_no_outline_labels(self):
+        code, _label, _short, _cur, _total = stage_of(
+            progress(
+                questions=2,
+                solutions=0,
+                solutionFailures=2,
+                labels=0,
+                judged=0,
+            )
+        )
+
+        self.assertEqual("done", code)
+
     def test_outline_denominator_uses_successes_only(self):
         code, _label, _short, cur, total = stage_of(
             progress(solutionFailures=1, labels=13)

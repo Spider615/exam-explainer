@@ -148,6 +148,24 @@ class SolutionFailureStoreTests(unittest.TestCase):
         self.assertIn("solution_failures", conn.calls[0][0])
         self.assertIn("max(f.updated_at)", conn.calls[0][0])
 
+    def test_progress_counts_labels_only_for_successful_solutions(self):
+        now = dt.datetime(2026, 8, 5, 10, tzinfo=dt.timezone.utc)
+        row = (1, 2, None, now, 2, 0, 1, 1, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, now, now)
+        conn = FakeConnection([row])
+
+        with patch.object(store, "connect", return_value=conn):
+            result = store.progress("paper")
+
+        query = " ".join(conn.calls[0][0].split())
+        self.assertIn(
+            "SELECT count(*) FROM solutions s "
+            "JOIN questions q ON q.id=s.question_id "
+            "WHERE q.paper_id=p.id AND q.label IS NOT NULL",
+            query,
+        )
+        self.assertEqual(0, result["labels"])
+
     def test_assembled_data_timestamp_considers_solution_failures(self):
         now = dt.datetime(2026, 8, 5, 10, tzinfo=dt.timezone.utc)
         conn = FakeConnection([(None, None, now)])

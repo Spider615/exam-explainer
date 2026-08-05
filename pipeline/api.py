@@ -626,6 +626,7 @@ def stage_of(pg):
     terminal = sol + pg.get("solutionFailures", 0)
     if terminal < q:
         return "solve", "③ 解题", "解题中", terminal, q
+    # progress 的 labels 只数已有 solution 的题；否则失败题残留的标题会冒充成功题进度
     if pg["labels"] < sol:
         return "outline", "③b 目录", "生成目录", pg["labels"], sol
     # ④c 的候选是「解出来的题」，不是全部题 —— 没解出来的它压根不判
