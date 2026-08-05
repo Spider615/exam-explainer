@@ -344,7 +344,15 @@ def solve_paper(jid, name):
             JOBS[jid]["step"] = "解题 %d/%d" % (i, total)
             JOBS[jid]["solved"] = i
 
-    res = solver.solve_many(name, qs, on_done=on_done, on_start=on_start)
+    def on_retry(q, number, failure):
+        log("  第%d题 第%d/3次失败：%s；准备第%d次"
+            % (q["n"], number, failure.reason, number + 1))
+        with LOCK:
+            JOBS[jid]["step"] = "解题 第%d题重试 %d/3" % (q["n"], number)
+
+    res = solver.solve_many(
+        name, qs, on_done=on_done, on_start=on_start, on_retry=on_retry
+    )
     ok = sum(1 for r in res if r[1] != "fail")
     fail = len(res) - ok
     log("✓ 解题结束：%d 题成功，%d 题失败" % (ok, fail))
