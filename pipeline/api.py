@@ -623,10 +623,11 @@ def stage_of(pg):
     ①②③ 标志对得上）；`short` 是给试卷库列表用的白话，那里没有编号可对照。
     """
     q, sol = pg["questions"], pg["solutions"]
-    if sol < q:
-        return "solve", "③ 解题", "解题中", sol, q
-    if pg["labels"] < q:
-        return "outline", "③b 目录", "生成目录", pg["labels"], q
+    terminal = sol + pg.get("solutionFailures", 0)
+    if terminal < q:
+        return "solve", "③ 解题", "解题中", terminal, q
+    if pg["labels"] < sol:
+        return "outline", "③b 目录", "生成目录", pg["labels"], sol
     # ④c 的候选是「解出来的题」，不是全部题 —— 没解出来的它压根不判
     if pg["judged"] < sol:
         return "pick", "④c 选题", "动画选题", pg["judged"], sol
@@ -702,6 +703,7 @@ def papers(user=Depends(current_user)):
                              "done": code == "done",
                              "failed": failed_job_for(r["name"]),
                              "solved": pg["solutions"], "questions": pg["questions"],
+                             "solutionFailures": pg["solutionFailures"],
                              "elapsedSeconds": pg["elapsedSeconds"]}
     return out
 
@@ -782,6 +784,7 @@ def paper(name: str, user=Depends(current_user)):
         raise HTTPException(404, "没有这份试卷")
     sc = scenes_for(name)
     sols = store.paper_solutions(name)
+    failures = store.paper_solution_failures(name)
     # 插图的原始尺寸只在 doc.json 里，而 doc.json 是构建产物、不入库
     # （117 KB/卷 的逐字符坐标，只有管线自己读）。取不到就按满宽渲染。
     geo = {}
@@ -802,6 +805,7 @@ def paper(name: str, user=Depends(current_user)):
     for x in q["questions"]:
         s = sc.get(x["n"])
         sol = sols.get(x["n"])
+        failure = failures.get(x["n"])
         qs.append({
             "n": x["n"], "type": x["type"], "points": x["points"],
             "section": x["section"], "pages": x["pages"],
@@ -866,6 +870,13 @@ def paper(name: str, user=Depends(current_user)):
                 "scenePassed": sol["scene_passed"],
                 "sceneRounds": sol["scene_rounds"],
             },
+            "solutionFailure": failure and {
+                "kind": failure["kind"],
+                "reason": failure["reason"],
+                "attempts": failure["attempts"],
+                "stage": failure["stage"],
+                "updatedAt": failure["updated_at"],
+            },
         })
     # ⑦ 的状态从库里读，不再硬编码 true —— 网页上传那条链以前根本没跑到 ⑦，
     # 标志却一直亮着绿灯。三种「不算数」都要分开说清楚：没跑过、产物被删了、
@@ -892,7 +903,8 @@ def paper(name: str, user=Depends(current_user)):
             # 这份卷子此刻在不在跑。有的话试卷页顶部画进度带
             "job": active_job_for(name),
             # 覆盖率要如实报：只解了 6/359 题时页面不能给人「已经做完」的印象
-            "coverage": {"solved": len(sols), "total": len(qs)}}
+            "coverage": {"solved": len(sols), "failed": len(failures),
+                         "total": len(qs)}}
 
 
 @app.get("/api/papers/{name}/scene.js")
