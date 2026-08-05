@@ -13,7 +13,7 @@ export default function QuestionCard({ q, paper }: { q: Question; paper: string 
   for (let p = q.pages[0]; p <= q.pages[1]; p++) pages.push(p)
 
   return (
-    <article className="q" id={`q${q.n}`}>
+    <article className="q" id={`q${q.n}`} tabIndex={-1} aria-label={`第 ${q.n} 题`}>
       <div className="qhd">
         <span className="qnum">{String(q.n).padStart(2, '0')}</span>
         <span className="pill">{q.type}</span>

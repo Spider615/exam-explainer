@@ -16,7 +16,10 @@ const STAGE_LABEL: [string, string][] = [
  * 所以目录一律是 button + scrollIntoView，不碰 location.hash。
  */
 function jumpTo(n: number) {
-  document.getElementById(`q${n}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const target = document.getElementById(`q${n}`)
+  if (!target) return
+  target.focus({ preventScroll: true })
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 /** 秒 → 「1 小时 4 分」。整条链动辄一小时，只显示秒数没人读得出来 */
@@ -51,7 +54,7 @@ function shortOf(q: Question): {
   text: string
   kind: 'short' | 'raw' | 'pending' | 'failed' | 'none'
 } {
-  if (q.solutionFailure) return { text: '生成失败', kind: 'failed' }
+  if (!q.solution && q.solutionFailure) return { text: '生成失败', kind: 'failed' }
   const s = q.solution
   if (!s) return { text: '尚未生成', kind: 'none' }
   const short = s.shortAnswer?.trim()
@@ -98,7 +101,8 @@ export default function PaperView({ name }: { name: string }) {
         const p = await getProgress(name)
         if (!alive) return
         setPg(p)
-        const key = [p.solutions, p.solutionFailures, p.labels, p.specs, p.judged, p.scenes,
+        const solutionFailures = p.solutionFailures ?? 0
+        const key = [p.solutions, solutionFailures, p.labels, p.specs, p.judged, p.scenes,
                      p.assembled].join('-')
         if (seen && key !== seen) load()      // 有新东西落库了，把整卷重新拉一遍
         seen = key
@@ -146,7 +150,8 @@ export default function PaperView({ name }: { name: string }) {
   if (!paper || !stats) return <div className="empty">载入中…</div>
 
   const pct = pg && pg.stageTotal ? Math.round((pg.stageCur / pg.stageTotal) * 100) : null
-  const failedQuestions = paper.questions.filter((q) => q.solutionFailure)
+  const failureCount = pg?.solutionFailures ?? 0
+  const failedQuestions = paper.questions.filter((q) => !q.solution && q.solutionFailure)
   const toggleAll = () => {
     const next = !playing
     setPlaying(next)
@@ -182,9 +187,9 @@ export default function PaperView({ name }: { name: string }) {
           {/* 每个分母都用那一步自己的口径：④ 只做 ④c 选中的题，⑤ 只做自检通过的题。
               拿题数当分母的话，一份跑完的卷子会显示成「断言 6/16」，像是没做完 */}
           <div className="prog-sub">
-            <span>解题 {pg.solutions + pg.solutionFailures}/{pg.questions}</span>
-            {pg.solutionFailures > 0 && (
-              <span className="prog-fail">失败 {pg.solutionFailures}</span>
+            <span>解题 {pg.solutions + failureCount}/{pg.questions}</span>
+            {failureCount > 0 && (
+              <span className="prog-fail">失败 {failureCount}</span>
             )}
             <span>选题 {pg.judged}/{pg.solutions}</span>
             <span>断言 {pg.specsWorth}{pg.worth ? `/${pg.worth}` : ''}</span>
