@@ -664,6 +664,7 @@ def solution_fresh(qid, sha):
 
 def put_solution(qid, d, sha, model):
     with connect() as c:
+        c.execute("SELECT id FROM questions WHERE id=%s FOR UPDATE", (qid,))
         c.execute("""
             INSERT INTO solutions (question_id, answer, steps, key_facts, assumptions,
                                    confidence, src_sha256, model)
@@ -684,13 +685,19 @@ def put_solution(qid, d, sha, model):
 
 def clear_solution_failure(qid):
     with connect() as c:
-        c.execute("DELETE FROM solution_failures WHERE question_id=%s", (qid,))
+        cur = c.cursor()
+        cur.execute("SELECT id FROM questions WHERE id=%s FOR UPDATE", (qid,))
+        cur.execute("DELETE FROM solution_failures WHERE question_id=%s RETURNING question_id", (qid,))
+        if cur.fetchone() is not None:
+            cur.execute("""UPDATE papers SET updated_at=now()
+                           WHERE id=(SELECT paper_id FROM questions WHERE id=%s)""", (qid,))
         c.commit()
 
 
 def put_solution_failure(qid, kind, reason, attempts, stage):
     """Persist the terminal solve result, replacing any successful solution."""
     with connect() as c:
+        c.execute("SELECT id FROM questions WHERE id=%s FOR UPDATE", (qid,))
         c.execute("DELETE FROM solutions WHERE question_id=%s", (qid,))
         c.execute("""INSERT INTO solution_failures (question_id, kind, reason, attempts, stage)
                      VALUES (%s,%s,%s,%s,%s)
