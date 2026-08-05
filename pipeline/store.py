@@ -686,10 +686,14 @@ def put_solution(qid, d, sha, model):
 def clear_solution_failure(qid):
     with connect() as c:
         cur = c.cursor()
+        cur.execute("""SELECT p.id FROM papers p
+                         JOIN questions q ON q.paper_id=p.id
+                        WHERE q.id=%s
+                        FOR UPDATE OF p""", (qid,))
         cur.execute("SELECT id FROM questions WHERE id=%s FOR UPDATE", (qid,))
         cur.execute("DELETE FROM solution_failures WHERE question_id=%s RETURNING question_id", (qid,))
         if cur.fetchone() is not None:
-            cur.execute("""UPDATE papers SET updated_at=now()
+            cur.execute("""UPDATE papers SET updated_at=clock_timestamp()
                            WHERE id=(SELECT paper_id FROM questions WHERE id=%s)""", (qid,))
         c.commit()
 

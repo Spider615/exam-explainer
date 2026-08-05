@@ -90,31 +90,37 @@ class SolutionFailureStoreTests(unittest.TestCase):
         self.assertEqual((7,), conn.calls[2][1])
 
     def test_clear_solution_failure_updates_paper_only_when_failure_deleted(self):
-        conn = FakeConnection(rows=[(7,)], rowcounts=[1, 1, 1])
+        conn = FakeConnection(rows=[(7,)], rowcounts=[1, 1, 1, 1])
         with patch.object(store, "connect", return_value=conn):
             store.clear_solution_failure(7)
 
         self.assertEqual(1, conn.commits)
-        self.assertIn("SELECT id FROM questions", conn.calls[0][0])
-        self.assertIn("FOR UPDATE", conn.calls[0][0])
-        self.assertIn("DELETE FROM solution_failures", conn.calls[1][0])
-        self.assertIn("RETURNING question_id", conn.calls[1][0])
-        self.assertEqual((7,), conn.calls[1][1])
-        self.assertIn("UPDATE papers SET updated_at=now()", conn.calls[2][0])
-        self.assertIn("SELECT paper_id FROM questions", conn.calls[2][0])
+        self.assertIn("SELECT p.id", conn.calls[0][0])
+        self.assertIn("JOIN questions q", conn.calls[0][0])
+        self.assertIn("FOR UPDATE OF p", conn.calls[0][0])
+        self.assertEqual((7,), conn.calls[0][1])
+        self.assertIn("SELECT id FROM questions", conn.calls[1][0])
+        self.assertIn("FOR UPDATE", conn.calls[1][0])
+        self.assertIn("DELETE FROM solution_failures", conn.calls[2][0])
+        self.assertIn("RETURNING question_id", conn.calls[2][0])
         self.assertEqual((7,), conn.calls[2][1])
+        self.assertIn("UPDATE papers SET updated_at=clock_timestamp()", conn.calls[3][0])
+        self.assertEqual((7,), conn.calls[3][1])
         self.assertEqual(1, conn.cursor_obj.rowcount)
 
     def test_clear_solution_failure_skips_paper_update_when_no_failure_exists(self):
-        conn = FakeConnection(rows=[None], rowcounts=[1, 0])
+        conn = FakeConnection(rows=[None], rowcounts=[1, 1, 0])
         with patch.object(store, "connect", return_value=conn):
             store.clear_solution_failure(7)
 
         self.assertEqual(1, conn.commits)
-        self.assertEqual(2, len(conn.calls))
-        self.assertIn("SELECT id FROM questions", conn.calls[0][0])
-        self.assertIn("DELETE FROM solution_failures", conn.calls[1][0])
-        self.assertIn("RETURNING question_id", conn.calls[1][0])
+        self.assertEqual(3, len(conn.calls))
+        self.assertIn("SELECT p.id", conn.calls[0][0])
+        self.assertIn("FOR UPDATE OF p", conn.calls[0][0])
+        self.assertIn("SELECT id FROM questions", conn.calls[1][0])
+        self.assertIn("FOR UPDATE", conn.calls[1][0])
+        self.assertIn("DELETE FROM solution_failures", conn.calls[2][0])
+        self.assertIn("RETURNING question_id", conn.calls[2][0])
         self.assertEqual(0, conn.cursor_obj.rowcount)
 
     def test_paper_solution_failures_maps_rows_with_iso_timestamp(self):
