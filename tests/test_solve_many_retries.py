@@ -181,6 +181,25 @@ class SolveManyRetryTests(unittest.TestCase):
 
 
 class AttemptBoundaryTests(unittest.TestCase):
+    def test_clear_failure_storage_error_propagates_without_running_or_persisting(self):
+        q = question()
+        error = RuntimeError("storage unavailable")
+        with (
+            patch.object(
+                solve.store, "question_generation_lock", return_value=nullcontext()
+            ),
+            patch.object(
+                solve.store, "clear_solution_failure", side_effect=error
+            ),
+            patch.object(solve.solve_attempt, "run_process") as run_process,
+            patch.object(solve.store, "put_solution_failure") as put_failure,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "storage unavailable"):
+                solve.attempt_question("paper", q, False, False)
+
+        run_process.assert_not_called()
+        put_failure.assert_not_called()
+
     def test_generation_lock_covers_clear_and_process_attempt(self):
         events = []
 

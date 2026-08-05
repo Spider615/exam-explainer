@@ -578,41 +578,32 @@ def _safe_attempt_result(result):
 def attempt_question(name, q, force, crosscheck, on_retry=None):
     """在独立进程中最多尝试三次完整解题。"""
     with store.question_generation_lock(q["id"]):
-        try:
-            store.clear_solution_failure(q["id"])
+        store.clear_solution_failure(q["id"])
 
-            def attempt(_number):
-                try:
-                    with tempfile.TemporaryDirectory() as tmp:
-                        result = solve_attempt.run_process(
-                            "solve",
-                            "solve_one",
-                            (name, q, tmp, force, crosscheck),
-                            timeout_s=ATTEMPT_TIMEOUT,
-                        )
-                except Exception:
-                    return solve_attempt.ProcessResult(
-                        False,
-                        failure=solve_attempt.Failure(
-                            "internal", "完整解题发生内部错误", "完整解题", False
-                        ),
+        def attempt(_number):
+            try:
+                with tempfile.TemporaryDirectory() as tmp:
+                    result = solve_attempt.run_process(
+                        "solve",
+                        "solve_one",
+                        (name, q, tmp, force, crosscheck),
+                        timeout_s=ATTEMPT_TIMEOUT,
                     )
-                return _safe_attempt_result(result)
+            except Exception:
+                return solve_attempt.ProcessResult(
+                    False,
+                    failure=solve_attempt.Failure(
+                        "internal", "完整解题发生内部错误", "完整解题", False
+                    ),
+                )
+            return _safe_attempt_result(result)
 
-            result = solve_attempt.retry(
-                attempt,
-                max_attempts=MAX_ATTEMPTS,
-                delay_s=RETRY_DELAY,
-                on_retry=on_retry,
-            )
-        except Exception:
-            result = solve_attempt.RetryResult(
-                False,
-                failure=solve_attempt.Failure(
-                    "internal", "完整解题发生内部错误", "完整解题", False
-                ),
-                attempts=1,
-            )
+        result = solve_attempt.retry(
+            attempt,
+            max_attempts=MAX_ATTEMPTS,
+            delay_s=RETRY_DELAY,
+            on_retry=on_retry,
+        )
         if not result.ok:
             failure = result.failure or solve_attempt.Failure(
                 "internal", "完整解题发生内部错误", "完整解题", False
