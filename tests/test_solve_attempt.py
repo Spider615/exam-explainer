@@ -1,3 +1,5 @@
+import os
+import signal
 import tempfile
 import time
 import unittest
@@ -68,6 +70,29 @@ class ProcessTests(unittest.TestCase):
             self.assertFalse(result.ok)
             self.assertEqual("timeout", result.failure.kind)
             self.assertFalse(marker.exists())
+
+    def test_timeout_kills_sigterm_ignoring_descendant(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            marker = Path(directory) / "marker.txt"
+            pid_path = Path(directory) / "descendant.pid"
+            try:
+                result = run_process(
+                    "tests.process_fixtures",
+                    "spawn_sigterm_ignoring_descendant",
+                    (str(marker), str(pid_path), 0.40),
+                    timeout_s=0.20,
+                )
+                time.sleep(0.45)
+
+                self.assertFalse(result.ok)
+                self.assertEqual("timeout", result.failure.kind)
+                self.assertFalse(marker.exists())
+            finally:
+                if pid_path.exists():
+                    try:
+                        os.kill(int(pid_path.read_text(encoding="utf-8")), signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
 
     def test_preserves_structured_solve_failure_from_child(self) -> None:
         result = run_process(

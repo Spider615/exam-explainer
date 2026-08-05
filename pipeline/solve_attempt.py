@@ -72,28 +72,31 @@ def _process_target(connection, module_name: str, function_name: str, args: tupl
 
 
 def _stop_process(process: multiprocessing.Process) -> None:
-    if not process.is_alive():
-        return
-    group_stopped = False
     if os.name == "posix":
         try:
             os.killpg(process.pid, signal.SIGTERM)
-            group_stopped = True
-        except ProcessLookupError:
+        except (PermissionError, ProcessLookupError):
+            if process.is_alive():
+                process.terminate()
+        process.join(0.1)
+        try:
+            os.killpg(process.pid, 0)
+        except (PermissionError, ProcessLookupError):
             pass
-    if not group_stopped:
-        process.terminate()
-    process.join(0.1)
-    if process.is_alive():
-        group_killed = False
-        if os.name == "posix":
+        else:
             try:
                 os.killpg(process.pid, signal.SIGKILL)
-                group_killed = True
-            except ProcessLookupError:
+            except (PermissionError, ProcessLookupError):
                 pass
-        if not group_killed:
-            process.kill()
+        process.join(0.1)
+        return
+
+    if not process.is_alive():
+        return
+    process.terminate()
+    process.join(0.1)
+    if process.is_alive():
+        process.kill()
         process.join(0.1)
 
 
