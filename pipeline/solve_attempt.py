@@ -12,22 +12,25 @@ from typing import Callable
 _MAX_REASON_LENGTH = 240
 
 
-@dataclass
+@dataclass(frozen=True)
 class Failure:
     kind: str
     reason: str
     stage: str
     retryable: bool = True
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "reason", _safe_reason(self.reason))
 
-@dataclass
+
+@dataclass(frozen=True)
 class ProcessResult:
     ok: bool
     value: object = None
     failure: Failure | None = None
 
 
-@dataclass
+@dataclass(frozen=True)
 class RetryResult(ProcessResult):
     attempts: int = 0
 
@@ -35,13 +38,10 @@ class RetryResult(ProcessResult):
 class SolveFailure(RuntimeError):
     """An expected failure that can safely cross the process boundary."""
 
-    def __init__(self, failure: Failure):
-        self.failure = Failure(
-            kind=failure.kind,
-            reason=_safe_reason(failure.reason),
-            stage=failure.stage,
-            retryable=failure.retryable,
-        )
+    def __init__(
+        self, kind: str, reason: str, stage: str, retryable: bool = True
+    ) -> None:
+        self.failure = Failure(kind, reason, stage, retryable)
         super().__init__(self.failure.reason)
 
 
@@ -110,7 +110,14 @@ def run_process(
         target=_process_target,
         args=(child_connection, module_name, function_name, tuple(args)),
     )
-    process.start()
+    try:
+        process.start()
+    except Exception:
+        child_connection.close()
+        parent_connection.close()
+        if process.is_alive():
+            _stop_process(process)
+        return ProcessResult(False, failure=_internal_failure())
     child_connection.close()
     try:
         if parent_connection.poll(timeout_s):
@@ -153,11 +160,14 @@ def retry(
     on_retry: Callable[[int, Failure], None] | None = None,
 ) -> RetryResult:
     """Run attempts until success or the retry policy reaches a terminal state."""
+    if max_attempts < 1:
+        raise ValueError("max_attempts must be at least 1")
+    max_attempts = min(max_attempts, 3)
     last_result = ProcessResult(False, failure=_internal_failure("retry"))
     for number in range(1, max_attempts + 1):
         try:
             result = attempt(number)
-        except BaseException:
+        except Exception:
             result = ProcessResult(False, failure=_internal_failure("retry"))
         if result.ok:
             return RetryResult(True, value=result.value, attempts=number)
