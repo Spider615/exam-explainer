@@ -1,0 +1,429 @@
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --stem:#FAFBFC;
+  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
+  --line:#C9D2DE; --hair:#E4E9F0;
+  --acc:#2B5490; --acc2:#E9EFF8;
+  --cy:#0C8CAE; --cy2:#E2F2F6;
+  --red:#AE3B2B; --red2:#FBEBE7;
+  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"Times New Roman",Georgia,serif;
+  --song:Songti SC,SimSun,serif;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk)}
+figure{margin:0;background:var(--panel);border:1px solid var(--line)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px solid var(--hair)}
+svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
+svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
+svg text.n{font-family:var(--mono);font-style:normal;font-size:11px;fill:var(--ink2)}
+svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
+.sk{stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.sh{stroke:var(--line);fill:none;stroke-width:1}
+.sa{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sr{stroke:var(--red);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sc{stroke:var(--cy);fill:none;stroke-width:1.5;stroke-dasharray:5 4}
+.fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
+.wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}.wash-c{fill:var(--cy);opacity:.16}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-top:1px solid var(--hair)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+input[type=range]{width:120px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--acc)"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cy)"/></marker>
+</defs></svg>
+
+<figure data-scene="q6-gen2"><svg viewBox="0 0 560 344" role="img" aria-label="转动轻杆与紫外光笔在感光纸上描出的简谐运动x-t图像">
+
+  <text class="u" x="14" y="22">电动机带动轻杆匀速转动，光笔竖直投射到拖动的感光纸，画出光点的 x-t 振动图像</text>
+
+  <!-- 左：竖直平面内转动的轻杆与紫外光笔 -->
+  <text class="u" x="95" y="78">轻杆 L = 0.1 m</text>
+  <circle id="q6-gen2-wheel" class="sh" cx="125" cy="150" r="65"></circle>
+  <line id="q6-gen2-zeroaxis" class="sc" x1="125" y1="85" x2="125" y2="215"></line>
+  <line id="q6-gen2-xoffset" class="sc" x1="125" y1="150" x2="195" y2="150"></line>
+  <line id="q6-gen2-projline" class="sc" x1="195" y1="150" x2="195" y2="245"></line>
+  <circle id="q6-gen2-projmark" class="fa" cx="195" cy="245" r="4"></circle>
+  <line id="q6-gen2-rod" class="sk" x1="125" y1="150" x2="195" y2="150"></line>
+  <circle id="q6-gen2-axisdot" class="fk" cx="125" cy="150" r="3"></circle>
+  <circle id="q6-gen2-pen" class="fr" cx="195" cy="150" r="6"></circle>
+
+  <!-- 右：感光纸上的 x-t 图像 -->
+  <line id="q6-gen2-axisy" class="sh" x1="270" y1="80" x2="270" y2="220"></line>
+  <line id="q6-gen2-axisx" class="sh" x1="270" y1="150" x2="545" y2="150" marker-end="url(#aa)"></line>
+  <line id="q6-gen2-amptop" class="sc" x1="270" y1="80" x2="545" y2="80"></line>
+  <line id="q6-gen2-ampbot" class="sc" x1="270" y1="220" x2="545" y2="220"></line>
+  <text class="n" x="250" y="84">+A</text>
+  <text class="n" x="250" y="224">-A</text>
+  <text class="u" x="452" y="144">t（拖动方向）</text>
+  <text id="q6-gen2-tlabel" class="n" x="280" y="100">t = 0.00 s</text>
+  <path id="q6-gen2-trace" class="sa" fill="none" d="M270.00 150.00"></path>
+  <circle id="q6-gen2-graphdot" class="fr" cx="270" cy="150" r="5"></circle>
+
+  <!-- 读数面板 -->
+  <text class="u" x="14" y="278">圆频率 ω ≈ 1.26 rad/s</text>
+  <text class="u" x="200" y="278">周期 T = 5 s</text>
+  <text class="u" x="340" y="278">振幅 A = L = 0.1 m</text>
+
+  <text id="q6-gen2-vtag" class="u" x="14" y="296"></text>
+
+  <text class="u" x="14" y="314">路程 s 的数值（终值）：</text>
+  <text id="q6-gen2-svalue" class="n" x="150" y="314">0.000 m</text>
+
+  <text class="u" x="14" y="332">路程指光点沿x（振动）方向的路程，非光笔圆周运动的空间弧长</text>
+
+</svg>
+<figcaption class="u">电动机转速 n=12 r/min=0.2 r/s，轻杆长 L=0.1 m 即光点水平投影振动的振幅 A。光笔随杆做匀速圆周运动，竖直投射到水平铺开、沿垂直于框架方向匀速拖动的感光纸上；纸的拖动方向即 x-t 图像的时间轴。动画展示题目本身的观测窗口（12.5 s = 2.5 个周期），并循环回放。图中红色标出位移最大（速度为零）的转折时刻，靛蓝标出经过平衡位置（速度最大）的时刻。</figcaption></figure>
+
+
+<script>window.Scenes = {};</script>
+<script>window.Scenes["q6-gen2"] = function (fig) {
+  var svg = fig.querySelector('svg');
+  var rodEl = svg.querySelector('#q6-gen2-rod');
+  var penEl = svg.querySelector('#q6-gen2-pen');
+  var xoffEl = svg.querySelector('#q6-gen2-xoffset');
+  var projLineEl = svg.querySelector('#q6-gen2-projline');
+  var projMarkEl = svg.querySelector('#q6-gen2-projmark');
+  var traceEl = svg.querySelector('#q6-gen2-trace');
+  var dotEl = svg.querySelector('#q6-gen2-graphdot');
+  var tlabelEl = svg.querySelector('#q6-gen2-tlabel');
+  var vtagEl = svg.querySelector('#q6-gen2-vtag');
+  var svalueEl = svg.querySelector('#q6-gen2-svalue');
+
+  // 物理常量（权威解法：ω=2πn，x=Lcosθ，v=-Lωsinθ，s=∫|v|dt，φ0=0 任取）
+  var L = 0.1;
+  var N_REV = 0.2;
+  var OMEGA = 2 * Math.PI * N_REV;
+  var PHI0 = 0.0;
+  var T_MAIN = 12.5;   // 题目本身（c1）观测时长，动画展示这一情形
+  var PAUSE = 1.5;     // 每轮播放结束后的定格时长，不计入物理过程
+  var T_LOOP = T_MAIN + PAUSE;
+
+  var CX = 125, CY = 150, R = 65;      // 左：轻杆转动圆的屏幕坐标
+  var GX0 = 270, GX1 = 545, GT = T_MAIN; // 右：x-t图 时间轴屏幕范围
+  var GY0 = 150, AMP_PX = 70, AMP_M = L;
+  var PROJ_Y = 245;
+
+  function graphX(t) { return GX0 + (t / GT) * (GX1 - GX0); }
+  function graphY(x) { return GY0 - (x / AMP_M) * AMP_PX; }
+
+  // 与 probe 共用的核心物理（纯函数，只依赖时间 t）
+  function physAt(t) {
+    var theta = OMEGA * t + PHI0;
+    var x = L * Math.cos(theta);
+    var v = -L * OMEGA * Math.sin(theta);
+    return { theta: theta, x: x, v: v };
+  }
+
+  // s(t) = ∫_0^t |v(t')| dt'，梯形积分，步长与权威解法一致
+  function pathAt(t) {
+    if (t <= 0) return 0.0;
+    var dt = 0.0005;
+    var steps = Math.max(1, Math.round(t / dt));
+    var h = t / steps;
+    var s = 0.0;
+    var prevV = Math.abs(-L * OMEGA * Math.sin(PHI0));
+    for (var i = 1; i <= steps; i++) {
+      var ti = i * h;
+      var vi = Math.abs(-L * OMEGA * Math.sin(OMEGA * ti + PHI0));
+      s += (prevV + vi) * 0.5 * h;
+      prevV = vi;
+    }
+    return s;
+  }
+
+  var tracePts = [];
+  var lastTMod = -1;
+
+  function render(tPhys, freshLoop) {
+    var st = physAt(tPhys);
+    var sVal = pathAt(tPhys);
+
+    var penX = CX + R * Math.cos(st.theta);
+    var penY = CY - R * Math.sin(st.theta);
+    rodEl.setAttribute('x2', penX.toFixed(2));
+    rodEl.setAttribute('y2', penY.toFixed(2));
+    penEl.setAttribute('cx', penX.toFixed(2));
+    penEl.setAttribute('cy', penY.toFixed(2));
+    xoffEl.setAttribute('y1', penY.toFixed(2));
+    xoffEl.setAttribute('x2', penX.toFixed(2));
+    xoffEl.setAttribute('y2', penY.toFixed(2));
+    projLineEl.setAttribute('x1', penX.toFixed(2));
+    projLineEl.setAttribute('y1', penY.toFixed(2));
+    projLineEl.setAttribute('x2', penX.toFixed(2));
+    projMarkEl.setAttribute('cx', penX.toFixed(2));
+
+    if (freshLoop) tracePts = [];
+    var gx = graphX(tPhys), gy = graphY(st.x);
+    var last = tracePts.length ? tracePts[tracePts.length - 1] : null;
+    if (!last || Math.abs(tPhys - last.t) > 1e-9) tracePts.push({ t: tPhys, x: gx, y: gy });
+    var d = '';
+    for (var i = 0; i < tracePts.length; i++) {
+      var p = tracePts[i];
+      d += (i === 0 ? 'M' : 'L') + p.x.toFixed(2) + ' ' + p.y.toFixed(2) + ' ';
+    }
+    if (!d) d = 'M' + graphX(0).toFixed(2) + ' ' + graphY(L).toFixed(2);
+    traceEl.setAttribute('d', d);
+    dotEl.setAttribute('cx', gx.toFixed(2));
+    dotEl.setAttribute('cy', gy.toFixed(2));
+
+    var vMax = L * OMEGA;
+    var ratio = Math.abs(st.v) / vMax;
+    var cls = 'fk';
+    var tag = '';
+    if (ratio < 0.12) { cls = 'fr'; tag = '此刻：v=0（速度为零，位移最大）'; }
+    else if (ratio > 0.88) { cls = 'fa'; tag = '此刻：v最大（x=0，经过平衡位置）'; }
+    penEl.setAttribute('class', cls);
+    dotEl.setAttribute('class', cls);
+    vtagEl.textContent = tag;
+
+    tlabelEl.textContent = 't = ' + tPhys.toFixed(2) + ' s';
+    svalueEl.textContent = sVal.toFixed(3) + ' m';
+  }
+
+  return {
+    step: function (t) {
+      var tMod = t % T_LOOP;
+      var fresh = tMod < lastTMod - 1e-6;
+      lastTMod = tMod;
+      var tPhys = Math.min(tMod, T_MAIN);
+      render(tPhys, fresh);
+    },
+    reset: function () {
+      tracePts = [];
+      lastTMod = -1;
+      render(0, true);
+    },
+    probe: function (u, caseId) {
+      var uu = u;
+      if (uu < 0) uu = 0;
+      if (uu > 1) uu = 1;
+      var T_total = (caseId === 'c2') ? 7.5 : 12.5;
+      var t = uu * T_total;
+      var st = physAt(t);
+      var s = pathAt(t);
+      return { u: uu, t: t, theta: st.theta, x: st.x, v: st.v, s: s };
+    }
+  };
+};
+</script>
+<script>/* ===== 动画运行时 ===== */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var live = [];
+
+  function build(fig) {
+    var id = fig.getAttribute('data-scene');
+    var factory = window.Scenes[id];
+    if (typeof factory !== 'function') return null;
+    var api;
+    try { api = factory(fig); } catch (e) { console.error('[scene ' + id + '] setup failed', e); return null; }
+    if (!api || typeof api.step !== 'function') { console.error('[scene ' + id + '] bad contract'); return null; }
+
+    var bar = document.createElement('div');
+    bar.className = 'ctlbar';
+    var pp = document.createElement('button');
+    pp.type = 'button'; pp.className = 'btn pp';
+    var rp = document.createElement('button');
+    rp.type = 'button'; rp.className = 'btn'; rp.textContent = '重播';
+    var tag = document.createElement('span');
+    tag.className = 'livebadge'; tag.textContent = 'LIVE';
+    bar.appendChild(pp); bar.appendChild(rp); bar.appendChild(tag);
+    var own = fig.querySelector('.ctl');
+    if (own) bar.appendChild(own);
+    var cap = fig.querySelector('figcaption');
+    fig.insertBefore(bar, cap);
+
+    window.__api = window.__api || {}; window.__api[id] = api;
+    var s = { id: id, api: api, t: 0, playing: !reduce, visible: true, fig: fig, pp: pp };
+    function paint() {
+      pp.textContent = s.playing ? '暂停' : '播放';
+      pp.setAttribute('aria-pressed', s.playing ? 'true' : 'false');
+      pp.setAttribute('aria-label', (s.playing ? '暂停' : '播放') + '动画');
+      tag.style.opacity = s.playing ? '.9' : '.3';
+    }
+    pp.addEventListener('click', function () { s.playing = !s.playing; paint(); });
+    rp.addEventListener('click', function () {
+      s.t = 0;
+      try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] reset', e); }
+    });
+    paint();
+    try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] first frame', e); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { s.visible = es[0].isIntersecting; },
+        { rootMargin: '120px' }).observe(fig);
+    }
+    return s;
+  }
+
+  function boot() {
+    var figs = document.querySelectorAll('figure[data-scene]');
+    for (var i = 0; i < figs.length; i++) {
+      var s = build(figs[i]);
+      if (s) live.push(s);
+    }
+    var g = document.getElementById('gswitch');
+    if (g) {
+      g.addEventListener('click', function () {
+        var anyOn = live.some(function (s) { return s.playing; });
+        live.forEach(function (s) { if (s.playing === anyOn) s.pp.click(); });
+        g.textContent = anyOn ? '▶ 全部播放' : '⏸ 全部暂停';
+      });
+      g.textContent = reduce ? '▶ 全部播放' : '⏸ 全部暂停';
+    }
+    var last = 0;
+    function frame(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 0;
+      last = now;
+      for (var i = 0; i < live.length; i++) {
+        var s = live[i];
+        if (!s.playing || !s.visible) continue;
+        s.t += dt;
+        try { s.api.step(s.t); }
+        catch (e) { console.error('[scene ' + s.id + '] step', e); s.playing = false; }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<script>
+function __runProbe(){
+  var out = {ok:false, errors:[], render:[], scenes:[], series:{}, notes:[]};
+  function rec(e){ out.errors.push(String(e && e.stack || e)); }
+  window.onerror = function(m,s,l,c,e){ rec(m + " @" + l + ":" + c); };
+  var _ce = console.error; console.error = function(){ rec([].join.call(arguments," ")); _ce.apply(console, arguments); };
+  try {
+    var SID = "q6-gen2", SPEC = {"id": "q6-gen2", "stem": "电动机带动长0.1m的轻杆在竖直平面内匀速转动，杆端紫外光笔始终竖直投射到水平铺开、沿垂直于框架方向匀速拖动的感光纸上，纸上画出光点振动的x-t图像。已知电动机转速12r/min，求该振动的圆频率，以及光点在给定时长内沿振动方向通过的路程。", "cases": [{"id": "c1", "label": "题目本身：观测时长12.5s（=2.5个周期）"}, {"id": "c2", "label": "校验用情形：观测时长7.5s（=1.5个周期），用于确认路程随时长正确变化而非硬编码"}], "title": "转动轻杆+紫外光笔在感光纸上描出简谐运动x-t图像", "units": "长度/振幅/路程：m；角度：rad；角速度/圆频率：rad/s；转速：r/min 或 r/s；时间：s；速度：m/s", "physics": {"note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。", "equations": ["ω = 2π n", "θ(t) = ω t + φ0", "x(t) = L cos θ(t)", "v(t) = dx/dt = -Lω sin θ(t)", "s(t) = ∫_0^t |v(t')| dt'  （数值积分/累加求得）", "T = 2π/ω"], "definitions": ["n：电动机转速，n=12 r/min=0.2 r/s", "ω：光笔绕转轴匀速圆周运动的角速度，也是感光纸上x-t图像的圆频率", "θ(t)：光笔转过的角度，θ(t)=ωt+φ0，φ0为任意初始相位（不影响任何断言）", "x(t)：感光纸记录的光点坐标（光笔在竖直平面内相对转轴的水平投影位移），x(t)=L cosθ(t)，即振幅A=L的简谐运动位移", "v(t)：x方向速度，v(t)=dx/dt=-Lω sinθ(t)", "s(t)：从t=0起累积到当前时刻，光点沿x（振动方向）已经过的路程，s(t)=∫0^t |v(t')| dt'（数值积分累加，不是圆周运动的空间弧长）", "T：振动周期，T=2π/ω"], "given_facts": ["F1 · n = 12 r/min = 0.2 r/s", "F2 · L = 0.1 m，即x方向简谐运动的振幅 A", "F3 · ω = 2πn = 0.4π ≈ 1.2566 rad/s", "F4 · T = 2π/ω = 5 s", "F5 · 情形c1：观测时长12.5s = 2.5T = 5个半周期，路程 s = 5×2A = 10A = 1.0 m", "F6 · 情形c2（用于校验路程公式随时长正确变化，非题目本身）：观测时长7.5s = 1.5T = 3个半周期，路程 s = 3×2A = 6A = 0.6 m"], "normalization": "取轻杆长 L=0.1m 为光点水平投影振动的振幅 A；每个情形各自的观测时长 T_case 作为时间归一化基准，u=t/T_case。", "free_parameters": "φ0（光笔在u=0时刻的初始相位角），题目未给出光笔的起始位置。由于c1、c2的观测时长都恰好是半周期的整数倍，简谐运动路程公式 s=半周期数×2A 与φ0无关，实现方可任取φ0（如φ0=0）。"}, "constants": {"L": 0.1, "n_rev_per_s": 0.2, "n_rev_per_min": 12}, "reference": "def probe(u, case):\n    L = 0.1\n    n = 0.2\n    omega = 2 * pi * n\n    phi0 = 0.0\n    T_total = 12.5 if case == \"c1\" else 7.5\n    t = u * T_total\n    theta = omega * t + phi0\n    x = L * cos(theta)\n    v = -L * omega * sin(theta)\n    dt = 0.0005\n    if t <= 0:\n        s = 0.0\n    else:\n        steps = max(1, int(round(t / dt)))\n        h = t / steps\n        s = 0.0\n        prev_v = abs(-L * omega * sin(phi0))\n        for i in range(1, steps + 1):\n            ti = i * h\n            vi = abs(-L * omega * sin(omega * ti + phi0))\n            s += (prev_v + vi) * 0.5 * h\n            prev_v = vi\n    return {\"u\": u, \"t\": t, \"theta\": theta, \"x\": x, \"v\": v, \"s\": s}", "invariants": [{"id": "c1-omega", "why": "对应F3：ω=2πn≈1.2566 rad/s", "case": "c1", "expr": "abs((theta[-1]-theta[0])/(t[-1]-t[0]) - 1.256637) <= 0.0126", "report": "(theta[-1]-theta[0])/(t[-1]-t[0])"}, {"id": "c1-duration", "why": "对应F5：u=1须精确映射到观测终点t=12.5s", "case": "c1", "expr": "abs(t[-1] - 12.5) <= 0.01", "report": "t[-1]"}, {"id": "c1-path-terminal", "why": "对应F5：12.5s内路程s=10A=1.0m", "case": "c1", "expr": "abs(s[-1] - 1.0) <= 0.03", "report": "s[-1]"}, {"id": "c1-path-monotonic", "why": "s是累积路程，物理上必须逐点非递减，是F5数值积分成立的前提", "case": "c1", "expr": "min(diff(s)) >= -1e-9", "report": "min(diff(s))"}, {"id": "c1-v-zero-at-xmax", "why": "x在振动正方向最大处（转折点）速度必须为零，检验x与其导数v定义一致（F2/F3组合自洽）", "case": "c1", "expr": "abs(v[argmax(x)]) <= 0.02", "report": "v[argmax(x)]"}, {"id": "c1-v-zero-at-xmin", "why": "x在振动负方向最大处（转折点）速度必须为零，同上，另一侧自洽检验", "case": "c1", "expr": "abs(v[argmin(x)]) <= 0.02", "report": "v[argmin(x)]"}, {"id": "c2-omega", "why": "对应F3：角速度是与情形无关的常量，c2需同样满足", "case": "c2", "expr": "abs((theta[-1]-theta[0])/(t[-1]-t[0]) - 1.256637) <= 0.0126", "report": "(theta[-1]-theta[0])/(t[-1]-t[0])"}, {"id": "c2-duration", "why": "对应F6：u=1须精确映射到观测终点t=7.5s", "case": "c2", "expr": "abs(t[-1] - 7.5) <= 0.01", "report": "t[-1]"}, {"id": "c2-path-terminal", "why": "对应F6：7.5s内路程s=6A=0.6m，用于排除把路程硬编码为1.0m的实现", "case": "c2", "expr": "abs(s[-1] - 0.6) <= 0.018", "report": "s[-1]"}, {"id": "c2-path-monotonic", "why": "s是累积路程，物理上必须逐点非递减，是F6数值积分成立的前提", "case": "c2", "expr": "min(diff(s)) >= -1e-9", "report": "min(diff(s))"}, {"id": "c2-v-zero-at-xmax", "why": "x在振动正方向最大处（转折点）速度必须为零，检验x与其导数v定义一致", "case": "c2", "expr": "abs(v[argmax(x)]) <= 0.02", "report": "v[argmax(x)]"}, {"id": "c2-v-zero-at-xmin", "why": "x在振动负方向最大处（转折点）速度必须为零，同上，另一侧自洽检验", "case": "c2", "expr": "abs(v[argmin(x)]) <= 0.02", "report": "v[argmin(x)]"}], "probe_keys": ["u", "t", "theta", "x", "v", "s"], "disclosures": [{"why": "对应F3，是本题第一个所求量", "must_contain": "圆频率 ω ≈ 1.26 rad/s"}, {"why": "对应F4，帮助核对图像相位与路程计算的周期基准", "must_contain": "周期 T = 5 s"}, {"why": "对应F5/F6，是本题第二个所求量", "must_contain": "路程 s 的数值（终值）"}, {"why": "题目要求的是x-t图像上光点的路程，而非光笔在竖直面内圆周运动轨迹的弧长，是解题的关键假设，必须在画面上说明以免混淆", "must_contain": "路程指光点沿x（振动）方向的路程，非光笔圆周运动的空间弧长"}], "sample_points": 401, "probe_key_meaning": {"s": "从t=0累积到当前时刻，光点沿x（振动）方向经过的路程(m)", "t": "实际时间(s)，t = u × 该情形总观测时长（c1:12.5s，c2:7.5s）", "u": "归一化进度，等于传入的u，对应该情形观测窗口内的进度", "v": "x方向速度 dx/dt (m/s)", "x": "感光纸上记录的光点坐标(m)，即x方向简谐运动位移 x=L cosθ", "theta": "光笔（杆端）转过的角度(rad)，theta = ωt + φ0"}, "process_endpoints": "u=0对应该情形观测起点（t=0，开始记录）；u=1对应观测窗口结束时刻，c1为t=12.5s（2.5个周期），c2为t=7.5s（1.5个周期）。", "scene_requirements": ["竖直框架平面内，电动机转轴带动轻杆匀速转动，杆端固定紫外光笔", "光笔沿半径L=0.1m的圆周做匀速圆周运动", "水平铺开的感光纸，沿垂直于框架平面的方向匀速拖动（拖动方向即图像的时间轴）", "光点竖直投射在感光纸上留下的轨迹，呈现随时间演化的正弦形x-t图像", "画面标出振幅 A=L=0.1m、周期 T=5s", "光点经过位移最大处（图像波峰/波谷）时速度为零、经过x=0处时速度最大，需有可视化区分", "实时或最终显示累积路程 s 的数值"]};
+    out.scenes = Object.keys(window.Scenes || {});
+    var fig = document.querySelector('figure[data-scene="' + SID + '"]');
+    if (!fig) { out.errors.push("DOM 里找不到 figure[data-scene=" + SID + "]"); throw 0; }
+    var api = (window.__api || {})[SID];
+    if (!api) { out.errors.push("运行时未能构造该场景（工厂抛错或契约不符）"); throw 0; }
+    ["step","reset","probe"].forEach(function(k){
+      if (typeof api[k] !== "function") out.errors.push("api." + k + " 不是函数");
+    });
+    if (out.errors.length) throw 0;
+
+    var svg = fig.querySelector("svg");
+
+    // --- 渲染压力：跑 451 帧 step()，抓异常与脏数值 ---
+    try {
+      api.reset(); api.step(0);
+      for (var t = 0; t <= 18.0001; t += 0.04) api.step(t);
+    } catch (e) { rec("step() 抛异常: " + e); }
+    var dom = svg.outerHTML;
+    ["NaN","Infinity","undefined","null"].forEach(function(w){
+      var n = (dom.match(new RegExp(w, "g")) || []).length;
+      if (n) out.errors.push("渲染后 SVG 中出现 " + w + " ×" + n);
+    });
+
+    /* --- L3.5 渲染覆盖 ---
+       断言只跑 probe，看不见渲染。历史教训：把 translate(cx,cy) rotate(θ)
+       误写成 rotate(θ cx cy)，整组元素飞出画布，四层门禁 13/13 全绿放行。
+       这里补上：每个带 id 的 SVG 元素，必须在某一采样时刻真的画在 viewBox 内。
+       只查「位置」不查「可见性」—— opacity=0 的元素 getBBox 依然有效，
+       所以合法隐藏的结论框不会被误伤，而「整组飞出画布」是全时段的，必然被抓。*/
+    try {
+      api.reset();
+      var vb = svg.viewBox.baseVal;
+      var els = svg.querySelectorAll("[id]");
+      var ids = [], everOK = {}, everDrawn = {}, snaps = [];
+      for (var q0 = 0; q0 < els.length; q0++) ids.push(els[q0].getAttribute("id"));
+      /* 注意：不能用 el.getCTM() —— 它含 viewBox 缩放，返回的是渲染像素坐标，
+         拿去和 viewBox 数值比会把右下方的元素全部误判出界。
+         正确做法是经 svg 根的 screenCTM 求逆，换回 viewBox 用户单位。 */
+      for (var tq = 0; tq <= 20.0001; tq += 0.5) {
+        api.step(tq);
+        snaps.push(svg.innerHTML);
+        var rootM = svg.getScreenCTM();
+        if (!rootM) continue;
+        var invM = rootM.inverse();
+        for (var q1 = 0; q1 < els.length; q1++) {
+          var idq = ids[q1];
+          if (everOK[idq]) continue;
+          var bb, mm;
+          try { bb = els[q1].getBBox(); mm = els[q1].getScreenCTM(); } catch (err0) { continue; }
+          if (!mm) continue;
+          if (bb.width <= 0 && bb.height <= 0) continue;   /* 退化元素不判位置 */
+          everDrawn[idq] = true;
+          mm = invM.multiply(mm);                          /* → viewBox 用户单位 */
+          var cxq = bb.x + bb.width / 2, cyq = bb.y + bb.height / 2;
+          var XQ = mm.a * cxq + mm.c * cyq + mm.e;
+          var YQ = mm.b * cxq + mm.d * cyq + mm.f;
+          if (XQ >= vb.x - 2 && XQ <= vb.x + vb.width + 2 &&
+              YQ >= vb.y - 2 && YQ <= vb.y + vb.height + 2)
+            everOK[idq] = true;
+        }
+      }
+      var off = [], dead = [];
+      for (var q2 = 0; q2 < ids.length; q2++) {
+        if (!everDrawn[ids[q2]]) dead.push(ids[q2]);
+        else if (!everOK[ids[q2]]) off.push(ids[q2]);
+      }
+      if (off.length)
+        out.render.push("这些元素在全部 41 个采样时刻都画在 viewBox 之外（画面上看不到）：" + off.join(", "));
+      var moved = false;
+      for (var q3 = 1; q3 < snaps.length; q3++) if (snaps[q3] !== snaps[0]) { moved = true; break; }
+      if (!moved)
+        out.render.push("采样了 " + snaps.length + " 个不同时刻，SVG 内容完全没有变化——动画没有动");
+      out.notes.push("渲染覆盖：" + ids.length + " 个带 id 元素，" +
+                     Object.keys(everOK).length + " 个曾正常出现在画面内" +
+                     (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
+    } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
+
+    // --- probe 采样 ---
+    var N = SPEC.sample_points || 401;
+    for (var ci = 0; ci < SPEC.cases.length; ci++) {
+      var cid = SPEC.cases[ci].id;
+      var cols = {}; SPEC.probe_keys.forEach(function(k){ cols[k] = []; });
+
+      // 纯度 + 无副作用
+      var before = svg.outerHTML;
+      var a1 = api.probe(0.37, cid), a2 = api.probe(0.37, cid);
+      if (svg.outerHTML !== before) out.errors.push("[" + cid + "] probe() 修改了 DOM（必须是纯函数）");
+      SPEC.probe_keys.forEach(function(k){
+        if (!(k in a1)) out.errors.push("[" + cid + "] probe 返回值缺少键 " + k);
+        else if (a1[k] !== a2[k]) out.errors.push("[" + cid + "] probe 不纯：同一 u 两次调用 " + k + " 不同（" + a1[k] + " vs " + a2[k] + "）");
+      });
+
+      var nbad = 0;
+      for (var i = 0; i < N; i++) {
+        var u = i / (N - 1);
+        var r;
+        try { r = api.probe(u, cid); }
+        catch (e) { out.errors.push("[" + cid + "] probe(" + u.toFixed(3) + ") 抛异常: " + e); break; }
+        for (var ki = 0; ki < SPEC.probe_keys.length; ki++) {
+          var k = SPEC.probe_keys[ki], v = r ? r[k] : undefined;
+          if (typeof v !== "number" || !isFinite(v)) { nbad++; v = null; }
+          cols[k].push(v);
+        }
+      }
+      if (nbad) out.errors.push("[" + cid + "] probe 返回了 " + nbad + " 个非有限数值");
+      out.series[cid] = cols;
+    }
+    out.ok = out.errors.length === 0 && out.render.length === 0;
+  } catch (e) { if (e) rec(e); }
+  document.getElementById("TESTOUT").textContent = "@@" + JSON.stringify(out) + "@@";
+}
+/* 必须等运行时 boot 完（它也挂在 DOMContentLoaded 上，且注册在前），
+   同时保证 <pre id="TESTOUT"> 已经存在 */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", __runProbe);
+else __runProbe();
+</script>
+<pre id="TESTOUT"></pre>

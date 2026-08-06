@@ -1,0 +1,263 @@
+{
+ "id": "q8-gen5",
+ "stem": "垂直于水平桌面固定一根轻质绝缘细直杆，杆上穿有质量均为m、带同种电荷的绝缘小球甲（电荷量q）和乙（电荷量Q），均可视为点电荷。乙静止于坐标原点O，杆沿竖直方向为x轴正方向。甲从x=x0处由静止释放，开始向下运动。甲、乙间电势能Ep=kQq/r（r为两点电荷间距，k为静电力常量）。最大静摩擦力等于滑动摩擦力F_f，重力加速度为g。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "kQq=1.0（较大），甲到达最低点后不能返回，最终静止于最低点"
+  },
+  {
+   "id": "c2",
+   "label": "kQq=0.3（较小），甲到达最低点后能够返回，经过一次回弹后静止于新的平衡位置"
+  }
+ ],
+ "title": "带电小球沿竖直杆下滑：重力、库仑斥力与摩擦力共同作用下的运动",
+ "units": "本spec为无量纲数值系统：取mg=1.0为力的单位（对应m=1,g=1）；长度以此单位系统下的具体数值给出（如x0=2.0）；速度、加速度的具体数值仅在本数值系统内自洽，不代表国际单位制下的真实物理量；F_f、kQq均按同一力学单位换算给出具体值。",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。",
+  "equations": [
+   "牛顿第二定律（沿x轴，竖直向上为正）：m·a = -mg + kQq/x² + F_friction",
+   "F_friction = -F_f·sign(v)（v≠0时，滑动摩擦力沿运动反方向，大小恒为F_f）",
+   "当v=0（含释放瞬间及运动中速度瞬时为零的时刻）：若|mg - kQq/x²| ≤ F_f，则甲保持静止（静摩擦力平衡非摩擦合力），运动过程结束；否则甲沿非摩擦合力方向重新开始运动",
+   "dx/dt = v",
+   "Ep(x) = kQq/x（因乙固定于原点O，两点电荷间距r恒等于x）"
+  ],
+  "definitions": [
+   "x：甲球在坐标系中的位置坐标（乙固定于原点O，x轴竖直向上为正），数值上等于两点电荷间距r",
+   "v：甲球速度dx/dt，向上为正、向下为负",
+   "a：甲球加速度dv/dt",
+   "mg：甲球所受重力大小（本spec中取为力的单位1.0）",
+   "F_f：滑动摩擦力大小，等于最大静摩擦力",
+   "kQq：静电力常量k与两球电荷量Q、q的乘积，决定库仑斥力kQq/x²的大小",
+   "Ep：甲、乙两点电荷间的电势能，Ep=kQq/x"
+  ],
+  "given_facts": [
+   "F1 · 甲向下运动速率达到最大处满足 kQq/x² = mg - F_f",
+   "F2 · 甲运动到最低点时位置满足 x = kQq/[(mg-F_f)·x0]",
+   "F3 · 甲能保持静止的位置满足 |mg - kQq/x²| ≤ F_f",
+   "F4 · 甲在最低点能返回的临界条件是最低点处 kQq/x² = mg + F_f；返回后沿上升方向速率最大处同样满足合力为零，位置为该临界式给出的边界值",
+   "F5 · 初始位置两球电势能 Ep0 = kQq/x0"
+  ],
+  "normalization": "题目为纯符号解，未给具体数值。本spec选取一组满足全部题设约束的具体数值以生成可动画的轨迹：取mg=1.0为力的单位（对应m=1,g=1）；case c1取F_f=0.5、kQq=1.0、x0=2.0（使甲在最低点不能返回，对应F3/F4边界的一侧）；case c2取F_f=0.5、kQq=0.3、x0=2.0（使甲在最低点能够返回，对应选项D成立的情形）。所有位置类物理量均以此数值系统下的长度单位表示。",
+  "free_parameters": ""
+ },
+ "constants": {
+  "c1": {
+   "x0": 2.0,
+   "F_f": 0.5,
+   "kQq": 1.0
+  },
+  "c2": {
+   "x0": 2.0,
+   "F_f": 0.5,
+   "kQq": 0.3
+  },
+  "shared": {
+   "g": 1.0,
+   "m": 1.0,
+   "mg": 1.0
+  }
+ },
+ "reference": "def probe(u, case):\n    mg = 1.0\n    m = 1.0\n    if case == \"c2\":\n        F_f = 0.5\n        kQq = 0.3\n        x0 = 2.0\n    else:\n        F_f = 0.5\n        kQq = 1.0\n        x0 = 2.0\n\n    dt = 0.001\n\n    def net_force(x):\n        return -mg + kQq / (x * x)\n\n    def accel(x, direction):\n        return (-mg + kQq / (x * x) - F_f * direction) / m\n\n    x = x0\n    v = 0.0\n    t = 0.0\n\n    ts = [0.0]\n    xs = [x0]\n    vs = [0.0]\n\n    f0 = net_force(x0)\n    if abs(f0) <= F_f:\n        direction = 0.0\n        moving = False\n    else:\n        direction = 1.0 if f0 > 0.0 else -1.0\n        moving = True\n\n    a_list = [accel(x0, direction) if moving else 0.0]\n\n    steps_in_phase = 0\n    total_steps = 0\n    max_total_steps = 2000000\n    max_phases = 12\n    phases_done = 0\n\n    while moving and total_steps < max_total_steps and phases_done < max_phases:\n        x1, v1 = x, v\n        a1 = accel(x1, direction)\n        k1x, k1v = v1, a1\n        x2 = x1 + 0.5 * dt * k1x\n        v2 = v1 + 0.5 * dt * k1v\n        a2 = accel(x2, direction)\n        k2x, k2v = v2, a2\n        x3 = x1 + 0.5 * dt * k2x\n        v3 = v1 + 0.5 * dt * k2v\n        a3 = accel(x3, direction)\n        k3x, k3v = v3, a3\n        x4 = x1 + dt * k3x\n        v4 = v1 + dt * k3v\n        a4 = accel(x4, direction)\n        k4x, k4v = v4, a4\n\n        x_new = x1 + (dt / 6.0) * (k1x + 2.0 * k2x + 2.0 * k3x + k4x)\n        v_new = v1 + (dt / 6.0) * (k1v + 2.0 * k2v + 2.0 * k3v + k4v)\n        t_new = t + dt\n        steps_in_phase += 1\n        total_steps += 1\n\n        crossed = False\n        if steps_in_phase > 1:\n            if direction > 0.0 and v_new <= 0.0:\n                crossed = True\n            elif direction < 0.0 and v_new >= 0.0:\n                crossed = True\n\n        if crossed:\n            denom = v1 - v_new\n            frac = 1.0 if denom == 0.0 else v1 / denom\n            if frac < 0.0:\n                frac = 0.0\n            if frac > 1.0:\n                frac = 1.0\n            x_cross = x1 + frac * (x_new - x1)\n            t_cross = t + frac * dt\n\n            ts.append(t_cross)\n            xs.append(x_cross)\n            vs.append(0.0)\n\n            f_cross = net_force(x_cross)\n            if abs(f_cross) <= F_f:\n                a_list.append(0.0)\n                x, v, t = x_cross, 0.0, t_cross\n                moving = False\n            else:\n                new_direction = 1.0 if f_cross > 0.0 else -1.0\n                a_list.append(accel(x_cross, new_direction))\n                x, v, t = x_cross, 0.0, t_cross\n                direction = new_direction\n                phases_done += 1\n                steps_in_phase = 0\n        else:\n            ts.append(t_new)\n            xs.append(x_new)\n            vs.append(v_new)\n            a_list.append(accel(x_new, direction))\n            x, v, t = x_new, v_new, t_new\n\n    T_total = ts[-1]\n    if T_total <= 0.0:\n        T_total = 1.0\n\n    t_query = u * T_total\n    if t_query <= ts[0]:\n        xi, vi, ai = xs[0], vs[0], a_list[0]\n    elif t_query >= ts[-1]:\n        xi, vi, ai = xs[-1], vs[-1], a_list[-1]\n    else:\n        lo = 0\n        hi = len(ts) - 1\n        while hi - lo > 1:\n            mid = (lo + hi) // 2\n            if ts[mid] <= t_query:\n                lo = mid\n            else:\n                hi = mid\n        t0, t1 = ts[lo], ts[hi]\n        span = t1 - t0\n        w = 0.0 if span <= 0.0 else (t_query - t0) / span\n        xi = xs[lo] + w * (xs[hi] - xs[lo])\n        vi = vs[lo] + w * (vs[hi] - vs[lo])\n        ai = a_list[lo] + w * (a_list[hi] - a_list[lo])\n\n    Ep = kQq / xi\n\n    return {\"u\": u, \"x\": xi, \"v\": vi, \"a\": ai, \"Ep\": Ep}",
+ "invariants": [
+  {
+   "id": "c1-initial-position",
+   "why": "对应题目初始条件“甲从x=x0处由静止释放”，本例x0=2.0",
+   "case": "c1",
+   "expr": "abs(x[0] - 2.0) <= 0.02",
+   "report": "x[0]"
+  },
+  {
+   "id": "c1-initial-velocity",
+   "why": "对应“甲由静止释放”这一初始条件",
+   "case": "c1",
+   "expr": "abs(v[0]) <= 0.02",
+   "report": "v[0]"
+  },
+  {
+   "id": "c1-lowest-point",
+   "why": "F2：最低点x=kQq/[(mg-F_f)x0]，代入kQq=1.0,mg=1.0,F_f=0.5,x0=2.0得1.0；本case不能返回，最终停止即最低点",
+   "case": "c1",
+   "expr": "abs(x[-1] - 1.0) <= 0.03",
+   "report": "x[-1]"
+  },
+  {
+   "id": "c1-no-bounce",
+   "why": "F3/F4边界：本case参数使kQq/x_min² ≤ mg+F_f，甲在最低点不能返回，最终停止位置应与到达过的最低点重合",
+   "case": "c1",
+   "expr": "abs(x[-1] - min(x)) <= 0.02",
+   "report": "x[-1] - min(x)"
+  },
+  {
+   "id": "c1-final-velocity",
+   "why": "甲最终永久静止，速度必须为零",
+   "case": "c1",
+   "expr": "abs(v[-1]) <= 0.03",
+   "report": "v[-1]"
+  },
+  {
+   "id": "c1-monotonic-descent",
+   "why": "本case甲全程只做单向向下运动，不发生回弹，x应单调不增",
+   "case": "c1",
+   "expr": "max(diff(x)) <= 0.01",
+   "report": "max(diff(x))"
+  },
+  {
+   "id": "c1-maxspeed-zero-accel",
+   "why": "F1：下降速率最大处合力为零（kQq/x²=mg-F_f），检验probe中v与a的相互自洽",
+   "case": "c1",
+   "expr": "abs(a[argmin(v)]) <= 0.05",
+   "report": "a[argmin(v)]"
+  },
+  {
+   "id": "c1-maxspeed-position",
+   "why": "F1及选项B公式x=sqrt(kQq/(mg-F_f))，代入数值得约1.41421356",
+   "case": "c1",
+   "expr": "abs(x[argmin(v)] - 1.41421356) <= 0.05",
+   "report": "x[argmin(v)]"
+  },
+  {
+   "id": "c1-Ep-consistency",
+   "why": "题目给定Ep=kQq/r=kQq/x（本例kQq=1.0），检验probe中Ep与x的相互自洽",
+   "case": "c1",
+   "expr": "max(abs(Ep - 1.0/x)) <= 0.02",
+   "report": "max(abs(Ep - 1.0/x))"
+  },
+  {
+   "id": "c2-initial-position",
+   "why": "对应题目初始条件“甲从x=x0处由静止释放”，本例x0=2.0",
+   "case": "c2",
+   "expr": "abs(x[0] - 2.0) <= 0.02",
+   "report": "x[0]"
+  },
+  {
+   "id": "c2-initial-velocity",
+   "why": "对应“甲由静止释放”这一初始条件",
+   "case": "c2",
+   "expr": "abs(v[0]) <= 0.02",
+   "report": "v[0]"
+  },
+  {
+   "id": "c2-lowest-point",
+   "why": "F2：最低点x=kQq/[(mg-F_f)x0]，代入kQq=0.3,mg=1.0,F_f=0.5,x0=2.0得0.3",
+   "case": "c2",
+   "expr": "abs(min(x) - 0.3) <= 0.02",
+   "report": "min(x)"
+  },
+  {
+   "id": "c2-bounce-distance",
+   "why": "F4：本case满足kQq/x_min² > mg+F_f，甲在最低点能够返回；此判据要求最终停止位置显著高于最低点（理论值约0.3667），用于排除“未发生回弹”的错误实现",
+   "case": "c2",
+   "expr": "x[-1] - min(x) >= 0.2",
+   "report": "x[-1] - min(x)"
+  },
+  {
+   "id": "c2-final-rest-position",
+   "why": "F2、F4的推广：回弹后由动能定理可得第二停止位置x_turn1=kQq/[(mg+F_f)x_min]，代入数值得约0.66666667",
+   "case": "c2",
+   "expr": "abs(x[-1] - 0.66666667) <= 0.03",
+   "report": "x[-1]"
+  },
+  {
+   "id": "c2-final-velocity",
+   "why": "甲最终永久静止，速度必须为零",
+   "case": "c2",
+   "expr": "abs(v[-1]) <= 0.03",
+   "report": "v[-1]"
+  },
+  {
+   "id": "c2-turning-point-velocity",
+   "why": "F4：甲到达最低点时速度瞬间为零，是判断能否返回的前提，检验probe中v与x的相互自洽",
+   "case": "c2",
+   "expr": "abs(v[argmin(x)]) <= 0.05",
+   "report": "v[argmin(x)]"
+  },
+  {
+   "id": "c2-monotonic-descent-phase",
+   "why": "甲从x0下降到最低点这一段应单调不增，覆盖回弹前的全过程",
+   "case": "c2",
+   "expr": "max(diff(x[u <= u[argmin(x)]])) <= 0.01",
+   "report": "max(diff(x[u <= u[argmin(x)]]))"
+  },
+  {
+   "id": "c2-monotonic-ascent-phase",
+   "why": "F4：甲从最低点返回后应单调上升直至新的平衡位置，覆盖回弹后的全过程",
+   "case": "c2",
+   "expr": "min(diff(x[u >= u[argmin(x)]])) >= -0.01",
+   "report": "min(diff(x[u >= u[argmin(x)]]))"
+  },
+  {
+   "id": "c2-descent-maxspeed-zero-accel",
+   "why": "F1：下降阶段速率最大处合力为零，检验probe中v与a的相互自洽",
+   "case": "c2",
+   "expr": "abs(a[argmin(v)]) <= 0.05",
+   "report": "a[argmin(v)]"
+  },
+  {
+   "id": "c2-descent-maxspeed-position",
+   "why": "F1及选项B公式x=sqrt(kQq/(mg-F_f))，代入数值得约0.77459667",
+   "case": "c2",
+   "expr": "abs(x[argmin(v)] - 0.77459667) <= 0.05",
+   "report": "x[argmin(v)]"
+  },
+  {
+   "id": "c2-ascent-maxspeed-zero-accel",
+   "why": "F4：回弹上升阶段速率最大处合力同样为零，检验probe中v与a的相互自洽",
+   "case": "c2",
+   "expr": "abs(a[argmax(v)]) <= 0.05",
+   "report": "a[argmax(v)]"
+  },
+  {
+   "id": "c2-ascent-maxspeed-position",
+   "why": "F3/F4：回弹上升速率最大处位置为静止区间下界sqrt(kQq/(mg+F_f))，代入数值得约0.44721360",
+   "case": "c2",
+   "expr": "abs(x[argmax(v)] - 0.44721360) <= 0.05",
+   "report": "x[argmax(v)]"
+  },
+  {
+   "id": "c2-Ep-consistency",
+   "why": "题目给定Ep=kQq/r=kQq/x（本例kQq=0.3），检验probe中Ep与x的相互自洽",
+   "case": "c2",
+   "expr": "max(abs(Ep - 0.3/x)) <= 0.02",
+   "report": "max(abs(Ep - 0.3/x))"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "x",
+  "v",
+  "a",
+  "Ep"
+ ],
+ "disclosures": [
+  {
+   "why": "原题的坐标方向和乙球固定位置来自图示而非题干文字，画面必须明确展示，避免学习者误解运动方向",
+   "must_contain": "坐标系原点O为乙球位置，x轴竖直向上为正，标出甲球初始位置x0"
+  },
+  {
+   "why": "原题为纯符号解，free_parameters为空是因为本spec已代入具体数值；画面必须让学习者能将演示数值与题目公式对照，否则动画无法验证物理关系",
+   "must_contain": "标出本演示所选取的mg、F_f、kQq、x0具体数值，并说明其与题目符号m、g、F_f、k、Q、q、x0的对应关系"
+  },
+  {
+   "why": "直接对应可检验事实F1、F2、F4，是选项B、D正确性的可视化依据",
+   "must_contain": "标出甲运动中的最大速度点、最低点，以及case c2回弹后的最终停止位置，并给出对应x坐标数值"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "a": "甲球加速度dv/dt，由受力方程给出",
+  "u": "归一化过程进度，等于传入的u；u=0对应释放瞬间，u=1对应甲永久静止瞬间，u在两者间按物理时间线性对应",
+  "v": "甲球速度dx/dt（向上为正），由数值积分给出",
+  "x": "甲球在坐标系中的位置（乙固定于原点，x轴竖直向上为正），数值上等于两点电荷间距r",
+  "Ep": "甲、乙两点电荷间的电势能，Ep=kQq/x"
+ },
+ "process_endpoints": "u=0对应甲球在x=x0处由静止释放的瞬间；u=1对应甲球运动结束、永久静止（此时非摩擦合力大小不超过最大静摩擦力F_f）的瞬间。case c1的过程为一次单向下降；case c2的过程包含下降到最低点后的一次回弹上升，u按物理时间线性覆盖整个过程（含回弹）。",
+ "scene_requirements": [
+  "画出竖直细杆（沿x轴），乙球固定于原点O处",
+  "甲球沿杆运动，实时显示其位置x随时间演化",
+  "显示甲球所受三个力：重力mg（向下）、库仑斥力kQq/x²（沿杆背离乙球，向上）、摩擦力（大小恒为F_f，方向随甲的运动方向变化）",
+  "高亮标出甲运动过程中的关键位置：下降阶段速率最大点x1、最低点x_min；case c2还需标出回弹上升后的最终停止位置x_final",
+  "并排或切换展示case c1（不能返回，停于最低点）与case c2（能返回，回弹后停于新位置）两种情形，以对比呈现",
+  "标出本演示所选取的mg、F_f、kQq、x0具体数值，并说明其分别对应题目符号m·g、F_f、k·Q·q、x0"
+ ]
+}

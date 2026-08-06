@@ -1,0 +1,59 @@
+<figure data-scene="q13"><svg viewBox="0 0 560 300" role="img" aria-label="可逆斯特林循环p-V图，展示ABCDA闭合路径与瞬时p、V、T读数">
+  <!-- 坐标轴 -->
+  <line class="sk" x1="60" y1="260" x2="420" y2="260" marker-end="url(#ak)"></line>
+  <line class="sk" x1="60" y1="260" x2="60" y2="40" marker-end="url(#ak)"></line>
+  <text x="425" y="264">V (m³)</text>
+  <text x="30" y="34">p (Pa)</text>
+  <text class="n" x="52" y="280">0</text>
+
+  <!-- V轴刻度：V₁、V₂ -->
+  <line class="sh" x1="196" y1="255" x2="196" y2="265"></line>
+  <text class="n" x="171" y="280">V₁=1.0</text>
+  <line class="sh" x1="332" y1="255" x2="332" y2="265"></line>
+  <text class="n" x="307" y="280">V₂=2.0</text>
+
+  <!-- p轴刻度 -->
+  <line class="sh" x1="55" y1="64.44" x2="65" y2="64.44"></line>
+  <text class="n" x="10" y="68.4">8×10⁵</text>
+  <line class="sh" x1="55" y1="162.22" x2="65" y2="162.22"></line>
+  <text class="n" x="10" y="166.2">4×10⁵</text>
+  <line class="sh" x1="55" y1="211.11" x2="65" y2="211.11"></line>
+  <text class="n" x="10" y="215.1">2×10⁵</text>
+  <line class="sh" x1="55" y1="235.56" x2="65" y2="235.56"></line>
+  <text class="n" x="10" y="239.6">1×10⁵</text>
+
+  <!-- 作图辅助虚线：状态点向V轴投影 -->
+  <line class="sc" x1="196" y1="64.44" x2="196" y2="260"></line>
+  <line class="sc" x1="332" y1="162.22" x2="332" y2="260"></line>
+
+  <!-- 循环路径 ABCDA，顺时针：AB等温、BC等容、CD等温、DA等容 -->
+  <path id="q13-cycleAB" d="" class="sa" fill="none" stroke-width="2" marker-end="url(#aa)"></path>
+  <line id="q13-cycleBC" class="sa" x1="332" y1="162.22" x2="332" y2="235.56" stroke-width="2" marker-end="url(#aa)"></line>
+  <path id="q13-cycleCD" d="" class="sa" fill="none" stroke-width="2" marker-end="url(#aa)"></path>
+  <line id="q13-cycleDA" class="sa" x1="196" y1="211.11" x2="196" y2="64.44" stroke-width="2" marker-end="url(#aa)"></line>
+
+  <!-- 等温线标签 -->
+  <text x="250" y="95">T₁=1200K</text>
+  <text x="255" y="248">T₂=300K</text>
+
+  <!-- 状态点 A/B/C/D -->
+  <circle id="q13-pointA" class="fr" cx="196" cy="64.44" r="4"></circle>
+  <text class="r" x="204" y="60">A</text>
+  <circle id="q13-pointB" class="fr" cx="332" cy="162.22" r="4"></circle>
+  <text class="r" x="340" y="158">B</text>
+  <circle id="q13-pointC" class="fr" cx="332" cy="235.56" r="4"></circle>
+  <text class="r" x="340" y="240">C</text>
+  <circle id="q13-pointD" class="fr" cx="196" cy="211.11" r="4"></circle>
+  <text class="r" x="204" y="216">D</text>
+
+  <!-- 当前状态点（沿ABCDA连续移动） -->
+  <circle id="q13-current" class="fa" cx="196" cy="64.44" r="5"></circle>
+
+  <!-- 实时读数面板 -->
+  <text class="u" x="430" y="55">实时状态</text>
+  <text id="q13-info-phase" class="u a" x="430" y="72">AB：等温膨胀</text>
+  <text id="q13-info-p" class="n" x="430" y="97">p = 800000 Pa</text>
+  <text id="q13-info-V" class="n" x="430" y="122">V = 1.00 m³</text>
+  <text id="q13-info-T" class="n" x="430" y="147">T = 1200 K</text>
+</svg>
+<figcaption>可逆斯特林循环ABCDA：AB、CD两条等温线上标注T₁=1200K、T₂=300K；V轴上标注V₁=1.0 m³与V₂=2.0 m³刻度；当前状态点的p、V、T数值实时显示。由DA、BC两段等容过程可得pD=2.0×10⁵ Pa、V₂=2.0 m³，与AB、CD等温pV=常数自洽。</figcaption></figure>

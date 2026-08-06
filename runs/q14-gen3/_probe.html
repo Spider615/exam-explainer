@@ -1,0 +1,489 @@
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --stem:#FAFBFC;
+  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
+  --line:#C9D2DE; --hair:#E4E9F0;
+  --acc:#2B5490; --acc2:#E9EFF8;
+  --cy:#0C8CAE; --cy2:#E2F2F6;
+  --red:#AE3B2B; --red2:#FBEBE7;
+  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"Times New Roman",Georgia,serif;
+  --song:Songti SC,SimSun,serif;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk)}
+figure{margin:0;background:var(--panel);border:1px solid var(--line)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px solid var(--hair)}
+svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
+svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
+svg text.n{font-family:var(--mono);font-style:normal;font-size:11px;fill:var(--ink2)}
+svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
+.sk{stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.sh{stroke:var(--line);fill:none;stroke-width:1}
+.sa{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sr{stroke:var(--red);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sc{stroke:var(--cy);fill:none;stroke-width:1.5;stroke-dasharray:5 4}
+.fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
+.wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}.wash-c{fill:var(--cy);opacity:.16}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-top:1px solid var(--hair)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+input[type=range]{width:120px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--acc)"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cy)"/></marker>
+</defs></svg>
+
+<figure data-scene="q14-gen3"><svg viewBox="0 0 560 560" role="img" aria-label="正方形金属框中心O绕轴旋转的OA棒（part1，安培力周期变化）与倾斜导轨上撤力后下滑的CD棒（part2，安培力与摩擦力共同作用下的减速滑动）动画">
+<text class="u" x="16" y="16">B=L=ω=R=1（国际单位制），θ=30°，g=10 m/s²，m=0.15 kg均为演示用自洽取值，非题目原给数值</text>
+<text class="u" x="16" y="32">l的范围：L ≤ l ≤ √2L　　F_max/F_min = 2</text>
+<text class="u" x="16" y="48">μ = √3/9 ≈ 0.192，a = 10/3 ≈ 3.33 m/s²（沿导轨向上）</text>
+<line class="sh" x1="16" y1="60" x2="544" y2="60"/>
+<text class="u" x="16" y="76">case c1：part(1)——OA匀速转动，安培力随 l 周期变化</text>
+<rect class="sh" x="88.00" y="133.00" width="124.00" height="124.00"/>
+<circle class="sh" cx="150.00" cy="195.00" r="62.00"/>
+<circle class="sh" cx="150.00" cy="195.00" r="87.68"/>
+<text class="u" x="146" y="127">L</text>
+<text class="u" x="142" y="101.32">√2L</text>
+<circle class="fk" cx="150.00" cy="195.00" r="2.6"/>
+<text x="154" y="189">O</text>
+<line id="q14-gen3-oaLine" class="sa" marker-end="url(#aa)" x1="150.00" y1="195.00" x2="212.00" y2="195.00"/>
+<circle id="q14-gen3-contactP" class="fr" cx="212.00" cy="195.00" r="4"/>
+<text id="q14-gen3-lblA" x="218" y="189">A</text>
+<text id="q14-gen3-lblLgeo" class="n" x="185" y="189">l=1.00</text>
+<text class="u" x="250" y="96">数值面板（l、F 实时）</text>
+<text id="q14-gen3-c1PhiLbl" class="n" x="250" y="120">φ = 0.00 rad (0.0°)</text>
+<text id="q14-gen3-c1LLbl" class="n" x="250" y="140">l = 1.000 m</text>
+<text id="q14-gen3-c1FLbl" class="n a" x="250" y="160">F = 1.000 N</text>
+<rect class="sh" x="480.00" y="170.00" width="28.00" height="110.00"/>
+<line class="sc" x1="470.00" y1="188.33" x2="518.00" y2="188.33"/>
+<line class="sc" x1="470.00" y1="234.17" x2="518.00" y2="234.17"/>
+<text class="n c" x="340" y="192.33">F_max=1.00N</text>
+<text class="n c" x="340" y="238.17">F_min=0.50N</text>
+<rect id="q14-gen3-c1BarF" class="fa" x="480.00" y="188.33" width="28.00" height="91.67"/>
+<line class="sh" x1="16" y1="304" x2="544" y2="304"/>
+<text class="u" x="16" y="320">case c2：part(2)——锁定OA、CD下滑，电动势由CD自身运动产生</text>
+<line class="sk" x1="70.00" y1="538.00" x2="269.19" y2="423.00"/>
+<line class="sh" x1="40" y1="538.00" x2="330" y2="538.00"/>
+<line class="sh" x1="50" y1="538.00" x2="42" y2="550.00"/>
+<line class="sh" x1="80" y1="538.00" x2="72" y2="550.00"/>
+<line class="sh" x1="110" y1="538.00" x2="102" y2="550.00"/>
+<line class="sh" x1="140" y1="538.00" x2="132" y2="550.00"/>
+<line class="sh" x1="170" y1="538.00" x2="162" y2="550.00"/>
+<line class="sh" x1="200" y1="538.00" x2="192" y2="550.00"/>
+<line class="sh" x1="230" y1="538.00" x2="222" y2="550.00"/>
+<line class="sh" x1="260" y1="538.00" x2="252" y2="550.00"/>
+<line class="sh" x1="290" y1="538.00" x2="282" y2="550.00"/>
+<line class="sh" x1="320" y1="538.00" x2="312" y2="550.00"/>
+<path class="sh" d="M 98.00 538.00 A 28 28 0 0 0 94.25 524.00"/>
+<text class="u" x="100" y="528">θ=30°</text>
+<line id="q14-gen3-cdBar" class="sa" x1="230.21" y1="415.48" x2="256.21" y2="460.52"/>
+<circle id="q14-gen3-cdDot" class="fk" cx="243.21" cy="438.00" r="3"/>
+<line id="q14-gen3-arrowG" class="sk" marker-end="url(#ak)" x1="243.21" y1="438.00" x2="198.82" y2="412.38"/>
+<line id="q14-gen3-arrowF" class="sa" marker-end="url(#aa)" x1="240.21" y1="432.80" x2="292.17" y2="402.80"/>
+<line id="q14-gen3-arrowFric" class="sr" marker-end="url(#ar)" x1="246.21" y1="443.20" x2="275.43" y2="426.32"/>
+<text class="u" x="220" y="415">C</text>
+<text class="u" x="203.21" y="468">D</text>
+<rect class="fa" x="335" y="350" width="9" height="9"/>
+<text class="u" x="350" y="358">安培力 F（沿导轨向上）</text>
+<rect class="fr" x="335" y="368" width="9" height="9"/>
+<text class="u" x="350" y="376">摩擦力 f（滑动摩擦，恒定）</text>
+<rect class="fk" x="335" y="386" width="9" height="9"/>
+<text class="u" x="350" y="394">mg sinθ=0.75N（沿导轨向下）</text>
+<text id="q14-gen3-c2TLbl" class="n" x="330" y="420">t = 0.000 s</text>
+<text id="q14-gen3-c2VLbl" class="n a" x="330" y="438">v = 1.000 m/s</text>
+<text id="q14-gen3-c2ALbl" class="n" x="330" y="456">a = -3.333 m/s²</text>
+<text id="q14-gen3-c2XLbl" class="n" x="330" y="474">x = 0.000 m</text>
+<text id="q14-gen3-c2FLbl" class="n a" x="330" y="492">F = 1.000 N</text>
+<text id="q14-gen3-c2FricLbl" class="n r" x="330" y="510">f = 0.250 N</text>
+<text class="u" x="330" y="530">v0=1.00→v_eq=0.50 m/s，τ=0.15s</text>
+</svg>
+<figcaption>左：case c1——OA棒以恒定角速度ω绕O转动，与正方形金属框接触点的有效切割长度 l 在 L 与 √2L 之间周期变化，导致安培力 F 随之周期变化，最大最小值比为 2。右：case c2——锁定OA后推动CD下滑并撤去推力，此时安培力恰等于 F_max，CD在重力分量、安培力与滑动摩擦力共同作用下减速，速度指数趋近新的动态平衡 v_eq，由撤力瞬间加速度大小 a 反推出动摩擦因数 μ = a/(2g cosθ)。</figcaption></figure>
+
+
+<script>window.Scenes = {};</script>
+<script>window.Scenes["q14-gen3"] = function (fig) {
+  var svg = fig.querySelector('svg');
+  var PI = Math.PI;
+
+  /* ---------------- 权威解（与 spec.physics.constants / reference 完全一致） ---------------- */
+  var L = 1.0, B = 1.0, OMEGA = 1.0, R = 1.0;
+  var GACC = 10.0, MASS = 0.15, MU = 0.19245008972987526;
+  var THETA = PI / 6;
+  var TAU = 0.15, V0 = 1.0, VEQ = 0.5;
+  var T_C1 = PI / 2, T_C2 = 1.5;
+
+  function clamp01(x) { if (!(x > 0)) return 0; if (x > 1) return 1; return x; }
+
+  /* case c1 纯物理内核：phi(u)=(pi/2)u，l 按 F1 分段公式，F=B^2*L*omega*l^2/(2R) */
+  function coreC1(u) {
+    var uu = clamp01(u);
+    var phi = T_C1 * uu;
+    var l;
+    if (phi <= PI / 4) l = L / Math.cos(phi);
+    else l = L / Math.sin(phi);
+    var E = 0.5 * B * OMEGA * l * l;
+    var I = E / R;
+    var F = B * I * L;
+    return { u: uu, t: phi, phi: phi, l: l, F: F, v: 0, a: 0, x: 0, f: 0 };
+  }
+
+  /* case c2 纯物理内核：v(t) 指数趋于 v_eq，a=dv/dt，x=积分，f 恒定，F=B^2*L^2*v/R */
+  function coreC2(u) {
+    var uu = clamp01(u);
+    var t = T_C2 * uu;
+    var expTerm = Math.exp(-t / TAU);
+    var v = VEQ + (V0 - VEQ) * expTerm;
+    var a = -(V0 - VEQ) / TAU * expTerm;
+    var x = VEQ * t + (V0 - VEQ) * TAU * (1 - expTerm);
+    var f = MU * MASS * GACC * Math.cos(THETA);
+    var F = B * B * L * L * v / R;
+    return { u: uu, t: t, phi: 0, l: 0, F: F, v: v, a: a, x: x, f: f };
+  }
+
+  /* ---------------- 屏幕几何（仅渲染用，需与 gen_figure.py 的初始占位坐标一致） ---------------- */
+  var O_X = 150, O_Y = 195, SCALE1 = 62;
+  var GX = 70, GY = 538;
+  var DIRX = Math.cos(THETA), DIRY = -Math.sin(THETA);
+  var PERPX = -DIRY, PERPY = DIRX;
+  var D0 = 200, PXPERM = 150;
+
+  var BARX = 480, BARBOT = 280, BARTOP = 170;
+  var BARSCALE = (BARBOT - BARTOP) / 1.2;
+
+  /* ---------------- DOM 引用 ---------------- */
+  var oaLine = fig.querySelector('#q14-gen3-oaLine');
+  var contactP = fig.querySelector('#q14-gen3-contactP');
+  var lblA = fig.querySelector('#q14-gen3-lblA');
+  var lblLgeo = fig.querySelector('#q14-gen3-lblLgeo');
+  var c1PhiLbl = fig.querySelector('#q14-gen3-c1PhiLbl');
+  var c1LLbl = fig.querySelector('#q14-gen3-c1LLbl');
+  var c1FLbl = fig.querySelector('#q14-gen3-c1FLbl');
+  var c1BarF = fig.querySelector('#q14-gen3-c1BarF');
+
+  var cdBar = fig.querySelector('#q14-gen3-cdBar');
+  var cdDot = fig.querySelector('#q14-gen3-cdDot');
+  var arrowG = fig.querySelector('#q14-gen3-arrowG');
+  var arrowF = fig.querySelector('#q14-gen3-arrowF');
+  var arrowFric = fig.querySelector('#q14-gen3-arrowFric');
+  var c2TLbl = fig.querySelector('#q14-gen3-c2TLbl');
+  var c2VLbl = fig.querySelector('#q14-gen3-c2VLbl');
+  var c2ALbl = fig.querySelector('#q14-gen3-c2ALbl');
+  var c2XLbl = fig.querySelector('#q14-gen3-c2XLbl');
+  var c2FLbl = fig.querySelector('#q14-gen3-c2FLbl');
+  var c2FricLbl = fig.querySelector('#q14-gen3-c2FricLbl');
+
+  function flen(v) { return 25 + 35 * v; }
+
+  function drawC1(c) {
+    var x = O_X + SCALE1 * c.l * Math.cos(c.phi);
+    var y = O_Y - SCALE1 * c.l * Math.sin(c.phi);
+    oaLine.setAttribute('x2', x.toFixed(2));
+    oaLine.setAttribute('y2', y.toFixed(2));
+    contactP.setAttribute('cx', x.toFixed(2));
+    contactP.setAttribute('cy', y.toFixed(2));
+    lblA.setAttribute('x', (x + 6).toFixed(2));
+    lblA.setAttribute('y', (y - 6).toFixed(2));
+    var mx = (O_X + x) / 2, my = (O_Y + y) / 2;
+    lblLgeo.setAttribute('x', (mx + 4).toFixed(2));
+    lblLgeo.setAttribute('y', (my - 6).toFixed(2));
+    lblLgeo.textContent = 'l=' + c.l.toFixed(2);
+
+    c1PhiLbl.textContent = 'φ = ' + c.phi.toFixed(2) + ' rad (' + (c.phi * 180 / PI).toFixed(1) + '°)';
+    c1LLbl.textContent = 'l = ' + c.l.toFixed(3) + ' m';
+    c1FLbl.textContent = 'F = ' + c.F.toFixed(3) + ' N';
+
+    var barTopY = BARBOT - c.F * BARSCALE;
+    if (barTopY < BARTOP) barTopY = BARTOP;
+    c1BarF.setAttribute('y', barTopY.toFixed(2));
+    c1BarF.setAttribute('height', (BARBOT - barTopY).toFixed(2));
+  }
+
+  function drawC2(c) {
+    var d = D0 - c.x * PXPERM;
+    if (d < 0) d = 0;
+    var px = GX + d * DIRX, py = GY + d * DIRY;
+
+    cdDot.setAttribute('cx', px.toFixed(2));
+    cdDot.setAttribute('cy', py.toFixed(2));
+    cdBar.setAttribute('x1', (px - 26 * PERPX).toFixed(2));
+    cdBar.setAttribute('y1', (py - 26 * PERPY).toFixed(2));
+    cdBar.setAttribute('x2', (px + 26 * PERPX).toFixed(2));
+    cdBar.setAttribute('y2', (py + 26 * PERPY).toFixed(2));
+
+    var mgsin = MASS * GACC * Math.sin(THETA);
+    var glen = flen(mgsin);
+    arrowG.setAttribute('x1', px.toFixed(2));
+    arrowG.setAttribute('y1', py.toFixed(2));
+    arrowG.setAttribute('x2', (px - glen * DIRX).toFixed(2));
+    arrowG.setAttribute('y2', (py - glen * DIRY).toFixed(2));
+
+    var fsx = px - 6 * PERPX, fsy = py - 6 * PERPY;
+    var flenF = flen(c.F);
+    arrowF.setAttribute('x1', fsx.toFixed(2));
+    arrowF.setAttribute('y1', fsy.toFixed(2));
+    arrowF.setAttribute('x2', (fsx + flenF * DIRX).toFixed(2));
+    arrowF.setAttribute('y2', (fsy + flenF * DIRY).toFixed(2));
+
+    var frsx = px + 6 * PERPX, frsy = py + 6 * PERPY;
+    var flenFric = flen(c.f);
+    arrowFric.setAttribute('x1', frsx.toFixed(2));
+    arrowFric.setAttribute('y1', frsy.toFixed(2));
+    arrowFric.setAttribute('x2', (frsx + flenFric * DIRX).toFixed(2));
+    arrowFric.setAttribute('y2', (frsy + flenFric * DIRY).toFixed(2));
+
+    c2TLbl.textContent = 't = ' + c.t.toFixed(3) + ' s';
+    c2VLbl.textContent = 'v = ' + c.v.toFixed(3) + ' m/s';
+    c2ALbl.textContent = 'a = ' + c.a.toFixed(3) + ' m/s²';
+    c2XLbl.textContent = 'x = ' + c.x.toFixed(3) + ' m';
+    c2FLbl.textContent = 'F = ' + c.F.toFixed(3) + ' N';
+    c2FricLbl.textContent = 'f = ' + c.f.toFixed(3) + ' N';
+  }
+
+  /* ---------------- 播放节奏（仅 step 用，不影响 probe） ---------------- */
+  var ANIM1 = T_C1 * 2;          /* c1 单程时长：放慢 2 倍，约 3.14s */
+  var CYC1 = ANIM1 * 2;          /* 往返一次：0->1->0，展示 F 的周期振荡 */
+  var ANIM2 = T_C2 * 3;          /* c2 单程时长：放慢 3 倍，约 4.5s */
+  var HOLD2 = 1.5;               /* 到达新平衡后的定格时长 */
+  var CYC2 = ANIM2 + HOLD2;
+
+  return {
+    step: function (t) {
+      var tt1 = t % CYC1; if (!(tt1 >= 0)) tt1 = 0;
+      var frac1 = tt1 <= ANIM1 ? tt1 / ANIM1 : (2 - tt1 / ANIM1);
+      drawC1(coreC1(frac1));
+
+      var tt2 = t % CYC2; if (!(tt2 >= 0)) tt2 = 0;
+      var frac2 = tt2 <= ANIM2 ? tt2 / ANIM2 : 1;
+      drawC2(coreC2(frac2));
+    },
+    reset: function () {
+      drawC1(coreC1(0));
+      drawC2(coreC2(0));
+    },
+    probe: function (u, caseId) {
+      if (caseId === 'c1') return coreC1(u);
+      return coreC2(u);
+    }
+  };
+};
+</script>
+<script>/* ===== 动画运行时 ===== */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var live = [];
+
+  function build(fig) {
+    var id = fig.getAttribute('data-scene');
+    var factory = window.Scenes[id];
+    if (typeof factory !== 'function') return null;
+    var api;
+    try { api = factory(fig); } catch (e) { console.error('[scene ' + id + '] setup failed', e); return null; }
+    if (!api || typeof api.step !== 'function') { console.error('[scene ' + id + '] bad contract'); return null; }
+
+    var bar = document.createElement('div');
+    bar.className = 'ctlbar';
+    var pp = document.createElement('button');
+    pp.type = 'button'; pp.className = 'btn pp';
+    var rp = document.createElement('button');
+    rp.type = 'button'; rp.className = 'btn'; rp.textContent = '重播';
+    var tag = document.createElement('span');
+    tag.className = 'livebadge'; tag.textContent = 'LIVE';
+    bar.appendChild(pp); bar.appendChild(rp); bar.appendChild(tag);
+    var own = fig.querySelector('.ctl');
+    if (own) bar.appendChild(own);
+    var cap = fig.querySelector('figcaption');
+    fig.insertBefore(bar, cap);
+
+    window.__api = window.__api || {}; window.__api[id] = api;
+    var s = { id: id, api: api, t: 0, playing: !reduce, visible: true, fig: fig, pp: pp };
+    function paint() {
+      pp.textContent = s.playing ? '暂停' : '播放';
+      pp.setAttribute('aria-pressed', s.playing ? 'true' : 'false');
+      pp.setAttribute('aria-label', (s.playing ? '暂停' : '播放') + '动画');
+      tag.style.opacity = s.playing ? '.9' : '.3';
+    }
+    pp.addEventListener('click', function () { s.playing = !s.playing; paint(); });
+    rp.addEventListener('click', function () {
+      s.t = 0;
+      try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] reset', e); }
+    });
+    paint();
+    try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] first frame', e); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { s.visible = es[0].isIntersecting; },
+        { rootMargin: '120px' }).observe(fig);
+    }
+    return s;
+  }
+
+  function boot() {
+    var figs = document.querySelectorAll('figure[data-scene]');
+    for (var i = 0; i < figs.length; i++) {
+      var s = build(figs[i]);
+      if (s) live.push(s);
+    }
+    var g = document.getElementById('gswitch');
+    if (g) {
+      g.addEventListener('click', function () {
+        var anyOn = live.some(function (s) { return s.playing; });
+        live.forEach(function (s) { if (s.playing === anyOn) s.pp.click(); });
+        g.textContent = anyOn ? '▶ 全部播放' : '⏸ 全部暂停';
+      });
+      g.textContent = reduce ? '▶ 全部播放' : '⏸ 全部暂停';
+    }
+    var last = 0;
+    function frame(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 0;
+      last = now;
+      for (var i = 0; i < live.length; i++) {
+        var s = live[i];
+        if (!s.playing || !s.visible) continue;
+        s.t += dt;
+        try { s.api.step(s.t); }
+        catch (e) { console.error('[scene ' + s.id + '] step', e); s.playing = false; }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<script>
+function __runProbe(){
+  var out = {ok:false, errors:[], render:[], scenes:[], series:{}, notes:[]};
+  function rec(e){ out.errors.push(String(e && e.stack || e)); }
+  window.onerror = function(m,s,l,c,e){ rec(m + " @" + l + ":" + c); };
+  var _ce = console.error; console.error = function(){ rec([].join.call(arguments," ")); _ce.apply(console, arguments); };
+  try {
+    var SID = "q14-gen3", SPEC = {"id": "q14-gen3", "stem": "边长2L的正方形金属细框固定在绝缘水平面上，中心O处有竖直细导体轴OO′。间距为L、与水平面成θ角的平行导轨分别与细框、导体轴相连。导轨和细框分别处在与各自平面垂直的匀强磁场中，磁感应强度大小均为B。足够长的导体棒OA在水平面内绕O点以角速度ω匀速转动；水平放置在导轨上的导体棒CD始终静止。OA转动过程中，CD所受安培力达到最大和最小时均恰好能保持静止（临界摩擦）。CD与导轨间电阻为R，其余电阻不计。(1)求CD所受安培力的最大值和最小值；(2)锁定OA，推动CD下滑，撤去推力瞬间安培力大小恰等于(1)中的最大值，此时CD加速度大小为a，求CD与导轨间的动摩擦因数。", "cases": [{"id": "c1", "label": "OA以恒定角速度ω转动，CD所受安培力随l周期变化（对应part 1）"}, {"id": "c2", "label": "锁定OA，撤去推力后CD沿导轨下滑，安培力由CD自身运动的动生电动势产生（对应part 2）"}], "title": "旋转OA棒驱动倾斜导轨上CD棒：安培力周期变化与撤力后的滑动", "units": "u：无量纲(0~1)；phi：弧度(rad)；l：米(m)；F：牛顿(N)；v：米/秒(m/s)；a：米/秒²(m/s²)；x：米(m)；f：牛顿(N)；t：秒(s)", "physics": {"note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。B、L、ω、R、m、g、θ在题面中均为符号，未给出具体数值；为使probe()可计算，本spec选定一组自洽的具体数值（见constants与free_parameters），实现方必须原样使用，不得另行假设。", "equations": ["case c1: phi(u) = (π/2)·u , u∈[0,1]覆盖OA转过一个直角(90°)的四分之一周期", "case c1: l(u) = L/cos(phi) 当 phi≤π/4；l(u) = L/sin(phi) 当 phi>π/4  [F1]", "case c1: E(u) = (1/2)·B·ω·l(u)²  [F2]", "case c1: I(u) = E(u)/R", "case c1: F(u) = B·I(u)·L = B²Lωl(u)²/(2R)  [F3]，其极值比 F_max/F_min = (√2L)²/L² = 2  [F4]", "part1静力学背景(不单独animate，用于确定m、μ的自洽取值): F_max = mg·sinθ + μmg·cosθ ；F_min = mg·sinθ − μmg·cosθ  [F5, F6]", "case c2: 锁定OA后，CD自身运动产生动生电动势 E'(t) = B·L·v(t)，I'(t)=E'(t)/R，F(t) = B²L²v(t)/R", "case c2牛顿第二定律(CD下滑、v>0期间，取沿导轨向下为正): m·dv/dt = mg·sinθ − F(t) − μmg·cosθ  [F7的推导起点]", "case c2解: v(t) = v_eq + (v0−v_eq)·e^{−t/τ}，其中 v_eq=(mg·sinθ−μmg·cosθ)·R/(B²L²)=F_min（数值上），v0=F_max（数值上），τ=mR/(B²L²)", "case c2: a(t) = dv/dt = −(v0−v_eq)/τ·e^{−t/τ}；在t=0时 a(0) = −2μg·cosθ，其大小即题目所给'a'  [F7]", "case c2: x(t) = ∫₀ᵗ v dt' = v_eq·t + (v0−v_eq)·τ·(1−e^{−t/τ})", "case c2: 动摩擦力 f(t) = μmg·cosθ，全程恒定（滑动摩擦不随速度变化）"], "definitions": ["l：OA棒从O到与正方形框边接触点的有效切割长度", "phi：case c1中OA相对'某边中垂线方向'转过的角度，phi=ωt（本例ω=1，故数值上phi=t）", "E：OA转动或CD滑动产生的感应电动势", "I：回路电流", "F：CD所受安培力大小（case c1中由OA转动产生，case c2中由CD自身运动产生）", "v：case c2中CD沿导轨下滑的速度（沿导轨向下为正）", "a：case c2中CD的加速度 dv/dt（沿导轨向下为正号约定，故减速为负值）", "x：case c2中CD沿导轨下滑的位移", "f：CD所受动摩擦力大小", "θ：导轨与水平面夹角，本例取30°", "μ：CD与导轨间动摩擦因数（本例目标值 √3/9≈0.1925）", "m：CD棒质量（本例取0.15 kg，用于内部自洽，非题目给定的绝对数值）", "τ：case c2中速度趋于新平衡的时间常数，τ=mR/(B²L²)"], "given_facts": ["F1 · 有效切割长度l的范围：L ≤ l ≤ √2L（转到边中垂线方向最小，转到对角线/顶点方向最大）", "F2 · 感应电动势 E = (1/2)Bωl²", "F3 · 安培力 F = B²Lωl²/(2R)", "F4 · F_max/F_min = 2", "F5 · 安培力最大时CD有上滑趋势，摩擦力沿导轨向下：F_max = mg sinθ + μmg cosθ", "F6 · 安培力最小时CD有下滑趋势，摩擦力沿导轨向上：F_min = mg sinθ − μmg cosθ", "F7 · 撤去推力瞬间，安培力=F_max，摩擦力为滑动摩擦(方向沿导轨向上)，CD加速度沿导轨向上，大小 a = 2μg cosθ，故 μ = a/(2g cosθ)"], "normalization": "电磁部分取 B=1 T, L=1 m, ω=1 rad/s, R=1 Ω（case c1、c2共用同一电路，故沿用同一组B、L、R）。力学部分取 θ=30°, g=10 m/s²；由(1)得到的F_max=1 N、F_min=0.5 N反推出与之自洽的 m=0.15 kg、μ=√3/9，从而给出撤力瞬间的加速度 a=10/3 m/s²，作为(2)题面中'已知量a'的具体取值。", "free_parameters": "题面中B、L、ω、R、m、g、θ均为符号，未给出数值。本spec选定：B=1 T, L=1 m, ω=1 rad/s, R=1 Ω（case c1、c2共用，保证F_max=1N、F_min=0.5N、比值=2与题目F4一致）；θ=30°, g=10 m/s²；并反推出与F5/F6/F7自洽的 m=0.15 kg、μ=√3/9、a=10/3 m/s²（case c2的初始条件与'已知量a'）。实现方必须原样使用这组数值，不得重新假设或另行求解。"}, "constants": {"B": 1.0, "L": 1.0, "R": 1.0, "g": 10.0, "m": 0.15, "mu": 0.19245008972987526, "v0": 1.0, "tau": 0.15, "v_eq": 0.5, "F_max": 1.0, "F_min": 0.5, "omega": 1.0, "a_given": 3.3333333333333335, "theta_deg": 30, "T_c1_seconds": 1.5707963267948966, "T_c2_seconds": 1.5}, "reference": "def probe(u, case):\n    L = 1.0\n    B = 1.0\n    omega = 1.0\n    R = 1.0\n    g = 10.0\n    m = 0.15\n    mu = 0.19245008972987526\n    theta = pi / 6\n    tau = 0.15\n    v0 = 1.0\n    v_eq = 0.5\n    T_c1 = pi / 2\n    T_c2 = 1.5\n\n    if case == \"c1\":\n        phi = T_c1 * u\n        if phi <= pi / 4:\n            l = L / cos(phi)\n        else:\n            l = L / sin(phi)\n        E = 0.5 * B * omega * l * l\n        I = E / R\n        F = B * I * L\n        t = phi\n        v = 0.0\n        a = 0.0\n        x = 0.0\n        f = 0.0\n    else:\n        t = T_c2 * u\n        exp_term = exp(-t / tau)\n        v = v_eq + (v0 - v_eq) * exp_term\n        a = -(v0 - v_eq) / tau * exp_term\n        x = v_eq * t + (v0 - v_eq) * tau * (1 - exp_term)\n        f = mu * m * g * cos(theta)\n        F = B * B * L * L * v / R\n        phi = 0.0\n        l = 0.0\n\n    return {\"u\": u, \"t\": t, \"phi\": phi, \"l\": l, \"F\": F, \"v\": v, \"a\": a, \"x\": x, \"f\": f}", "invariants": [{"id": "c1-Fmax", "why": "对应F3/F4：F_max=B²L³ω/R，本例数值等于1.0", "case": "c1", "expr": "abs(max(F) - 1.0) <= 0.02", "report": "max(F)"}, {"id": "c1-Fmin", "why": "对应F3/F4：F_min=B²L³ω/(2R)，本例数值等于0.5", "case": "c1", "expr": "abs(min(F) - 0.5) <= 0.02", "report": "min(F)"}, {"id": "c1-ratio", "why": "对应F4：F_max/F_min=2，是part(1)的核心结论", "case": "c1", "expr": "abs(max(F)/min(F) - 2.0) <= 0.03", "report": "max(F)/min(F)"}, {"id": "c1-lmax", "why": "对应F1：l的最大值为√2L（OA转到顶点方向）", "case": "c1", "expr": "abs(max(l) - sqrt(2)) <= 0.02", "report": "max(l)"}, {"id": "c1-lmin", "why": "对应F1：l的最小值为L（OA转到边中垂线方向）", "case": "c1", "expr": "abs(min(l) - 1.0) <= 0.02", "report": "min(l)"}, {"id": "c1-phi-monotonic", "why": "题干：OA以恒定角速度ω匀速转动，phi=ωt应单调不减，覆盖全过程的守恒性检验", "case": "c1", "expr": "all(diff(phi) >= -1e-9)", "report": "min(diff(phi))"}, {"id": "c1-phi-terminal", "why": "u=1对应OA恰好转过90°，验证process_endpoints的定义被正确实现", "case": "c1", "expr": "abs(phi[-1] - pi/2) <= 0.02", "report": "phi[-1]"}, {"id": "c1-F-l-selfconsistency", "why": "对应F2/F3：F=B²Lωl²/(2R)在B=L=ω=R=1时应恒等于l²/2，检验F与l是否来自同一因果链而非各自硬编码终点值", "case": "c1", "expr": "max(abs(F - l*l/2)) <= 0.03", "report": "max(abs(F - l*l/2))"}, {"id": "c2-v0", "why": "对应F7：撤去推力瞬间安培力等于F_max=1，此时F=B²L²v/R=v，故v0=1", "case": "c2", "expr": "abs(v[0] - 1.0) <= 0.03", "report": "v[0]"}, {"id": "c2-vterm", "why": "对应F6：长时间后CD趋于新的动态平衡，此时安培力=F_min=0.5，对应终态速度0.5", "case": "c2", "expr": "abs(v[-1] - 0.5) <= 0.02", "report": "v[-1]"}, {"id": "c2-a0", "why": "对应F7：撤去推力瞬间CD加速度大小为a=2μg cosθ=10/3，方向沿导轨向上(即v减小方向，故在本约定下取负号)", "case": "c2", "expr": "abs(a[0] + 3.333333) <= 0.15", "report": "a[0]"}, {"id": "c2-x-monotonic", "why": "题干：CD在此过程中持续沿导轨下滑(v始终为正)，位移x应单调不减，覆盖全过程的守恒性检验", "case": "c2", "expr": "all(diff(x) >= -1e-9)", "report": "min(diff(x))"}, {"id": "c2-friction-value", "why": "对应F7推导中的μmg cosθ=0.25，是求解μ=a/(2g cosθ)的中间量", "case": "c2", "expr": "abs(f[0] - 0.25) <= 0.01", "report": "f[0]"}, {"id": "c2-friction-const", "why": "解题假设：最大静摩擦力等于滑动摩擦力，且滑动摩擦力大小不随速度变化，全程应恒定", "case": "c2", "expr": "(max(f) - min(f)) <= 0.01", "report": "max(f) - min(f)"}, {"id": "c2-F-v-selfconsistency", "why": "对应F(t)=B²L²v/R，在B=L=R=1时应恒等于v，检验安培力F与速度v是否来自同一因果链", "case": "c2", "expr": "max(abs(F - v)) <= 0.03", "report": "max(abs(F - v))"}, {"id": "c2-v-a-selfconsistency", "why": "a定义为v对时间的导数(F7)，须与v的数值差分在初始时刻自洽；dt=T_c2/400=0.00375s，防止probe内部v与a各算各的、互不相干", "case": "c2", "expr": "abs((v[1] - v[0])/0.00375 - a[0]) <= 0.15", "report": "(v[1]-v[0])/0.00375 - a[0]"}], "probe_keys": ["u", "t", "phi", "l", "F", "v", "a", "x", "f"], "disclosures": [{"why": "题面中这些量均为符号，未给具体数值；必须明确告知观众这是为了让动画可计算而选定的一组自洽数值，避免误认为题目原数据", "must_contain": "B=L=ω=R=1（国际单位制），θ=30°，g=10 m/s²，m=0.15 kg均为演示用自洽取值，非题目原给数值"}, {"why": "对应given_facts F4，是part(1)的核心结论，必须在画面上直接呈现比例关系", "must_contain": "F_max/F_min = 2"}, {"why": "对应given_facts F7，是part(2)的最终答案及其推导所用的已知量a，需展示以便核对μ的计算过程", "must_contain": "μ = √3/9 ≈ 0.192，a = 10/3 ≈ 3.33 m/s²（沿导轨向上）"}, {"why": "对应given_facts F1，是安培力周期变化的几何根源，需要在画面上标出l的实时取值区间", "must_contain": "l的范围：L ≤ l ≤ √2L"}], "sample_points": 401, "probe_key_meaning": {"F": "CD所受安培力大小(N)：case c1中随l变化，case c2中随v变化", "a": "case c2专用：CD加速度dv/dt(m/s²)，与v同号约定(沿导轨向下为正，故减速为负)；case c1中恒返回0（占位）", "f": "case c2专用：CD所受动摩擦力大小(N)，全程恒定；case c1中恒返回0（占位）", "l": "case c1专用：OA到框边接触点的有效切割长度(m)；case c2中恒返回0（占位，不参与该case的断言）", "t": "物理过程经历的时间(s)：case c1中 t=phi(数值上，因ω=1)；case c2中 t=1.5·u", "u": "归一化进度，等于传入的u", "v": "case c2专用：CD沿导轨下滑速度(m/s)，沿导轨向下为正；case c1中恒返回0（占位）", "x": "case c2专用：CD沿导轨下滑位移(m)，x(0)=0；case c1中恒返回0（占位）", "phi": "case c1专用：OA相对最近一条边中垂线方向转过的角度(rad)，phi=(π/2)·u；case c2中恒返回0（占位，不参与该case的断言）"}, "process_endpoints": "case c1：u=0对应OA恰好垂直指向正方形某条边的中点方向(l=L=1m，安培力处于最小值)；u=1对应OA继续转过90°、垂直指向下一条边的中点方向(l又回到L=1m，安培力再次最小)；中途u=0.5对应OA指向顶点方向(l=√2L，安培力达到最大值)，覆盖一个完整的力变化周期，对应真实转动时间(π/2)/ω≈1.571s。case c2：u=0对应撤去推力的瞬间(CD以v0=1 m/s沿导轨向下运动，安培力恰等于F_max=1N)；u=1对应经过1.5s(=10τ，τ=0.15s)后CD已充分接近新的动态平衡速度(v≈0.5 m/s，安培力≈F_min=0.5N)。", "scene_requirements": ["水平面上的正方形金属框（边长2L）及绕O转动的OA棒，实时标出OA与框边的接触点及有效长度l", "倾斜导轨（与水平面成θ角）上的CD棒，标出安培力F、重力沿导轨分量mg sinθ、摩擦力f的方向与大小箭头", "case c1的数值面板：实时显示 l、F，以及F_max、F_min、F_max/F_min的对照数值", "case c2的动画：撤去推力后CD沿导轨下滑，实时显示速度v、加速度a、位移x、安培力F、摩擦力f随时间的变化，直至趋于新的动态平衡（终态v→0.5 m/s, F→F_min）", "两个case需可切换或分屏展示，并标出'case c1：part(1)——OA匀速转动'与'case c2：part(2)——锁定OA、CD下滑'的文字说明", "磁场方向标示：细框所在水平面磁场垂直水平面；导轨所在平面磁场垂直导轨平面"]};
+    out.scenes = Object.keys(window.Scenes || {});
+    var fig = document.querySelector('figure[data-scene="' + SID + '"]');
+    if (!fig) { out.errors.push("DOM 里找不到 figure[data-scene=" + SID + "]"); throw 0; }
+    var api = (window.__api || {})[SID];
+    if (!api) { out.errors.push("运行时未能构造该场景（工厂抛错或契约不符）"); throw 0; }
+    ["step","reset","probe"].forEach(function(k){
+      if (typeof api[k] !== "function") out.errors.push("api." + k + " 不是函数");
+    });
+    if (out.errors.length) throw 0;
+
+    var svg = fig.querySelector("svg");
+
+    // --- 渲染压力：跑 451 帧 step()，抓异常与脏数值 ---
+    try {
+      api.reset(); api.step(0);
+      for (var t = 0; t <= 18.0001; t += 0.04) api.step(t);
+    } catch (e) { rec("step() 抛异常: " + e); }
+    var dom = svg.outerHTML;
+    ["NaN","Infinity","undefined","null"].forEach(function(w){
+      var n = (dom.match(new RegExp(w, "g")) || []).length;
+      if (n) out.errors.push("渲染后 SVG 中出现 " + w + " ×" + n);
+    });
+
+    /* --- L3.5 渲染覆盖 ---
+       断言只跑 probe，看不见渲染。历史教训：把 translate(cx,cy) rotate(θ)
+       误写成 rotate(θ cx cy)，整组元素飞出画布，四层门禁 13/13 全绿放行。
+       这里补上：每个带 id 的 SVG 元素，必须在某一采样时刻真的画在 viewBox 内。
+       只查「位置」不查「可见性」—— opacity=0 的元素 getBBox 依然有效，
+       所以合法隐藏的结论框不会被误伤，而「整组飞出画布」是全时段的，必然被抓。*/
+    try {
+      api.reset();
+      var vb = svg.viewBox.baseVal;
+      var els = svg.querySelectorAll("[id]");
+      var ids = [], everOK = {}, everDrawn = {}, snaps = [];
+      for (var q0 = 0; q0 < els.length; q0++) ids.push(els[q0].getAttribute("id"));
+      /* 注意：不能用 el.getCTM() —— 它含 viewBox 缩放，返回的是渲染像素坐标，
+         拿去和 viewBox 数值比会把右下方的元素全部误判出界。
+         正确做法是经 svg 根的 screenCTM 求逆，换回 viewBox 用户单位。 */
+      for (var tq = 0; tq <= 20.0001; tq += 0.5) {
+        api.step(tq);
+        snaps.push(svg.innerHTML);
+        var rootM = svg.getScreenCTM();
+        if (!rootM) continue;
+        var invM = rootM.inverse();
+        for (var q1 = 0; q1 < els.length; q1++) {
+          var idq = ids[q1];
+          if (everOK[idq]) continue;
+          var bb, mm;
+          try { bb = els[q1].getBBox(); mm = els[q1].getScreenCTM(); } catch (err0) { continue; }
+          if (!mm) continue;
+          if (bb.width <= 0 && bb.height <= 0) continue;   /* 退化元素不判位置 */
+          everDrawn[idq] = true;
+          mm = invM.multiply(mm);                          /* → viewBox 用户单位 */
+          var cxq = bb.x + bb.width / 2, cyq = bb.y + bb.height / 2;
+          var XQ = mm.a * cxq + mm.c * cyq + mm.e;
+          var YQ = mm.b * cxq + mm.d * cyq + mm.f;
+          if (XQ >= vb.x - 2 && XQ <= vb.x + vb.width + 2 &&
+              YQ >= vb.y - 2 && YQ <= vb.y + vb.height + 2)
+            everOK[idq] = true;
+        }
+      }
+      var off = [], dead = [];
+      for (var q2 = 0; q2 < ids.length; q2++) {
+        if (!everDrawn[ids[q2]]) dead.push(ids[q2]);
+        else if (!everOK[ids[q2]]) off.push(ids[q2]);
+      }
+      if (off.length)
+        out.render.push("这些元素在全部 41 个采样时刻都画在 viewBox 之外（画面上看不到）：" + off.join(", "));
+      var moved = false;
+      for (var q3 = 1; q3 < snaps.length; q3++) if (snaps[q3] !== snaps[0]) { moved = true; break; }
+      if (!moved)
+        out.render.push("采样了 " + snaps.length + " 个不同时刻，SVG 内容完全没有变化——动画没有动");
+      out.notes.push("渲染覆盖：" + ids.length + " 个带 id 元素，" +
+                     Object.keys(everOK).length + " 个曾正常出现在画面内" +
+                     (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
+    } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
+
+    // --- probe 采样 ---
+    var N = SPEC.sample_points || 401;
+    for (var ci = 0; ci < SPEC.cases.length; ci++) {
+      var cid = SPEC.cases[ci].id;
+      var cols = {}; SPEC.probe_keys.forEach(function(k){ cols[k] = []; });
+
+      // 纯度 + 无副作用
+      var before = svg.outerHTML;
+      var a1 = api.probe(0.37, cid), a2 = api.probe(0.37, cid);
+      if (svg.outerHTML !== before) out.errors.push("[" + cid + "] probe() 修改了 DOM（必须是纯函数）");
+      SPEC.probe_keys.forEach(function(k){
+        if (!(k in a1)) out.errors.push("[" + cid + "] probe 返回值缺少键 " + k);
+        else if (a1[k] !== a2[k]) out.errors.push("[" + cid + "] probe 不纯：同一 u 两次调用 " + k + " 不同（" + a1[k] + " vs " + a2[k] + "）");
+      });
+
+      var nbad = 0;
+      for (var i = 0; i < N; i++) {
+        var u = i / (N - 1);
+        var r;
+        try { r = api.probe(u, cid); }
+        catch (e) { out.errors.push("[" + cid + "] probe(" + u.toFixed(3) + ") 抛异常: " + e); break; }
+        for (var ki = 0; ki < SPEC.probe_keys.length; ki++) {
+          var k = SPEC.probe_keys[ki], v = r ? r[k] : undefined;
+          if (typeof v !== "number" || !isFinite(v)) { nbad++; v = null; }
+          cols[k].push(v);
+        }
+      }
+      if (nbad) out.errors.push("[" + cid + "] probe 返回了 " + nbad + " 个非有限数值");
+      out.series[cid] = cols;
+    }
+    out.ok = out.errors.length === 0 && out.render.length === 0;
+  } catch (e) { if (e) rec(e); }
+  document.getElementById("TESTOUT").textContent = "@@" + JSON.stringify(out) + "@@";
+}
+/* 必须等运行时 boot 完（它也挂在 DOMContentLoaded 上，且注册在前），
+   同时保证 <pre id="TESTOUT"> 已经存在 */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", __runProbe);
+else __runProbe();
+</script>
+<pre id="TESTOUT"></pre>
