@@ -48,6 +48,8 @@ a{color:var(--acc)}
 .banner.bad{border-left-color:var(--red)}
 .banner b{color:var(--ink)}
 .banner ul{margin:8px 0 0;padding-left:18px;color:var(--red);font-size:13.5px}
+/* 提示条里的动作（「去看这份卷子」「知道了」）另起一行，别挤在句尾 */
+.banner .btn{display:inline-block;margin:9px 0 0}
 
 h2.lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
        color:var(--ink3);margin:30px 0 10px;font-weight:600}
@@ -107,11 +109,36 @@ tbody tr.on{background:var(--acc2)}
       margin:20px 0 0;font-size:13px;color:var(--ink2);border-radius:0 3px 3px 0}
 .note b{color:var(--acc)}
 
-.stages{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0}
+.stages{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0;align-items:center}
 .stage{font-family:var(--mono);font-size:10.5px;padding:3px 9px;border-radius:2px;
-       border:1px solid var(--line);color:var(--ink3)}
-.stage.on{border-color:var(--cy);color:var(--cy);background:var(--cy2)}
-.stage.off{opacity:.55;text-decoration:line-through}
+       border:1px solid var(--line);color:var(--ink3);
+       display:inline-flex;align-items:center;gap:5px}
+/* 做完的：青色，尾巴上一个 ✓。状态不能只靠颜色说 —— 色觉障碍下 done/todo 会糊成一片 */
+.stage.st-done{border-color:var(--cy);color:var(--cy);background:var(--cy2)}
+.stage.st-done::after{content:"✓";font-size:9.5px;opacity:.85}
+/* 在跑的：整排里唯一的实底，一眼能找到「现在到哪了」。
+   前景用 --panel 而不是写死 #FFF：深色模式下 --acc 是浅蓝，白字会糊 */
+.stage.st-now{border-color:var(--acc);background:var(--acc);color:var(--panel);font-weight:600}
+/* 停下来了：还是「当前这一步」，但别再摆出一副在动的样子 */
+.stage.st-now.idle{background:var(--acc2);color:var(--acc)}
+/* 还没轮到的：虚线框 + 灰字，**不加删除线**。删除线的意思是作废，不是待办 */
+.stage.st-todo{border-style:dashed;color:var(--ink3);background:none}
+/* 跑过去了但什么都没留下（⑤ 一道都没过门禁、⑦ 的 out.html 不在磁盘上）。
+   实线框区别于「还没轮到」的虚线，尾巴上一个「—」区别于「做完了」的 ✓ ——
+   同样不能只靠颜色说，这两格在色觉障碍下和 done 是一个样子 */
+.stage.st-empty{border-color:var(--line);color:var(--ink3);background:none}
+.stage.st-empty::after{content:"—";font-size:9.5px;opacity:.75}
+.stage.st-fail{border-color:var(--red);color:var(--red);background:var(--red2);font-weight:600}
+.stage-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none;
+           animation:progpulse 1.4s ease-in-out infinite}
+.stage.idle .stage-dot{animation:none;opacity:.55}
+@media (prefers-reduced-motion:reduce){.stage-dot{animation:none}}
+
+/* 整卷末尾的 AI 声明。是提示不是免责套话，所以给暖色边而不是灰到看不见 */
+.ai-note{margin:34px 0 0;padding:11px 14px;font-size:12.5px;line-height:1.85;
+         color:var(--ink2);background:var(--panel);border:1px solid var(--hair);
+         border-left:3px solid var(--line);border-radius:0 3px 3px 0}
+.ai-note b{color:var(--ink)}
 
 .sec{margin:32px 0 14px;display:flex;align-items:baseline;gap:12px;
      border-bottom:1px solid var(--ink);padding-bottom:6px}

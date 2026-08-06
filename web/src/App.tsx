@@ -3,7 +3,7 @@ import { deletePapers, getMe, listPapers, logout, Unauthorized } from './api'
 import Login from './components/Login'
 import PaperList from './components/PaperList'
 import PaperView from './components/PaperView'
-import Upload from './components/Upload'
+import Upload, { clearSavedJob } from './components/Upload'
 import type { PaperSummary } from './types'
 
 /** 从 #/p/<name> 读当前试卷。用 hash 是为了让试卷页可以直接分享链接。 */
@@ -40,7 +40,10 @@ export default function App() {
   // 任何一次请求撞上 401 都退回登录页（api.ts 里广播）。会话是 30 天，
   // 但它可能在一次长任务跑到一半时过期 —— 那时候页面正开着试卷页
   useEffect(() => {
-    const h = () => setMe(null)
+    // 句柄跟着会话作废。过期和主动登出是同一件事 —— 不清的话，下一个在这台
+    // 机器上登进来的人会拿着别人的任务 id 去问，只能得到一条 404 和一句
+    // 关于他从没传过的卷子的说明
+    const h = () => { clearSavedJob(); setMe(null) }
     window.addEventListener('auth:expired', h)
     return () => window.removeEventListener('auth:expired', h)
   }, [])
@@ -85,8 +88,19 @@ export default function App() {
   }, [open, refresh, setOpen])
 
   const signOut = useCallback(() => {
+    // 上传任务的句柄也要清 —— 它是上一个账号的，留着只会让下一个人看到一条 404
+    clearSavedJob()
     logout().finally(() => { setMe(null); setRows([]); setOpen(null) })
   }, [setOpen])
+
+  /**
+   * 上传任务有进展了。`open` 只在**这一次是刚拖进来的上传**时为真：
+   * 刷新后接上的那次不能自动跳走 —— 人是自己停在这一屏的，跳了等于抢方向盘。
+   */
+  const afterUpload = useCallback((name: string, open: boolean) => {
+    refresh()
+    if (open) setOpen(name)
+  }, [refresh, setOpen])
 
   if (me === undefined) return <div className="wrap"><div className="empty">载入中…</div></div>
   // 登录页整页接管：没登录时页面上只该有一件事可做，套上「回到试卷库」那层
@@ -110,7 +124,7 @@ export default function App() {
         <PaperView name={open} />
       ) : (
         <>
-          <Upload onDone={(name) => { refresh(); setOpen(name) }} />
+          <Upload onDone={afterUpload} />
           <h2 className="lbl">试卷库</h2>
           {note && <div className="toast">{note}</div>}
           <PaperList rows={rows} onOpen={setOpen} onDelete={remove} busy={busy} />

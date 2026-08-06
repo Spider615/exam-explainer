@@ -561,6 +561,9 @@ def main():
             passed, out, rd, sid = build(sid, row["spec"], a.rounds, model,
                                          log=buf.append, backend=backend, images=imgs)
         except Exception as e:
+            # 崩了也要留一行「试过」。不留的话进度里的 sceneTried 永远追不上
+            # ready，⑤ 那一步会永远显示在跑 —— 卷子早停了也一样
+            store.put_scene_attempt(q["id"], sid)
             with lock:
                 fail += 1
                 print("   ✗ 第%2d题 %s" % (q["n"], str(e)[:160]), flush=True)

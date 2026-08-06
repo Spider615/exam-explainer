@@ -3,8 +3,18 @@ import type { Job, Paper, PaperSummary, Progress } from './types'
 /** 会话是 HttpOnly cookie，JS 读不到它，只能靠请求自动带上 */
 const CRED: RequestInit = { credentials: 'include' }
 
+/**
+ * 带状态码的请求失败。
+ *
+ * 状态码要留着：长轮询里「404 任务不存在」和「网络抖了一下」得区别对待 ——
+ * 前者是任务真没了（后端重启过），后者下一轮就好了。只看 message 分不出来。
+ */
+export class ApiError extends Error {
+  constructor(msg: string, readonly status: number) { super(msg) }
+}
+
 /** 没登录（或会话过期）时后端给 401。前端靠这个标记退回登录页 */
-export class Unauthorized extends Error {}
+export class Unauthorized extends ApiError {}
 
 async function j<T>(r: Response): Promise<T> {
   if (!r.ok) {
@@ -15,9 +25,9 @@ async function j<T>(r: Response): Promise<T> {
       // 让每个调用点各自处理的话，总会漏掉一个 —— 漏掉的那个表现为页面
       // 静静地停止更新。所以在这里广播一次，由 App 统一退回登录页。
       window.dispatchEvent(new Event('auth:expired'))
-      throw new Unauthorized(msg)
+      throw new Unauthorized(msg, r.status)
     }
-    throw new Error(msg)
+    throw new ApiError(msg, r.status)
   }
   return r.json() as Promise<T>
 }

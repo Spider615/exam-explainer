@@ -69,6 +69,10 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://127.0.0.1:5173",
                    allow_methods=["*"], allow_headers=["*"])
 
 JOBS = {}
+# 已经开跑、但还没 publish 进库的卷名 → 开跑的人。库要等 ①②②b 跑完才认得出
+# 这份卷子，这个 dict 补的就是那几分钟的空窗：卷名去重和「同名不许再开一条」
+# 都要连它一起判。run.sh 里没有 --workers，单进程，记在内存里就够。
+CLAIMS = {}
 LOCK = threading.Lock()
 CTRL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")   # 日志里的控制字符会污染 JSON
 
@@ -445,7 +449,8 @@ def finish_paper(jid, name):
     if not run_step(jid, "⑦ 装配成页（带动画）", step_path("assemble.py") + [name, "-o", out],
                     timeout=1800):
         with LOCK:
-            JOBS[jid].update(state="error", err="⑦ 装配失败（题目与解法已入库，网页照常可看）")
+            JOBS[jid].update(state="error", err_code="assemble",
+                             err="⑦ 装配失败（题目与解法已入库，网页照常可看）")
         return
     with LOCK:
         JOBS[jid].update(state="done", step="完成", out=out)
@@ -465,6 +470,10 @@ def run_pipeline(jid, pdf_path, name, owner_id=None):
     def log(s):
         job_log(jid, s)
 
+    # 挂在哪一步。存进 JOBS，页面才判得出「这条失败说的是不是眼下这一格」——
+    # 口径跟 stage_of 一致；②b 没有自己的标志位，归到 ② 上
+    step_code = {"① 摄入": "ingest", "② 切分": "segment", "②b 公式识别": "segment"}
+
     out = os.path.join(WORK, name)
     steps = (
         ("① 摄入", [PY, os.path.join(ROOT, "pipeline", "ingest.py"), pdf_path, "-o", out]),
@@ -479,7 +488,8 @@ def run_pipeline(jid, pdf_path, name, owner_id=None):
         for label, cmd in steps:
             if not run_step(jid, label, cmd):
                 with LOCK:
-                    JOBS[jid].update(state="error", err=label + " 失败")
+                    JOBS[jid].update(state="error", err=label + " 失败",
+                                     err_code=step_code.get(label))
                 return
         q = json.load(open(os.path.join(out, "questions.json"), encoding="utf-8"))
         # 发布：构建产物 → 库。没这一步页面上看不到它，这是有意的 ——
@@ -501,6 +511,17 @@ def run_pipeline(jid, pdf_path, name, owner_id=None):
         with LOCK:
             JOBS[jid].update(state="error", err=str(e))
         log("✗ " + str(e))
+    finally:
+        # 名字让出来。不放的话这份卷子再也重传不了 —— 上面那道闸会一直拦着
+        with LOCK:
+            CLAIMS.pop(name, None)
+        # 上传的原件收掉。它只有 ① 摄入 用得着，之后该拿的都进了 `work/<卷名>/`。
+        # 路径改成按任务分开之后，同一份 PDF 每传一次就多一个文件（原来是同名
+        # 互相覆盖），不收的话 `work/_uploads/` 会一直涨
+        try:
+            os.remove(pdf_path)
+        except OSError:
+            pass
 
 
 @app.post("/api/upload")
@@ -510,19 +531,45 @@ async def upload(file: UploadFile = File(...), user=Depends(current_user)):
         raise HTTPException(413, "文件超过 80 MB")
     if not data.startswith(b"%PDF"):
         raise HTTPException(400, "不是有效的 PDF（当前只接受有文字层的 PDF，不支持扫描件）")
-    os.makedirs(UPLOADS, exist_ok=True)
     fn = safe_name(file.filename)
-    path = os.path.join(UPLOADS, fn)
-    open(path, "wb").write(data)
     name = re.sub(r"-?题目版$", "", fn[:-4]) or fn[:-4]
     # 卷名同时是 `work/<卷名>/` 的目录名，全局唯一。自己重传同一份是「重跑」，
-    # 名字不变；撞上**别人**的卷子就自动加后缀，两条管线不会写进同一个目录
+    # 名字不变；撞上**别人**的卷子就自动加后缀，两条管线不会写进同一个目录。
+    #
+    # 占用要连 CLAIMS 一起看。只查库的话有个几分钟宽的窗口：卷子要跑完 ①②②b
+    # 才 publish，在那之前 `paper_owner` 一直回「不存在」，于是两个账号先后传
+    # 同名 PDF（高考真题的文件名本来就长得一样），free_name 一次都不会触发，
+    # 两条管线拿到同一个卷名、同一个构建目录、抢同一行 papers。
+    with LOCK:
+        claimed = dict(CLAIMS)
     exists, owner = store.paper_owner(name)
-    if exists and owner != user["id"]:
-        name = store.free_name(name)
+    if (exists and owner != user["id"]) or claimed.get(name, user["id"]) != user["id"]:
+        name = store.free_name(name, also_taken=claimed)
+
+    # 同一份卷子不能同时跑两条链。两条 run_pipeline 写同一个 `work/<卷名>/`：
+    # ingest 原地覆写 doc.json 和页面 PNG，而另一条链正在读它们（页面上会冒出
+    # 一条「②b 公式识别 失败」，而卷子其实是好的）；再往后 ③④⑤ 会把整份卷子的
+    # 模型额度跑两遍，⑤ 按四小时上限各跑一次。
+    #
+    # 这道闸必须在后端。前端那个「上传中禁用拖拽框」挡不住 —— 它是前端状态，
+    # 刷新、换标签页、退出再登进来都绕得过去，而恰恰是「还没入库」那几分钟里
+    # 页面上什么都看不到，人最容易以为上一次没成、再传一遍。
+    if active_job_for(name) or pipeline_running(name):
+        raise HTTPException(409, "这份卷子正在跑，等它跑完再重传 —— 试卷库里能看到它到哪一步了")
 
     jid = uuid.uuid4().hex[:12]
+    # 落盘要**在闸门之后**，而且路径按任务分开。
+    #
+    # 原来是收到就以 `_uploads/<原文件名>` 写下去，两个问题叠在一起：写在闸门
+    # 之前，所以被 409 挡掉的那次也已经把文件覆盖了；路径只按文件名分，而卷名
+    # 撞车时会被 free_name 改成「X (2)」—— 名字分开了，PDF 却还是同一个路径。
+    # 于是 B 的上传会把 A 那份 PDF 就地覆写，而 A 的 ingest.py 可能正在读它。
+    os.makedirs(UPLOADS, exist_ok=True)
+    path = os.path.join(UPLOADS, "%s_%s" % (jid, fn))
+    with open(path, "wb") as f:
+        f.write(data)
     with LOCK:
+        CLAIMS[name] = user["id"]
         JOBS[jid] = {"state": "running", "step": "排队中", "name": name,
                      "owner_id": user["id"],
                      "log": ["收到 %s（%.1f MB）" % (fn, len(data) / 1048576)]}
@@ -556,22 +603,56 @@ def active_job_for(name):
 
 def failed_job_for(name):
     """
-    这份卷子最近一次任务是不是**失败**收场的，是的话给出原因。
+    这份卷子最近一次任务是不是**失败**收场的，是的话给出 (原因, 出错的阶段代号)。
 
     只认得出这个进程里起过的任务 —— JOBS 是进程内的 dict，重启就空了，
     命令行跑的也不在里面。所以「没报失败」不等于成功，那种情况一律显示
     「已停止」。这是有意的：宁可少报一个失败，也不能把不知道的说成知道。
+
+    **原因之外还要给出是哪一步挂的。** JOBS 既不删条目也没有 TTL，一条几小时前
+    在 ②b 挂掉的记录会一直躺在这里；只回一句话的话，调用方只能把它按在「当前
+    阶段」那一格上 —— 于是 ⑤ 正在正常出动画时那格是红的，写着「②b 公式识别
+    失败」。代号是 `stage_of` 的口径，调用方拿它比一下就知道说的是不是眼下这步。
+    代号可能是 None（publish 前后的兜底异常，说不清属于哪一步），那种情况只报
+    原因、不往任何一格上按。
     """
     with LOCK:
         mine = [j for j in JOBS.values() if j.get("name") == name]
     if not mine or mine[-1].get("state") != "error":
-        return None
-    return mine[-1].get("err") or "未说明原因"
+        return None, None
+    return (mine[-1].get("err") or "未说明原因"), mine[-1].get("err_code")
+
+
+def failure_note(name, code, busy):
+    """
+    这条失败现在还算不算数。返回 (原因, 阶段代号)，不算数就是 (None, None)。
+
+    两种情况一律不报 —— 库里的事实已经推翻了内存里那条旧记录：
+
+    - **正在跑**：失败的是上一轮，这一轮还没有结论。`failed` 和 `busy` 可以
+      同时为真，而列表页把「失败」排在「在跑」前面，于是一份正常推进的卷子
+      会一直显示红色「失败」。
+    - **已经跑完**（`stage_of` 判 done）：中间某步挂过、后来被补跑了。典型是
+      网页那次 ⑦ 装配失败，维护者在终端补跑一次 assemble.py —— 补跑不进 JOBS，
+      永远盖不掉那条 error，于是列表页红着「失败」、点进去六格全绿。
+
+    清不掉这条记录的老路只有两条：重启后端，或者从网页重传同名卷。命令行怎么
+    补跑都不行 —— 所以判据必须落到库上，不能只看 JOBS。
+    """
+    err, at = failed_job_for(name)
+    if not err or busy or code == "done":
+        return None, None
+    return err, at
 
 
 # 管线脚本名。判「在不在跑」用它，比「多久没落库」可靠 ——
 # ④ 一题六分钟、⑤ 一道十几分钟，按时间阈值判必然误报「已停止」。
-PIPE_RE = r"pipeline/(solve|spec|scene|outline|pick|speccheck|assemble|ingest|segment|mathvlm)\.py"
+PIPE_RE = re.compile(
+    r"pipeline/(solve|spec|scene|outline|pick|speccheck|assemble|ingest|segment|mathvlm)\.py")
+# 而且**跑它的得是个 python**。只按命令行里出没出现过脚本名来判的话，一条
+# 恰好提到了 `pipeline/solve.py` 的 shell 命令（编辑器、别的工具、甚至一次
+# 手敲的 grep）就会被算成「管线在跑」，整份卷子被标成解题中。
+PY_EXE = re.compile(r"(?:^|/)[Pp]ython[\d.]*$")
 
 
 def running_cmds():
@@ -579,20 +660,53 @@ def running_cmds():
     在跑的管线进程的完整命令行。命令行起的、服务起的，都算。
 
     要的是整行而不是「有没有」：**每个步骤脚本的参数里都带着卷名**，
-    所以一次 pgrep 就能判出「在跑的是哪几份卷子」。原来只判有没有进程，
+    所以一次就能判出「在跑的是哪几份卷子」。原来只判有没有进程，
     于是任何一份卷子在跑的时候，列表里**所有**卷子都被标成在跑 ——
     一份三天前就停了的卷子也会显示「解题中」。
+
+    **用 `ps` 不用 `pgrep`。** pgrep 的 `-l` 在 BSD（macOS，本机部署）打的是整行
+    命令行，在 procps（Linux，容器里）只打进程名 —— 同一份代码换台机器跑，
+    卷名匹配会**静默**退化成「所有卷子都判成不在跑」，页面上全变「已停止」。
+    `ps -A -o args=` 两边行为一致，筛选放到这边自己做。
     """
     try:
-        r = subprocess.run(["pgrep", "-fl", PIPE_RE], capture_output=True, text=True, timeout=5)
-        return [ln for ln in (r.stdout or "").splitlines() if ln.strip()]
+        r = subprocess.run(["ps", "-A", "-o", "pid=,args="],
+                           capture_output=True, text=True, timeout=5)
     except Exception:
         return []
+    out = []
+    for ln in (r.stdout or "").splitlines():
+        # pid / 可执行文件 / 其余参数。脚本名要出现在**参数**里，可执行文件要是
+        # 个 python —— 两条都卡住，才排得掉那些只是「提到」了脚本名的命令行
+        parts = ln.split(None, 2)
+        if len(parts) == 3 and PY_EXE.search(parts[1]) and PIPE_RE.search(parts[2]):
+            out.append(ln)
+    return out
 
 
 def pipeline_running(name=None, cmds=None):
+    """
+    这份卷子有没有进程在跑。`name=None` 问的是「有没有任何管线在跑」。
+
+    **卷名要卡边界，不能拿 `in` 去撞。** 原来是裸 `name in ln`，而重名卷子会被
+    `free_name` 排成「X (2)」—— 于是查「X」必然命中「X (2)」那一行：一份三天前
+    就停了的卷子被判成在跑，页面上画着呼吸点写「正在跑这一步」，而这恰恰是
+    「已停止」这个状态本来要说清的事。同一个形状还有一处：卷名由文件名推出，
+    那条正则只剥「题目版」不剥「答案版」，于是「X」是「X-答案版」的前缀。
+
+    卷名在命令行里只有两种落位，后面跟的要么是行尾、要么是一个 `-x` 参数
+    （见 run_pipeline 与 finish_paper 里那几条命令），按这个卡边界就够。
+    卷名本身不会含空格 —— `safe_name` 把空白都换成了下划线，只有 `free_name`
+    加的「 (2)」带空格，所以 `\\s+-` 这个边界不会被卷名自己撞上。
+    """
     cmds = running_cmds() if cmds is None else cmds
-    return bool(cmds) if name is None else any(name in ln for ln in cmds)
+    if name is None:
+        return bool(cmds)
+    # 裸卷名：solve / spec / scene / outline / pick / speccheck / assemble
+    # work/<卷名>：ingest（-o 的值）/ segment / mathvlm
+    pats = [re.compile(r"(?:^|\s)%s(?:\s+-|$)" % re.escape(s))
+            for s in (name, os.path.join(WORK, name))]
+    return any(p.search(ln) for ln in cmds for p in pats)
 
 
 def stage_of(pg):
@@ -646,12 +760,15 @@ def paper_progress(name: str, user=Depends(current_user)):
         raise HTTPException(404, "没有这份试卷")
     code, label, short, cur, total = stage_of(pg)
     live = active_job_for(name)
+    busy = bool(live) or pipeline_running(name) or pg["busy"]
+    # 先算 busy 再问失败：正在跑的时候那条旧 error 不算数
+    failed, failed_stage = failure_note(name, code, busy)
     return {**pg, "stage": label, "stageCode": code, "stageShort": short,
             "stageCur": cur, "stageTotal": total,
-            "done": code == "done", "failed": failed_job_for(name),
+            "done": code == "done", "failed": failed, "failedStage": failed_stage,
             # 网页上传的任务还能给出更细的信息（正在解哪道题），命令行跑的没有
             "step": (live or {}).get("step"), "last": (live or {}).get("last"),
-            "busy": bool(live) or pipeline_running(name) or pg["busy"]}
+            "busy": busy}
 
 
 @app.get("/api/jobs/{jid}")
@@ -685,14 +802,16 @@ def papers(user=Depends(current_user)):
         pg = store.progress(r["name"])
         if pg:
             code, label, short, cur, total = stage_of(pg)
+            busy = (pg["busy"] or pipeline_running(r["name"], cmds)
+                    or bool(active_job_for(r["name"])))
+            failed, _at = failure_note(r["name"], code, busy)
             # 一行只放得下一个状态词。跑完是「已完成」，在跑是「解题中 15/16」，
             # 都不是就是「已停止」并说明停在哪 —— 光显示阶段名读不出它已经不动了
             r["progress"] = {"stage": label, "short": short, "code": code,
                              "cur": cur, "total": total,
-                             "busy": pg["busy"] or pipeline_running(r["name"], cmds)
-                                     or bool(active_job_for(r["name"])),
+                             "busy": busy,
                              "done": code == "done",
-                             "failed": failed_job_for(r["name"]),
+                             "failed": failed,
                              "solved": pg["solutions"], "questions": pg["questions"],
                              "elapsedSeconds": pg["elapsedSeconds"]}
     return out

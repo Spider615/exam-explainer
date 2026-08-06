@@ -355,7 +355,7 @@ def paper_owner(name):
         return (False, None) if not r else (True, r[0])
 
 
-def free_name(base):
+def free_name(base, also_taken=()):
     """
     挑一个还没被占用的卷名。
 
@@ -365,13 +365,17 @@ def free_name(base):
 
     **不告诉后来的人「这个名字被谁占了」**，只是换一个名字继续 ——
     否则卷名就成了一个能探测别人库存的接口。
+
+    `also_taken` 是库外的占用：卷子要跑完 ①②②b 才 publish，这几分钟里它在库里
+    还不存在，只有 api.py 的 CLAIMS 知道这个名字已经被人开跑了。不带上它的话，
+    两个账号在这个窗口里会各自算出同一个「(2)」。
     """
     with connect() as c:
         cur = c.cursor()
         cur.execute("SELECT name FROM papers WHERE name = %s OR name LIKE %s",
                     (base, base.replace("\\", "\\\\").replace("%", "\\%")
                              .replace("_", "\\_") + " (%)"))
-        taken = {r[0] for r in cur.fetchall()}
+        taken = {r[0] for r in cur.fetchall()} | set(also_taken)
     if base not in taken:
         return base
     k = 2
@@ -779,6 +783,25 @@ def put_scene(qid, sid, rounds, passed):
                        scene_id=EXCLUDED.scene_id, rounds=EXCLUDED.rounds,
                        passed=EXCLUDED.passed, created_at=now()""",
                   (qid, sid, rounds, passed))
+        c.commit()
+
+
+def put_scene_attempt(qid, sid):
+    """
+    这道题**试过了但没试成**（⑤ 那边直接抛了异常，连门禁都没跑到）。
+
+    非记不可：进度里的 `sceneTried` 数的是「有没有 scenes 行」，抛异常那条路
+    一行都不写，于是 `sceneTried < ready` 永远成立 —— ⑤ 那一步永远显示在跑，
+    卷子早就停了也一样。这正是 sceneTried 当初不数「绿灯几个」要避开的坑，
+    只是从另一头漏了出去。
+
+    `DO NOTHING` 不是 `DO UPDATE`：这道题上一轮可能已经绿灯了，这一轮只是重跑时
+    崩了一下，不能拿一条异常把那次通过抹掉。
+    """
+    with connect() as c:
+        c.execute("""INSERT INTO scenes (question_id, scene_id, rounds, passed)
+                     VALUES (%s,%s,0,false)
+                     ON CONFLICT (question_id) DO NOTHING""", (qid, sid))
         c.commit()
 
 

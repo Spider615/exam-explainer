@@ -114,6 +114,11 @@ export interface Progress {
   done: boolean
   /** 失败原因。只认得出这个后端进程里起过的任务，null 不等于成功 */
   failed: string | null
+  /**
+   * 挂在哪一步（`stage_of` 的代号）。null = 后端也说不清（publish 前后的兜底
+   * 异常）—— 那种情况**不许**把这条失败按到任何一格上，只能整条说出来
+   */
+  failedStage: string | null
   questions: number
   labels: number
   solutions: number
