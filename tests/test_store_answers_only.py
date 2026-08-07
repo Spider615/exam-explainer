@@ -102,3 +102,19 @@ def test_默认还是pdf(db, tmp_path):
 
 def test_不存在的卷子回None(db):
     assert store.source_kind_of("根本没有") is None
+
+
+def test_能手动删读错的题号(db):
+    store.create_answers_paper("答案卷F", None)
+    for n in (15, 1501, 1502):
+        store.put_answer_question("答案卷F", n, "x", None)
+    assert store.drop_questions("答案卷F", [15]) == 1
+    ns = [q["n"] for q in store.get_paper("答案卷F")["questions"]]
+    assert ns == [1501, 1502]
+    assert store.progress("答案卷F")["questions"] == 2, "题数要跟着降"
+
+
+def test_删不存在的题号不炸(db):
+    store.create_answers_paper("答案卷G", None)
+    store.put_answer_question("答案卷G", 1, "D", None)
+    assert store.drop_questions("答案卷G", [99]) == 0

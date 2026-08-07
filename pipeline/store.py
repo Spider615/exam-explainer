@@ -569,6 +569,25 @@ def put_stem(paper_name, n, stem):
         c.commit()
 
 
+def drop_questions(paper_name, ns):
+    """
+    删掉指定题号的题。**给人手动收拾读错的题号用，管线自己不调。**
+
+    不让 refread 自动删的两个理由：这一次可能有页失败，删就会误伤；
+    而且 sheet_answers 以 ON DELETE CASCADE 挂在 questions 上，
+    删一道题会连学生的作答一起删掉。
+    """
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""DELETE FROM questions q USING papers p
+                        WHERE p.id=q.paper_id AND p.name=%s AND q.n = ANY(%s)""",
+                    (paper_name, list(ns)))
+        n = cur.rowcount
+        _bump_qcount(cur, paper_name)
+        c.commit()
+        return n
+
+
 def put_page_asset(paper_name, local_path, rel_path):
     """把一页原图挂到卷子上。资产行的形状与 publish 里那段一致。"""
     row = put_asset(local_path, rel_path)

@@ -200,6 +200,18 @@ def read(paper_name, page_files, verbose=True):
     for p in numbering_problems(rows):
         log("   ⚠ %s" % p)
 
+    # 上一次跑留下、这一次没再读到的题。**不自动删** —— 这一次可能有页失败，
+    # 删就会误伤；而且 sheet_answers 以 ON DELETE CASCADE 挂在 questions 上，
+    # 删一道题会连学生的作答一起删掉。所以只报出来，由人决定
+    old = store.get_paper(paper_name)
+    if old:
+        gone = sorted({q["n"] for q in old["questions"]} - {r["n"] for r in rows})
+        if gone:
+            log("   ⚠ 库里还留着 %d 道这次没读到的题：%s"
+                % (len(gone), "、".join(show_qnum(n) for n in gone)))
+            log("     （多半是上一次读错的题号。确认之后手动删："
+                "store.drop_questions(%r, %s)）" % (paper_name, gone))
+
     n_sol = 0
     for r in rows:
         store.put_answer_question(paper_name, r["n"], r["ref_answer"],
