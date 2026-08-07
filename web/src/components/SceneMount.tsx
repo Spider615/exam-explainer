@@ -33,30 +33,56 @@ export default function SceneMount({ sceneId, figureHtml }: {
   useEffect(() => {
     const el = host.current?.querySelector<HTMLElement>('figure[data-scene]')
     if (!el) return
-    const factory = window.Scenes?.[sceneId]
-    if (typeof factory !== 'function') {
-      setFailed('场景脚本未注册')
-      return
+    setFailed(null)
+    let io: IntersectionObserver | null = null
+    let timer = 0
+    let tries = 0
+
+    /**
+     * **工厂可能还没到，要等。**
+     *
+     * 重跑换了动画之后，sceneId 立刻就变成新的，而新的 scene.js 是
+     * PaperView 用 <script> 异步加载的 —— 这个 effect 跑在它到达之前。
+     * 原来这里一查不到就 setFailed('场景脚本未注册')，于是新动画只剩
+     * figure.html 里写死的静态首帧、帧循环还被 failed 挡住不跑，
+     * 非刷新页面不可（刷新时脚本先于渲染就位，所以看起来"只有刷新才行"）。
+     * 现在改成轮询等它，等不到才判失败。
+     */
+    const build = () => {
+      const factory = window.Scenes?.[sceneId]
+      if (typeof factory !== 'function') {
+        if (++tries > 100) { setFailed('场景脚本未注册'); return }   // 100×100ms = 10s
+        timer = window.setTimeout(build, 100)
+        return
+      }
+      try {
+        const a = factory(el)
+        if (typeof a?.step !== 'function') throw new Error('契约不符：缺少 step')
+        api.current = a
+        // 挂到元素上，供无头探针主动驱动。
+        // 虚拟时间下 rAF 几乎不推进，只靠截图/等待判断「有没有动」必然误判——
+        // 必须由测试自己调 step()。
+        ;(el as HTMLElement & { __sceneApi?: SceneApi }).__sceneApi = a
+        a.reset?.()
+        a.step(0)
+        // 新场景一就位就从头自动播 —— 换了动画还要人再点一次「播放」很怪
+        setPlaying(true)
+      } catch (e) {
+        setFailed(String(e))
+      }
     }
-    try {
-      const a = factory(el)
-      if (typeof a?.step !== 'function') throw new Error('契约不符：缺少 step')
-      api.current = a
-      // 挂到元素上，供无头探针主动驱动。
-      // 虚拟时间下 rAF 几乎不推进，只靠截图/等待判断「有没有动」必然误判——
-      // 必须由测试自己调 step()。
-      ;(el as HTMLElement & { __sceneApi?: SceneApi }).__sceneApi = a
-      a.reset?.()
-      a.step(0)
-    } catch (e) {
-      setFailed(String(e))
-    }
-    const io = new IntersectionObserver(
+    build()
+
+    io = new IntersectionObserver(
       (es) => { visible.current = es[0].isIntersecting },
       { rootMargin: '150px' },
     )
     io.observe(el)
-    return () => { io.disconnect(); api.current = null }
+    return () => {
+      if (timer) window.clearTimeout(timer)
+      io?.disconnect()
+      api.current = null
+    }
   }, [sceneId, figureHtml])
 
   // 帧循环：离屏不推进，尊重 prefers-reduced-motion

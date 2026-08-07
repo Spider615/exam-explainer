@@ -51,6 +51,14 @@ a{color:var(--acc)}
 /* 提示条里的动作（「去看这份卷子」「知道了」）另起一行，别挤在句尾 */
 .banner .btn{display:inline-block;margin:9px 0 0}
 
+/* 按钮里的加载转圈。⑤ 一轮几分钟，光把按钮禁用掉看不出是在跑还是卡了 */
+.spin{display:inline-block;width:9px;height:9px;margin-right:6px;vertical-align:-1px;
+      border:1.5px solid var(--line);border-top-color:var(--acc);border-radius:50%;
+      animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* 转圈是唯一的进度信号，减少动效时也得留着 —— 换成半透明的静态圈 */
+@media (prefers-reduced-motion:reduce){.spin{animation:none;opacity:.6}}
+
 h2.lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
        color:var(--ink3);margin:30px 0 10px;font-weight:600}
 table{width:100%;border-collapse:collapse;font-size:14px;background:var(--panel);

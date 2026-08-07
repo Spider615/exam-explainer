@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ApiError, getJob, rescene, revertScene, Unauthorized } from '../api'
+import { ApiError, getJob, rescene, Unauthorized } from '../api'
 import Latex from './Latex'
 import MathText from './MathText'
 import StemBody from './StemBody'
@@ -69,7 +69,8 @@ export default function QuestionCard({ q, paper, onRescened }: {
       if (!alive.current) return
       setJob(j)
       if (j.state === 'done') {
-        setNote(`重跑好了${j.scene ? `：${j.scene}` : ''}`)
+        // 不弹「重跑好了」——新动画自己会换上并开始播，那就是最好的回执。
+        // 多一条要手动关掉的提示只是噪音
         setJob(null)
         onRescened?.()
         return
@@ -83,15 +84,6 @@ export default function QuestionCard({ q, paper, onRescened }: {
     }
   }
 
-  async function revert() {
-    try {
-      await revertScene(paper, q.n)
-    } catch (e) {
-      setNote(e instanceof Error ? e.message : String(e)); return
-    }
-    setNote('已换回重跑之前那个动画')
-    onRescened?.()
-  }
 
   // 题目可能跨页，把页码区间展开成一串页号
   const pages: number[] = []
@@ -109,17 +101,10 @@ export default function QuestionCard({ q, paper, onRescened }: {
             只会让人以为点了就能有 */}
         {q.sceneId && (
           <button className="btn" onClick={() => void doRescene()} disabled={running}
-                  title={running ? '⑤ 一轮几分钟，跑完这道题的动画会自动换上'
-                                 : '重新生成这道题的动画（⑤），几分钟到几十分钟'}>
-            {running ? (digest(job?.log ?? []) ?? '重跑中…') : '重跑动画'}
-          </button>
-        )}
-        {/* 只在重跑换过之后才出现。重跑出来的不一定更好（实测会把标签甩离
-            它标注的对象），这是那种情况下的退路 */}
-        {q.prevScene && (
-          <button className="btn" onClick={() => void revert()}
-                  title={`换回 ${q.prevScene}`}>
-            换回原来那个
+                  title={running
+                    ? (digest(job?.log ?? []) ?? '⑤ 一轮几分钟，跑完会自动换上并开始播')
+                    : '重新生成这道题的动画（⑤），几分钟到几十分钟'}>
+            {running ? <><i className="spin" />重跑中</> : '重跑动画'}
           </button>
         )}
         {q.stemLatex && <span className="pill g">公式 · 视觉识别</span>}
@@ -174,12 +159,6 @@ export default function QuestionCard({ q, paper, onRescened }: {
             {note}
             <button className="btn" style={{ marginLeft: 8 }}
                     onClick={() => setNote(null)}>知道了</button>
-          </div>
-        )}
-        {running && (
-          <div className="note">
-            正在重跑这道题的动画（⑤ 是写代码→跑门禁→读报错→重来的循环，
-            一轮几分钟）。<b>下面这个是旧动画，照常能看</b> —— 新的跑出来才会替换它。
           </div>
         )}
 
