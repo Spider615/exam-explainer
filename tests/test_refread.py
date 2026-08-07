@@ -130,14 +130,46 @@ def test_主题号提取():
 def test_上一页读到第几题():
     """参考答案常常从半道题开始翻页，页首只剩一个光秃秃的「(3)」。
     实测不给上下文时 14(3)、15(3)、16(3) 三条全丢了"""
-    assert refread.last_main_of([{"n": "13(4)"}, {"n": "14(1)"}, {"n": "14(2)"}]) == 14
+    assert refread.last_qnum_of([{"n": "13(4)"}, {"n": "14(1)"}, {"n": "14(2)"}]) == 1402
+
+
+def test_上下文要带小问号():
+    """只给主题号不够：实测 15(3) 被读成了裸的「第15题」，因为版面上
+    根本没印「(3)」"""
+    assert refread.last_qnum_of([{"n": "15(2)"}]) == 1502
 
 
 def test_取最大而不是最后一条():
     """模型的输出顺序不保证与版面一致"""
-    assert refread.last_main_of([{"n": "16(2)"}, {"n": "15(1)"}]) == 16
+    assert refread.last_qnum_of([{"n": "16(2)"}, {"n": "15(1)"}]) == 1602
 
 
 def test_一条都认不出就没有上下文():
-    assert refread.last_main_of([]) is None
-    assert refread.last_main_of([{"n": "十一"}, None, "串"]) is None
+    assert refread.last_qnum_of([]) is None
+    assert refread.last_qnum_of([{"n": "十一"}, None, "串"]) is None
+
+
+# ---------------------------------------------------------------- 题号矛盾
+def test_裸题号与小问号并存要报出来():
+    """一份卷子不可能既有裸的「第15题」又有「15(1)」「15(2)」——
+    并存说明有一条串号了。实测第二次跑就撞上了这个"""
+    rows = refread.keep([{"n": "15", "answer": "0<θ<π/4"},
+                         {"n": "15(1)", "answer": "d1"},
+                         {"n": "15(2)", "answer": "π/(π-2θ)"}])
+    probs = refread.numbering_problems(rows)
+    assert len(probs) == 1 and "15" in probs[0]
+
+
+def test_只有小问号不算矛盾():
+    rows = refread.keep([{"n": "15(1)", "answer": "a"}, {"n": "15(2)", "answer": "b"}])
+    assert refread.numbering_problems(rows) == []
+
+
+def test_只有裸题号不算矛盾():
+    rows = refread.keep([{"n": "11", "answer": "2BIL / MP"}])
+    assert refread.numbering_problems(rows) == []
+
+
+def test_不同主题号互不干扰():
+    rows = refread.keep([{"n": "11", "answer": "a"}, {"n": "15(1)", "answer": "b"}])
+    assert refread.numbering_problems(rows) == []

@@ -53,14 +53,27 @@ PROMPT = """这是一份物理试卷的**参考答案**（印刷体）。
 页眉页脚、页码、水印一律忽略。
 """
 
-# 跨页上下文。参考答案常常从半道题开始翻页，页首只剩一个光秃秃的「(3)」——
-# 没有这句话，模型认不出它属于哪道题，按上面第 1 条会整条丢掉。
-# 实测：不给上下文时 14(3)、15(3)、16(3) 三条全丢了
+# 跨页上下文。参考答案常常从半道题开始翻页，页首只剩一个光秃秃的「(3)」，
+# 甚至连「(3)」都没有、直接是上一小问推导的尾巴。
+#
+# 没有这句话，模型认不出它属于哪道题，按上面第 1 条会整条丢掉 —— 实测丢了
+# 14(3)、15(3)、16(3) 三条。只说主题号也不够：实测 15(3) 被读成了裸的「第15题」，
+# 因为版面上根本没印「(3)」。**要把上一页读到的小问号也带上。**
 CARRY = """
-**这一页可能是上一页的续页。** 上一页最后读到的是**第 %d 题**。
-所以这一页开头若是没有主题号的小问（例如只写着「(3)」），它属于第 %d 题，
-请写成 "%d(3)" 这样的完整题号。若这一页开头有明确的主题号，以图上的为准。
+**这一页可能是上一页的续页。** 上一页最后读到的是**第 %s 题**。
+
+所以：
+· 这一页开头若是没有题号的一段推导，它是上面那一小问的续写，题号照旧写 "%s"。
+· 若开头是一个只有小问号的新问（如「(3)」），它属于第 %d 题，写成 "%d(3)"。
+· **不要把它写成裸的「%d」** —— 第 %d 题是分小问的，没有「整题」这个东西。
+· 若这一页开头有明确的主题号，一律以图上的为准。
 """
+
+
+def _carry_text(last):
+    """`last` 是上一页最后一个 qnum。第 %s 处显示成 `15(2)` 这种人读得懂的形式。"""
+    main = main_of(last)
+    return CARRY % (show_qnum(last), show_qnum(last), main, main, main, main)
 
 _QN = re.compile(r"^\s*(\d{1,2})\s*(?:[（(]\s*(\d{1,2})\s*[）)])?\s*$")
 
@@ -86,15 +99,37 @@ def main_of(n):
     return n // 100 if n >= 100 else n
 
 
-def last_main_of(rows):
+def last_qnum_of(rows):
     """
-    这一批里最大的主题号，留给下一页当上下文（见 CARRY）。一条都认不出回 None。
+    这一批里最大的题号（含小问），留给下一页当上下文（见 CARRY）。
+    一条都认不出回 None。
 
     **取最大而不是取最后一条** —— 模型的输出顺序不保证与版面一致。
+    **要带小问号**：只给主题号的话，实测 15(3) 会被读成裸的「第15题」。
     """
-    mains = [main_of(qnum(r.get("n"))) for r in rows if isinstance(r, dict)
-             and qnum(r.get("n")) is not None]
-    return max(mains) if mains else None
+    ns = [qnum(r.get("n")) for r in rows if isinstance(r, dict)]
+    ns = [n for n in ns if n is not None]
+    return max(ns) if ns else None
+
+
+def numbering_problems(rows):
+    """
+    题号本身的结构性矛盾。**纯函数**，回一串人话；空表示没问题。
+
+    一份卷子不可能既有裸的「第15题」又有「15(1)」「15(2)」—— 并存说明有一条
+    串号了。这是白捡的门禁：不查的话，那条串号会带着一个错的标准答案进库，
+    而页面上看起来一切正常。
+    """
+    ns = {r["n"] for r in rows}
+    bad = []
+    for n in sorted(ns):
+        if n >= 100:
+            continue
+        subs = sorted(x for x in ns if x >= 100 and main_of(x) == n)
+        if subs:
+            bad.append("第%d题既有整题答案、又有 %s —— 其中一条题号读错了"
+                       % (n, "、".join(show_qnum(s) for s in subs)))
+    return bad
 
 
 def keep(rows):
@@ -135,12 +170,11 @@ def read(paper_name, page_files, verbose=True):
     work = os.path.join(ROOT, "work", paper_name)
     pgs = pages.normalize(page_files, os.path.join(work, "page"), prefix="p")
 
-    raw, failed, last_main = [], [], None
+    raw, failed, last_q = [], [], None
     for pg in pgs:
         # 送 hires 而不是 web：实测 1080×1441 比 540×720 还快，而且更清楚。
         # 但**绝不放大**（见 mathvlm.ask_raw 的说明）
-        prompt = PROMPT + (CARRY % (last_main, last_main, last_main)
-                           if last_main else "")
+        prompt = PROMPT + (_carry_text(last_q) if last_q else "")
         try:
             got = mathvlm.ask_raw(pg["hires"], prompt, want="array", timeout=600)
         except Exception as e:
@@ -149,18 +183,23 @@ def read(paper_name, page_files, verbose=True):
             continue
         got = got if isinstance(got, list) else []
         raw += got
-        m = last_main_of(got)
+        m = last_qnum_of(got)
         if m is not None:
-            last_main = m if last_main is None else max(last_main, m)
+            last_q = m if last_q is None else max(last_q, m)
         store.put_page_asset(paper_name, pg["hires"], "page/p%02d.png" % pg["page"])
         log("   第%d页 读到 %d 条%s" % (pg["page"], len(got),
-                                      "" if last_main is None else
-                                      "（到第%d题）" % last_main))
+                                      "" if last_q is None else
+                                      "（到第%s题）" % show_qnum(last_q)))
 
     rows = keep(raw)
     if not rows:
         raise RuntimeError("这几张图里一道题的答案都没读出来。多半不是参考答案，"
                            "或者拍得太糊 —— 请换清楚一点的图。")
+    # 题号的结构性矛盾要在入库前说出来。它意味着有一条串号了，而串号带进来的
+    # 是一条错的标准答案 —— 页面上看起来一切正常，没人发现得了
+    for p in numbering_problems(rows):
+        log("   ⚠ %s" % p)
+
     n_sol = 0
     for r in rows:
         store.put_answer_question(paper_name, r["n"], r["ref_answer"],
