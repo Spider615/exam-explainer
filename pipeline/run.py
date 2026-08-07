@@ -13,6 +13,7 @@ run.py —— 一条命令跑完管线
     refans.py     ②d 卷子自带的「参考答案」段落 → 每题的标准答案（纯代码）
     solve.py      ③ 解题（DeepSeek 盲试 → 看不到图才升级视觉模型）
     outline.py    ③b 整卷一次调用 → 每题的短标题与短答案（目录/速览用）
+    kpmark.py     ③c 整卷一次调用 → 每题挂上受控词表里的知识点
     pick.py       ④c 动画选题：一次调用判整卷「哪些题值得做动画」
     spec.py       ④ 只给选中的题写 spec 与物理断言（--picked）
     speccheck.py  ④b 拿 spec 自己的参考实现验它自己的断言，自洽才放行进 ⑤
@@ -111,6 +112,9 @@ def main():
                                    (["--crosscheck"] if a.crosscheck else []))
         total += step("③b", "目录（短标题与短答案）",
                       [PY, os.path.join(HERE, "outline.py"), name])
+        # ③c 知识点：排在 ③ 之后是因为用得上解法。整卷一次调用，几十秒
+        total += step("③c", "知识点标注",
+                      [PY, os.path.join(HERE, "kpmark.py"), name])
         # ④c 在 ④ 之前：28 秒的筛子必须排在 6 分钟一道的活前面
         total += step("④c", "动画选题", [PY, os.path.join(HERE, "pick.py"), name])
         total += step("④", "写 spec 与断言（只做选中的题）",

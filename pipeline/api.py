@@ -405,6 +405,14 @@ def finish_paper(jid, name):
                     timeout=600):
         job_log(jid, "  ⚠ ③b 没跑成，目录里这些题只显示题号，不显示标题")
 
+    # ③c 知识点：整卷一次调用，几十秒。排在 ③ 之后是因为用得上解法。
+    # 失败不中止 —— 知识点缺了页面照样能看题看讲解，为一个标签把跑了半小时的
+    # 卷子判失败，代价不对等
+    phase("③c 知识点")
+    if not run_step(jid, "③c 知识点标注", step_path("kpmark.py") + [name],
+                    timeout=900):
+        job_log(jid, "  ⚠ ③c 没跑成，这些题在页面上会写「没挂上知识点」")
+
     # ④c 动画选题，**排在 ④ 之前**。它只要一次调用 28 秒判完整卷，而写一份完整
     # spec（spec + 参考实现两次调用）实测约 6 分钟一道 —— 便宜的筛子必须排在贵的前面。
     # 实测重庆卷：原来的顺序让 ④ 对 10 道题写了完整 spec，最后只有 5 道真出了动画，
@@ -468,7 +476,8 @@ def finish_paper(jid, name):
 def run_pipeline(jid, pdf_path, name, owner_id=None):
     """
     网页上传走的整条链：
-    ① 摄入 → ② 切分 → ②b 公式 → ②c 入库 → ②d 标准答案 → ③ 解题 → ③b 目录 → ④ 断言
+    ① 摄入 → ② 切分 → ②b 公式 → ②c 入库 → ②d 标准答案 → ③ 解题 → ③b 目录
+    → ③c 知识点 → ④ 断言
     → ④b spec 自检 → ⑤ 生成场景 → ⑦ 装配。
 
     和 `pipeline/run.py` 那条命令行链是同一串。两条入口跑出来的东西必须一样，
@@ -669,7 +678,8 @@ def failure_note(name, code, busy):
 # 管线脚本名。判「在不在跑」用它，比「多久没落库」可靠 ——
 # ④ 一题六分钟、⑤ 一道十几分钟，按时间阈值判必然误报「已停止」。
 PIPE_RE = re.compile(
-    r"pipeline/(solve|spec|scene|outline|pick|speccheck|assemble|ingest|segment|mathvlm)\.py")
+    r"pipeline/(solve|spec|scene|outline|kpmark|refans|pick|speccheck|assemble"
+    r"|ingest|segment|mathvlm)\.py")
 # 而且**跑它的得是个 python**。只按命令行里出没出现过脚本名来判的话，一条
 # 恰好提到了 `pipeline/solve.py` 的 shell 命令（编辑器、别的工具、甚至一次
 # 手敲的 grep）就会被算成「管线在跑」，整份卷子被标成解题中。
