@@ -1,0 +1,70 @@
+<figure data-scene="q13-gen2"><svg viewBox="0 0 560 320" role="img" aria-label="斜面上ab、cd两导体棒电磁感应与弹性碰撞过程：M、N绝缘连接点、磁场B、cd所受外力F及碰撞瞬间的速度反转">
+  <!-- 30°倾角标注 -->
+  <line class="sh" x1="58.6" y1="248.5" x2="128.6" y2="248.5"></line>
+  <text class="u" x="70" y="243">30°</text>
+
+  <!-- 双导轨（上下段电阻不计） -->
+  <line class="sk" x1="134.6" y1="258.9" x2="311.8" y2="156.7"></line>
+  <line class="sk" x1="122.6" y1="238.1" x2="299.8" y2="135.9"></line>
+
+  <!-- 导轨两端：R、C -->
+  <line class="sk" x1="311.8" y1="156.7" x2="299.8" y2="135.9"></line>
+  <text class="u" x="309" y="130">R=0.02Ω</text>
+  <line class="sk" x1="134.6" y1="258.9" x2="122.6" y2="238.1"></line>
+  <text class="u" x="98" y="272">C=1F</text>
+
+  <!-- M、N 两点绝缘连接（虚线标出断点） -->
+  <line class="sc" x1="236.0" y1="200.4" x2="224.0" y2="179.6"></line>
+  <circle class="fk" cx="236.0" cy="200.4" r="2.4"></circle>
+  <circle class="fk" cx="224.0" cy="179.6" r="2.4"></circle>
+  <text class="u" x="239" y="209">M</text>
+  <text class="u" x="203" y="177">N</text>
+
+  <!-- 磁场B：垂直斜面向外 -->
+  <circle class="fa" cx="305" cy="150" r="1.8"></circle>
+  <circle class="fa" cx="315" cy="140" r="1.8"></circle>
+  <circle class="fa" cx="325" cy="155" r="1.8"></circle>
+  <circle class="fa" cx="300" cy="135" r="1.8"></circle>
+  <text class="u a" x="330" y="115">B=0.2T（垂直斜面向外）</text>
+  <line class="sa" x1="360" y1="98" x2="330" y2="138" marker-end="url(#aa)"></line>
+
+  <!-- ab、cd 起始区静态标签 -->
+  <text class="u r" x="284" y="143">ab（m₁=0.8kg，接R）</text>
+  <text class="u a" x="52" y="222">cd（m₂=0.4kg，接C）</text>
+
+  <!-- 动态：cd 棒 -->
+  <line id="q13-gen2-cdRod" class="sa" x1="153.7" y1="247.9" x2="141.7" y2="227.1"></line>
+  <!-- 动态：ab 棒 -->
+  <line id="q13-gen2-abRod" class="sr" x1="292.7" y1="167.7" x2="280.7" y2="146.9"></line>
+
+  <!-- 动态：F 力箭头（碰前，随cd移动；碰撞瞬间撤去） -->
+  <line id="q13-gen2-Farrow" class="sc" x1="147.7" y1="237.5" x2="173.7" y2="222.5" marker-end="url(#ac)"></line>
+  <text id="q13-gen2-Flabel" class="c" x="177.7" y="218.5">F</text>
+  <text id="q13-gen2-Fremoved" class="u r" x="52" y="300" opacity="0">碰撞前瞬间：F已撤去</text>
+
+  <!-- 动态：碰撞闪光 -->
+  <circle id="q13-gen2-flash" class="fr" cx="230.0" cy="190.0" r="0" opacity="0"></circle>
+
+  <!-- 动态：碰后方向反转箭头 -->
+  <line id="q13-gen2-abPost" class="sr" x1="236.0" y1="200.4" x2="236.0" y2="200.4" opacity="0" marker-end="url(#ar)"></line>
+  <line id="q13-gen2-cdPost" class="sa" x1="224.0" y1="179.6" x2="224.0" y2="179.6" opacity="0" marker-end="url(#aa)"></line>
+
+  <!-- 右侧实时数据面板 -->
+  <text class="u" x="400" y="34">实时数据</text>
+  <text id="q13-gen2-info-phase" class="u a" x="400" y="52">沿导轨相向运动中</text>
+  <text id="q13-gen2-info-v1" class="n r" x="400" y="72">v1 = 0.00 m/s</text>
+  <text id="q13-gen2-info-a1" class="n r" x="400" y="90">a1 = 0.00 m/s²</text>
+  <text id="q13-gen2-info-v2" class="n a" x="400" y="112">v2 = 0.00 m/s</text>
+  <text id="q13-gen2-info-a2" class="n a" x="400" y="130">a2 = 0.00 m/s²</text>
+  <text id="q13-gen2-info-t" class="n" x="400" y="150">t=0.00s u=0.00</text>
+
+  <text class="u" x="400" y="172">R 上焦耳热 QR</text>
+  <rect x="400" y="178" width="140" height="8" class="sh"></rect>
+  <rect id="q13-gen2-QRbar" x="400" y="178" width="0" height="8" class="fa"></rect>
+  <text id="q13-gen2-info-QR" class="n" x="400" y="200">QR = 0.000 J</text>
+
+  <text class="u" x="400" y="225">碰撞后瞬间速度</text>
+  <text id="q13-gen2-info-v1post" class="n r" x="400" y="244" opacity="0">v1_post=0.00 m/s</text>
+  <text id="q13-gen2-info-v2post" class="n a" x="400" y="262" opacity="0">v2_post=0.00 m/s</text>
+</svg>
+<figcaption>斜面倾角30°，ab（m₁=0.8kg，接电阻R=0.02Ω）由静止释放，cd（m₂=0.4kg，接电容C=1F）在恒力F=4.64N作用下由静止开始运动，二者相向滑向M、N处发生弹性碰撞（碰前瞬间F已撤去）。两棒运动时间t1≈1.2s；cd加速度a2=6m/s²、碰前cd速度v2=7.2m/s；ab下滑过程R上焦耳热QR≈0.78J；碰撞后瞬间ab速度≈3.3m/s、cd速度≈8.4m/s，方向均反转。</figcaption></figure>

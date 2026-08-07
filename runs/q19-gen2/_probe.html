@@ -1,0 +1,725 @@
+<meta charset="utf-8">
+<title>probe</title>
+<style>
+:root{
+  --paper:#F2F4F7; --panel:#FFFFFF; --stem:#FAFBFC;
+  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
+  --line:#C9D2DE; --hair:#E4E9F0;
+  --acc:#2B5490; --acc2:#E9EFF8;
+  --cy:#0C8CAE; --cy2:#E2F2F6;
+  --red:#AE3B2B; --red2:#FBEBE7;
+  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --math:"Times New Roman",Georgia,serif;
+  --song:Songti SC,SimSun,serif;
+}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk)}
+figure{margin:0;background:var(--panel);border:1px solid var(--line)}
+figure svg{display:block;width:100%;height:auto}
+figcaption{font-size:11.5px;color:var(--ink3);padding:6px 12px;border-top:1px solid var(--hair)}
+svg text{font-family:var(--math);font-size:13px;fill:var(--ink);font-style:italic}
+svg text.u{font-family:var(--cjk);font-style:normal;font-size:11.5px;fill:var(--ink2)}
+svg text.n{font-family:var(--mono);font-style:normal;font-size:11px;fill:var(--ink2)}
+svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
+.sk{stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.sh{stroke:var(--line);fill:none;stroke-width:1}
+.sa{stroke:var(--acc);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sr{stroke:var(--red);fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.sc{stroke:var(--cy);fill:none;stroke-width:1.5;stroke-dasharray:5 4}
+.fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
+.wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}.wash-c{fill:var(--cy);opacity:.16}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;border-top:1px solid var(--hair)}
+.ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn[aria-pressed="true"]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
+.livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
+input[type=range]{width:120px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--acc)"/></marker>
+<marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--red)"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--cy)"/></marker>
+</defs></svg>
+
+<figure data-scene="q19-gen2"><svg viewBox="0 0 560 580" role="img" aria-label="带电粒子经圆形区域Ⅰ、半圆形区域Ⅱ磁场后射入区域Ⅲ正交电磁场的运动演示">
+
+<text x="14" y="16" class="u">带电粒子经磁场区域Ⅰ、Ⅱ射入正交电磁场区域Ⅲ演示</text>
+<text x="14" y="30" class="u">m=q=B=v₀=1，R=mv₀/(qB)为长度单位；下方展开图比例尺另设</text>
+<text x="14" y="44" class="u a">区域Ⅰ、Ⅱ磁场方向垂直纸面向外，区域Ⅲ磁场垂直纸面向里、电场沿x正方向</text>
+
+<!-- ============ 主图：区域Ⅰ、Ⅱ（世界坐标 x 右 y 上，比例尺44px/R） ============ -->
+<line x1="56" y1="230" x2="296" y2="230" class="sh" marker-end="url(#ak)"></line>
+<text x="300" y="235">x</text>
+<line x1="80" y1="254" x2="80" y2="76" class="sh" marker-end="url(#ak)"></line>
+<text x="68" y="72">y</text>
+<text x="64" y="242" class="n">O</text>
+
+<!-- 区域Ⅰ：圆形，与x轴切于P、y轴切于S -->
+<circle cx="124" cy="186" r="44" class="sh wash-c"></circle>
+<circle cx="124" cy="186" r="1.6" class="fk"></circle>
+<text x="128" y="180">O₁</text>
+
+<!-- 区域Ⅱ：半圆（左半圆盘，直径MN），由 JS 依世界坐标采样生成 -->
+<path id="q19-gen2-regionII-boundary" class="sh wash-a" d=""></path>
+
+<!-- 场方向标记：区域Ⅰ、Ⅱ内 B 垂直纸面向外（小圆点） -->
+<circle cx="104" cy="166" r="1.6" class="fk"></circle>
+<circle cx="144" cy="166" r="1.6" class="fk"></circle>
+<circle cx="104" cy="206" r="1.6" class="fk"></circle>
+<circle cx="144" cy="206" r="1.6" class="fk"></circle>
+<circle cx="190" cy="140" r="1.6" class="fk"></circle>
+<circle cx="235" cy="140" r="1.6" class="fk"></circle>
+<circle cx="215" cy="186" r="1.6" class="fk"></circle>
+<circle cx="190" cy="232" r="1.6" class="fk"></circle>
+<circle cx="235" cy="232" r="1.6" class="fk"></circle>
+
+<!-- 关键点标记 -->
+<circle cx="124" cy="230" r="2.5" class="fk"></circle>
+<text x="128" y="246">P</text>
+<circle cx="80" cy="186" r="2.5" class="fk"></circle>
+<text x="58" y="182">S</text>
+<circle cx="168" cy="186" r="2.5" class="fk"></circle>
+<text x="172" y="178">Q</text>
+<circle cx="256" cy="186" r="2.5" class="fk"></circle>
+<text x="260" y="180">O₂</text>
+<circle cx="256" cy="98" r="2.5" class="fk"></circle>
+<text x="260" y="92">M</text>
+<circle cx="256" cy="274" r="2.5" class="fk"></circle>
+<text x="260" y="288">N</text>
+<circle cx="168" cy="230" r="2.5" class="fk"></circle>
+<text x="172" y="246">F</text>
+
+<!-- 轨迹圆心与半径作图虚线：区域Ⅰ内 C₁=(2R,0)=F，半径R -->
+<line x1="168" y1="230" x2="124" y2="230" class="sc"></line>
+<line x1="168" y1="230" x2="168" y2="186" class="sc"></line>
+<circle cx="168" cy="230" r="2" class="fc"></circle>
+<text x="146" y="222" class="c">R</text>
+
+<!-- 区域Ⅱ内轨迹圆心 C₂=(2R,-R)，半径2R -->
+<line x1="168" y1="274" x2="168" y2="186" class="sc"></line>
+<line x1="168" y1="274" x2="256" y2="274" class="sc"></line>
+<circle cx="168" cy="274" r="2" class="fc"></circle>
+<text x="205" y="288" class="c">2R</text>
+
+<!-- MN 边界线：区域Ⅲ左边界，见下方展开图 -->
+<line x1="256" y1="98" x2="256" y2="274" class="sa" stroke-width="2"></line>
+
+<!-- 加速电场与粒子源（P点下方） -->
+<line x1="124" y1="274" x2="124" y2="233" class="sa" marker-end="url(#aa)"></line>
+<line x1="109" y1="246" x2="139" y2="246" class="sk"></line>
+<line x1="109" y1="260" x2="139" y2="260" class="sk"></line>
+<text x="147" y="254">U</text>
+<circle cx="124" cy="274" r="3" class="fk"></circle>
+
+<!-- OF 发射范围：沿x轴，均以v₀沿+y射入 -->
+<line x1="80" y1="230" x2="168" y2="230" class="sa" stroke-width="2"></line>
+<line x1="80" y1="230" x2="80" y2="210" class="sh" stroke-dasharray="3 3" marker-end="url(#ak)"></line>
+<line x1="168" y1="230" x2="168" y2="210" class="sh" stroke-dasharray="3 3" marker-end="url(#ak)"></line>
+<text x="95" y="306" class="u">粒子源</text>
+<text x="200" y="306" class="u">OF：发射范围，均以v₀沿+y射入</text>
+
+<!-- 情形c1：P→Q→N 完整参考轨迹（静态虚线）与动态进度 -->
+<path id="q19-gen2-c1-fullpath" class="sh" stroke-dasharray="3 3" fill="none" d=""></path>
+<path id="q19-gen2-c1-progress" class="sa" stroke-width="2" fill="none" d=""></path>
+<line id="q19-gen2-c1-varrow" class="sr" x1="124" y1="230" x2="124" y2="212" marker-end="url(#ar)"></line>
+<circle id="q19-gen2-c1-dot" class="fa" cx="124" cy="230" r="5"></circle>
+<text id="q19-gen2-c1-live" class="n" x="14" y="324">u=0.00 t=0.00 x=1.00 y=0.00 v=1.00</text>
+
+<!-- ============ 右侧文字面板 ============ -->
+<text x="340" y="64">U=mv₀²/(2q)，R=mv₀/(qB)</text>
+<text x="340" y="82">总时间t=3πm/(2qB)</text>
+<text x="340" y="100" class="u">参考数值：</text>
+<text x="340" y="118" class="n">U=0.500  R=1.000  t=4.712</text>
+<text x="340" y="136" class="u">区域Ⅰ：半径R，B外向，顺时针</text>
+<text x="340" y="154" class="u">区域Ⅱ：半径2R，B/2外向，顺时针</text>
+<text x="340" y="172" class="u">区域Ⅲ：B内向，E=Bv₀沿+x，逆时针</text>
+<line x1="320" y1="190" x2="338" y2="190" class="sa"></line>
+<text x="340" y="194" class="u a">c1：P→Q→N（区域Ⅰ→Ⅱ）</text>
+<line x1="320" y1="208" x2="338" y2="208" class="sr"></line>
+<text x="340" y="212" class="u r">c2：区域Ⅲ轨迹（见下方）</text>
+
+<!-- ============ 分隔线 ============ -->
+<line x1="14" y1="336" x2="546" y2="336" class="sh"></line>
+
+<!-- ============ 区域Ⅲ展开图（第(3)问） ============ -->
+<text x="14" y="348" class="u a">区域Ⅲ展开图：横轴=漂移方向y，纵轴=深入深度x−4R（比例尺另设）</text>
+<text x="14" y="364">动能最大时v=13v₀/5，到y轴距离=172mv₀/(25qB)</text>
+<text id="q19-gen2-c2-live" class="n" x="14" y="380">u=0.00 t=0.00 x=4.00 y=0.00 v=1.00</text>
+
+<text x="64" y="398" class="u a">MN边界(x=4R)</text>
+<line x1="60" y1="406" x2="405" y2="406" class="sa" stroke-width="2"></line>
+
+<!-- 区域Ⅲ场标记：B垂直纸面向里(×)，E=Bv₀沿深入方向(展开图中为向下) -->
+<text x="110" y="430">×</text>
+<text x="160" y="470">×</text>
+<text x="220" y="420">×</text>
+<text x="280" y="470">×</text>
+<text x="340" y="430">×</text>
+<line x1="100" y1="412" x2="100" y2="436" class="sa" marker-end="url(#aa)"></line>
+<text x="106" y="428">E</text>
+
+<path id="q19-gen2-c2-fullpath" class="sh" stroke-dasharray="3 3" fill="none" d=""></path>
+<path id="q19-gen2-c2-progress" class="sr" stroke-width="2" fill="none" d=""></path>
+<line id="q19-gen2-c2-radius" class="sc" x1="70" y1="406" x2="70" y2="406"></line>
+<circle id="q19-gen2-c2-gc" class="fa" cx="70" cy="406" r="3"></circle>
+<line id="q19-gen2-c2-varrow" class="sr" x1="70" y1="406" x2="80" y2="410" marker-end="url(#ar)"></line>
+<circle id="q19-gen2-c2-dot" class="fr" cx="70" cy="406" r="5"></circle>
+
+<circle id="q19-gen2-c2-entrymark" class="fk" cx="70" cy="406" r="3"></circle>
+<line id="q19-gen2-c2-entryarrow" class="sk" x1="70" y1="406" x2="70" y2="406" marker-end="url(#ak)"></line>
+<line id="q19-gen2-c2-refline" class="sh" stroke-dasharray="2 2" x1="70" y1="406" x2="70" y2="406"></line>
+
+<line id="q19-gen2-c2-maxline" class="sc" stroke-dasharray="2 2" x1="60" y1="406" x2="405" y2="406"></line>
+<circle id="q19-gen2-c2-maxmark" class="fr" cx="70" cy="406" r="4"></circle>
+
+<text x="415" y="414" class="u">入射角74°</text>
+<text x="415" y="432" class="u">B向里、E沿深入方向</text>
+<text x="415" y="450" class="u a">导向中心沿+y漂移</text>
+<text x="415" y="468" class="u r">动能最大点(u=0.5)</text>
+<text x="415" y="486" class="n">x_max=6.880</text>
+<text x="415" y="504" class="n">v_max=2.600</text>
+
+</svg>
+<figcaption class="u">主图（左上）：世界坐标系 x 右 y 上，比例尺44px/R，O为坐标原点。区域Ⅰ为圆形磁场区（与x轴切于P、y轴切于S，圆心O₁=(R,R)，B垂直纸面向外），区域Ⅱ为半圆形磁场区（直径MN，圆心O₂=(4R,R)，半径2R，B/2垂直纸面向外，与区域Ⅰ相切于Q）。粒子源位于P点下方，经电压U加速后以速度v₀沿+y射入；OF区间(O到F=(2R,0))内任意位置发射的粒子均以v₀沿+y方向射入区域Ⅰ。图中靛蓝轨迹（c1）为题设粒子：从P点射入区域Ⅰ，沿半径R的圆弧顺时针转90°到达Q点（此时速度转为+x方向），再射入区域Ⅱ，沿半径2R的圆弧顺时针转90°到达N点，轨迹恰好与MN相切——这是所有能经MN射入区域Ⅲ的粒子中，在区域Ⅱ内运动时间最短的临界情形，区域Ⅰ、Ⅱ内总运动时间t=3πm/(2qB)。下方展开图（红色轨迹，c2，对应第(3)问）：区域Ⅲ叠加与区域Ⅰ、Ⅱ方向相反的磁场B(垂直纸面向里)以及电场E=Bv₀(沿x正方向)，粒子速度可分解为沿+y的匀速漂移v_drift=v₀(与电场力抵消)和绕漂移导向中心作逆时针匀速圆周运动的v_circ(大小8v₀/5)；由于展开图横轴方向的漂移量远大于纵轴方向的摆动量，此处将横轴取为漂移方向(世界y)、纵轴取为深入区域Ⅲ方向(世界x-4R)以便观察，比例尺46px/R，与主图不同。图中黑色小三角为入射点(与-y轴夹角74°)，靛蓝小圆为随时间沿+y匀速右移的导向中心，青色虚线为导向中心到粒子的连线(长度即r'=8R/5)，红色圆环为动能最大时刻(u=0.5，即v_circ与v_drift同向+y的瞬间)，此时粒子速度大小v_max=13v₀/5、到y轴距离x_max=172R/25=172mv₀/(25qB)。</figcaption></figure>
+
+
+<script>window.Scenes = {};</script>
+<script>window.Scenes["q19-gen2"] = function (fig) {
+  var svg = fig.querySelector('svg');
+
+  var m = 1.0, q = 1.0, B = 1.0, v0 = 1.0;
+  var R = m * v0 / (q * B);
+  var PI = Math.PI;
+
+  // ---------------------------------------------------------------- 物理核心（与 spec.physics.reference 完全一致）
+  // 区域Ⅰ、Ⅱ：磁场垂直纸面向外，正电荷顺时针转动
+  // 区域Ⅲ：漂移 v_drift=(0,v0) 叠加绕导向中心逆时针的圆周分量 v_circ
+  function calcC1(u) {
+    var omega1 = q * B / m;
+    var omega2 = q * B / (2 * m);
+    var tBoundary = PI / (2 * omega1);
+    var tTotal = tBoundary + PI / (2 * omega2);
+    var t = u * tTotal;
+    var x, y, vx, vy;
+    if (t <= tBoundary) {
+      var tau = t;
+      var phi1 = PI - omega1 * tau;
+      x = 2 * R + R * Math.cos(phi1);
+      y = R * Math.sin(phi1);
+      vx = R * omega1 * Math.sin(phi1);
+      vy = -R * omega1 * Math.cos(phi1);
+    } else {
+      var tau2 = t - tBoundary;
+      var r2 = 2 * R;
+      var phi2 = PI / 2 - omega2 * tau2;
+      x = 2 * R + r2 * Math.cos(phi2);
+      y = -R + r2 * Math.sin(phi2);
+      vx = r2 * omega2 * Math.sin(phi2);
+      vy = -r2 * omega2 * Math.cos(phi2);
+    }
+    var speed = Math.sqrt(vx * vx + vy * vy);
+    return { u: u, t: t, x: x, y: y, vx: vx, vy: vy, speed: speed, m: m, q: q, B: B, v0: v0, R: R };
+  }
+
+  function calcC2(u) {
+    var omega3 = q * B / m;
+    var thetaTotal = 286.0 * PI / 180.0;
+    var theta = u * thetaTotal;
+    var t = theta / omega3;
+    var a = 24.0 * v0 / 25.0;
+    var b = -32.0 * v0 / 25.0;
+    var vcx = a * Math.cos(theta) - b * Math.sin(theta);
+    var vcy = a * Math.sin(theta) + b * Math.cos(theta);
+    var vx = vcx;
+    var vy = v0 + vcy;
+    var speed = Math.sqrt(vx * vx + vy * vy);
+    var x = 4 * R + (a * Math.sin(theta) + b * Math.cos(theta) - b) / omega3;
+    var y0 = 0.0;
+    var y = y0 + v0 * t + (a * (1 - Math.cos(theta)) + b * Math.sin(theta)) / omega3;
+    return { u: u, t: t, x: x, y: y, vx: vx, vy: vy, speed: speed, m: m, q: q, B: B, v0: v0, R: R };
+  }
+
+  function probeCalc(u, caseId) {
+    if (caseId === 'c2') return calcC2(u);
+    return calcC1(u);
+  }
+
+  // ---------------------------------------------------------------- 屏幕映射
+  // 主图（区域Ⅰ、Ⅱ）：常规世界坐标 x 右 y 上
+  var S1 = 44, OX1 = 80, OY1 = 230;
+  function mx(x) { return OX1 + S1 * x; }
+  function my(y) { return OY1 - S1 * y; }
+
+  // 区域Ⅲ展开图：横轴 = 沿 MN 的漂移方向(世界 y)，纵轴 = 深入区域Ⅲ的深度(世界 x-4R)。
+  // 区域Ⅲ内粒子沿 y 方向的漂移远大于 x 方向摆动，故旋转 90° 展开以适应画布，比例尺与主图不同。
+  var S3 = 46, OX3 = 70, OY3 = 406;
+  function ix(yWorld) { return OX3 + S3 * yWorld; }
+  function iy(xWorld) { return OY3 + S3 * (xWorld - 4 * R); }
+
+  function pathFromPoints(pts) {
+    var d = '';
+    for (var i = 0; i < pts.length; i++) {
+      d += (i === 0 ? 'M ' : ' L ') + pts[i][0].toFixed(2) + ' ' + pts[i][1].toFixed(2);
+    }
+    return d;
+  }
+
+  // ---------------------------------------------------------------- 静态几何（构造时算一次）
+  var regionIIpath = svg.querySelector('#q19-gen2-regionII-boundary');
+  (function buildRegionII() {
+    var pts = [];
+    for (var k = 0; k <= 32; k++) {
+      var betaDeg = 90 + 180 * (k / 32);
+      var betaRad = betaDeg * PI / 180;
+      var wx = 4 * R + 2 * R * Math.cos(betaRad);
+      var wy = 1 * R + 2 * R * Math.sin(betaRad);
+      pts.push([mx(wx), my(wy)]);
+    }
+    regionIIpath.setAttribute('d', pathFromPoints(pts) + ' Z');
+  })();
+
+  var c1FullPath = svg.querySelector('#q19-gen2-c1-fullpath');
+  (function buildC1Full() {
+    var pts = [];
+    for (var i = 0; i <= 40; i++) {
+      var s = calcC1(i / 40);
+      pts.push([mx(s.x), my(s.y)]);
+    }
+    c1FullPath.setAttribute('d', pathFromPoints(pts));
+  })();
+
+  var c2FullPath = svg.querySelector('#q19-gen2-c2-fullpath');
+  (function buildC2Full() {
+    var pts = [];
+    for (var i = 0; i <= 60; i++) {
+      var s = calcC2(i / 60);
+      pts.push([ix(s.y), iy(s.x)]);
+    }
+    c2FullPath.setAttribute('d', pathFromPoints(pts));
+  })();
+
+  // 区域Ⅲ入射点(u=0)：静态标注入射角与参考方向(世界 -y 方向)
+  var entryMark = svg.querySelector('#q19-gen2-c2-entrymark');
+  var entryArrow = svg.querySelector('#q19-gen2-c2-entryarrow');
+  var entryRef = svg.querySelector('#q19-gen2-c2-refline');
+  (function buildEntry() {
+    var e = calcC2(0);
+    var ex = ix(e.y), ey = iy(e.x);
+    entryMark.setAttribute('cx', ex); entryMark.setAttribute('cy', ey);
+    var alen = 34;
+    entryArrow.setAttribute('x1', ex); entryArrow.setAttribute('y1', ey);
+    entryArrow.setAttribute('x2', ex + e.vy * alen); entryArrow.setAttribute('y2', ey + e.vx * alen);
+    entryRef.setAttribute('x1', ex); entryRef.setAttribute('y1', ey);
+    entryRef.setAttribute('x2', ex); entryRef.setAttribute('y2', ey + 30);
+  })();
+
+  // 动能最大点(u=0.5)：静态标注
+  var maxMark = svg.querySelector('#q19-gen2-c2-maxmark');
+  var maxLine = svg.querySelector('#q19-gen2-c2-maxline');
+  (function buildMax() {
+    var s = calcC2(0.5);
+    var mxp = ix(s.y), myp = iy(s.x);
+    maxMark.setAttribute('cx', mxp); maxMark.setAttribute('cy', myp);
+    maxLine.setAttribute('x1', OX3 - 10); maxLine.setAttribute('x2', 405);
+    maxLine.setAttribute('y1', myp); maxLine.setAttribute('y2', myp);
+  })();
+
+  // ---------------------------------------------------------------- 动态引用
+  var c1dot = svg.querySelector('#q19-gen2-c1-dot');
+  var c1progress = svg.querySelector('#q19-gen2-c1-progress');
+  var c1varrow = svg.querySelector('#q19-gen2-c1-varrow');
+  var c1live = svg.querySelector('#q19-gen2-c1-live');
+
+  var c2dot = svg.querySelector('#q19-gen2-c2-dot');
+  var c2gc = svg.querySelector('#q19-gen2-c2-gc');
+  var c2radius = svg.querySelector('#q19-gen2-c2-radius');
+  var c2progress = svg.querySelector('#q19-gen2-c2-progress');
+  var c2varrow = svg.querySelector('#q19-gen2-c2-varrow');
+  var c2live = svg.querySelector('#q19-gen2-c2-live');
+
+  // ---------------------------------------------------------------- 动画时序（播放节奏与真实物理时间无关，只影响观感）
+  var PLAY1 = 3.8, PAUSE1 = 1.0, PERIOD1 = PLAY1 + PAUSE1;
+  var PLAY2 = 5.2, PAUSE2 = 1.2, PERIOD2 = PLAY2 + PAUSE2;
+
+  function fmod(a, n) { var r = a % n; if (r < 0) r += n; return r; }
+
+  function render(t) {
+    var tm1 = fmod(t, PERIOD1);
+    var u1 = Math.min(tm1, PLAY1) / PLAY1;
+    var tm2 = fmod(t, PERIOD2);
+    var u2 = Math.min(tm2, PLAY2) / PLAY2;
+
+    var s1 = calcC1(u1);
+    var p1x = mx(s1.x), p1y = my(s1.y);
+    c1dot.setAttribute('cx', p1x); c1dot.setAttribute('cy', p1y);
+    var k1 = 18;
+    c1varrow.setAttribute('x1', p1x); c1varrow.setAttribute('y1', p1y);
+    c1varrow.setAttribute('x2', p1x + s1.vx * k1); c1varrow.setAttribute('y2', p1y - s1.vy * k1);
+    var pts1 = [];
+    var n1 = Math.max(2, Math.round(28 * u1));
+    for (var i1 = 0; i1 <= n1; i1++) {
+      var uu1 = (u1 * i1) / n1;
+      var ss1 = calcC1(uu1);
+      pts1.push([mx(ss1.x), my(ss1.y)]);
+    }
+    c1progress.setAttribute('d', pts1.length ? pathFromPoints(pts1) : '');
+    c1live.textContent = 'u=' + u1.toFixed(2) + ' t=' + s1.t.toFixed(2) +
+      ' x=' + s1.x.toFixed(2) + ' y=' + s1.y.toFixed(2) + ' v=' + s1.speed.toFixed(2);
+
+    var s2 = calcC2(u2);
+    var p2x = ix(s2.y), p2y = iy(s2.x);
+    c2dot.setAttribute('cx', p2x); c2dot.setAttribute('cy', p2y);
+
+    var omega3 = q * B / m;
+    var vcx2 = s2.vx;
+    var vcy2 = s2.vy - v0;
+    var rx = vcy2 / omega3;
+    var ry = -vcx2 / omega3;
+    var gcxWorld = s2.x - rx;
+    var gcyWorld = s2.y - ry;
+    var gcx = ix(gcyWorld), gcy = iy(gcxWorld);
+    c2gc.setAttribute('cx', gcx); c2gc.setAttribute('cy', gcy);
+    c2radius.setAttribute('x1', gcx); c2radius.setAttribute('y1', gcy);
+    c2radius.setAttribute('x2', p2x); c2radius.setAttribute('y2', p2y);
+
+    var k2 = 10;
+    c2varrow.setAttribute('x1', p2x); c2varrow.setAttribute('y1', p2y);
+    c2varrow.setAttribute('x2', p2x + s2.vy * k2); c2varrow.setAttribute('y2', p2y + s2.vx * k2);
+
+    var pts2 = [];
+    var n2 = Math.max(2, Math.round(40 * u2));
+    for (var i2 = 0; i2 <= n2; i2++) {
+      var uu2 = (u2 * i2) / n2;
+      var ss2 = calcC2(uu2);
+      pts2.push([ix(ss2.y), iy(ss2.x)]);
+    }
+    c2progress.setAttribute('d', pts2.length ? pathFromPoints(pts2) : '');
+    c2live.textContent = 'u=' + u2.toFixed(2) + ' t=' + s2.t.toFixed(2) +
+      ' x=' + s2.x.toFixed(2) + ' y=' + s2.y.toFixed(2) + ' v=' + s2.speed.toFixed(2);
+  }
+
+  render(0);
+
+  return {
+    step: function (t) { render(t); },
+    reset: function () { render(0); },
+    probe: function (u, caseId) { return probeCalc(u, caseId); }
+  };
+};
+</script>
+<script>/* ===== 动画运行时 ===== */
+(function () {
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var live = [];
+
+  function build(fig) {
+    var id = fig.getAttribute('data-scene');
+    var factory = window.Scenes[id];
+    if (typeof factory !== 'function') return null;
+    var api;
+    try { api = factory(fig); } catch (e) { console.error('[scene ' + id + '] setup failed', e); return null; }
+    if (!api || typeof api.step !== 'function') { console.error('[scene ' + id + '] bad contract'); return null; }
+
+    var bar = document.createElement('div');
+    bar.className = 'ctlbar';
+    var pp = document.createElement('button');
+    pp.type = 'button'; pp.className = 'btn pp';
+    var rp = document.createElement('button');
+    rp.type = 'button'; rp.className = 'btn'; rp.textContent = '重播';
+    var tag = document.createElement('span');
+    tag.className = 'livebadge'; tag.textContent = 'LIVE';
+    bar.appendChild(pp); bar.appendChild(rp); bar.appendChild(tag);
+    var own = fig.querySelector('.ctl');
+    if (own) bar.appendChild(own);
+    var cap = fig.querySelector('figcaption');
+    fig.insertBefore(bar, cap);
+
+    window.__api = window.__api || {}; window.__api[id] = api;
+    var s = { id: id, api: api, t: 0, playing: !reduce, visible: true, fig: fig, pp: pp };
+    function paint() {
+      pp.textContent = s.playing ? '暂停' : '播放';
+      pp.setAttribute('aria-pressed', s.playing ? 'true' : 'false');
+      pp.setAttribute('aria-label', (s.playing ? '暂停' : '播放') + '动画');
+      tag.style.opacity = s.playing ? '.9' : '.3';
+    }
+    pp.addEventListener('click', function () { s.playing = !s.playing; paint(); });
+    rp.addEventListener('click', function () {
+      s.t = 0;
+      try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] reset', e); }
+    });
+    paint();
+    try { if (api.reset) api.reset(); api.step(0); } catch (e) { console.error('[scene ' + id + '] first frame', e); }
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (es) { s.visible = es[0].isIntersecting; },
+        { rootMargin: '120px' }).observe(fig);
+    }
+    return s;
+  }
+
+  function boot() {
+    var figs = document.querySelectorAll('figure[data-scene]');
+    for (var i = 0; i < figs.length; i++) {
+      var s = build(figs[i]);
+      if (s) live.push(s);
+    }
+    var g = document.getElementById('gswitch');
+    if (g) {
+      g.addEventListener('click', function () {
+        var anyOn = live.some(function (s) { return s.playing; });
+        live.forEach(function (s) { if (s.playing === anyOn) s.pp.click(); });
+        g.textContent = anyOn ? '▶ 全部播放' : '⏸ 全部暂停';
+      });
+      g.textContent = reduce ? '▶ 全部播放' : '⏸ 全部暂停';
+    }
+    var last = 0;
+    function frame(now) {
+      var dt = last ? Math.min((now - last) / 1000, 1 / 30) : 0;
+      last = now;
+      for (var i = 0; i < live.length; i++) {
+        var s = live[i];
+        if (!s.playing || !s.visible) continue;
+        s.t += dt;
+        try { s.api.step(s.t); }
+        catch (e) { console.error('[scene ' + s.id + '] step', e); s.playing = false; }
+      }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+<script>
+function __runProbe(){
+  var out = {ok:false, errors:[], render:[], scenes:[], series:{}, notes:[]};
+  function rec(e){ out.errors.push(String(e && e.stack || e)); }
+  window.onerror = function(m,s,l,c,e){ rec(m + " @" + l + ":" + c); };
+  var _ce = console.error; console.error = function(){ rec([].join.call(arguments," ")); _ce.apply(console, arguments); };
+  try {
+    var SID = "q19-gen2", SPEC = {"id": "q19-gen2", "stem": "如图，在xOy坐标系中有三个区域。圆形区域Ⅰ分别与x轴、y轴相切于P点、S点，圆心为O₁，半径为R；半圆形区域Ⅱ的半径是区域Ⅰ半径的2倍，直径为竖直线段MN，圆心为O₂，O₁O₂连线与x轴平行，区域Ⅱ与区域Ⅰ相切于Q点；过Q作x轴的垂线，垂足为F。区域Ⅰ、Ⅱ内分别有磁感应强度大小为B、B/2、方向垂直纸面向外的匀强磁场。区域Ⅰ下方有粒子源和加速电场，可将质量为m、电荷量为q(q>0)的粒子由静止加速到速度v₀。改变发射器位置，可使带电粒子在OF范围内都沿y轴正方向以相同速度v₀射入区域Ⅰ（不计重力和粒子间相互作用）。已知某粒子从P点射入区域Ⅰ，并从Q点射入区域Ⅱ。(1) 求加速电场两板间电压U和区域Ⅰ的半径R；(2) 在能从MN边界射入区域Ⅲ的粒子中，某粒子在区域Ⅱ中运动的时间最短，求该粒子在区域Ⅰ和区域Ⅱ中运动的总时间t；(3) 在区域Ⅲ加入匀强磁场和匀强电场，磁感应强度大小为B、方向垂直纸面向里，电场强度大小E=Bv₀、方向沿x轴正方向。此后粒子源中某粒子经区域Ⅰ、Ⅱ射入区域Ⅲ，进入区域Ⅲ时速度方向与y轴负方向夹角为74°。当粒子动能最大时，求粒子的速度大小及所在位置到y轴的距离（sin37°=3/5，sin53°=4/5）。", "cases": [{"id": "c1", "label": "从P点射入区域Ⅰ、Q点射入区域Ⅱ的粒子：区域Ⅰ内P→Q四分之一圆弧，区域Ⅱ内Q→N（与MN相切）四分之一圆弧，对应第(1)(2)问"}, {"id": "c2", "label": "经区域Ⅰ、Ⅱ后以与y轴负方向成74°角射入区域Ⅲ的粒子，在区域Ⅲ叠加电磁场中的漂移+圆周运动，对应第(3)问"}], "title": "带电粒子经圆形/半圆形磁场区域射入正交电磁场区域的运动分析", "units": "m：kg；q：C；B：T；E：V/m；U：V；v₀、v、vx、vy、speed：m/s；R、x、y：m（几何量以 R=mv₀/(qB) 为自然长度单位）；t：s；u：无量纲过程进度(0到1)", "physics": {"note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式或旋转方向。区域Ⅰ、Ⅱ磁场垂直纸面向外，正电荷做顺时针圆周运动；区域Ⅲ磁场垂直纸面向里，圆周分量做逆时针圆周运动。", "equations": ["加速：qU=(1/2)mv₀² → U=mv₀²/(2q)", "区域Ⅰ内洛伦兹力提供向心力：qv₀B=mv₀²/r₁ → r₁=mv₀/(qB)；由P点射入、Q点射出的圆心在x轴上（圆心C₁=(R+r₁,0)）这一几何关系解得r₁=R，故R=mv₀/(qB)", "区域Ⅰ轨迹：以C₁=(2R,0)为圆心、R为半径，粒子自P=(R,0)、初速度(0,v₀)出发，以角速度ω₁=qB/m顺时针转动；转过π/2后到达Q=(2R,R)，此时速度为(v₀,0)（水平向右）", "区域Ⅱ轨道半径：qv₀(B/2)=mv₀²/r₂ → r₂=2mv₀/(qB)=2R，与区域Ⅱ半径相等", "区域Ⅱ轨迹：以C₂=(2R,-R)（=Q+2R·(0,-1)）为圆心、2R为半径，粒子自Q=(2R,R)、初速度(v₀,0)出发，以角速度ω₂=q(B/2)/m顺时针转动；转过π/2后到达N=(4R,-R)，轨迹与MN相切（该粒子即为能经MN射入区域Ⅲ的粒子中在区域Ⅱ内运动时间最短的临界情形）", "总时间：t=(π/2)/ω₁+(π/2)/ω₂=πm/(2qB)+πm/(qB)=3πm/(2qB)", "区域Ⅲ：E=Bv₀沿+x，B沿-z（垂直纸面向里）；速度分解为v_drift=(0,v₀)（其洛伦兹力q·v_drift×B与电场力qE恰好抵消）与v_circ=v-v_drift；v_circ仅受洛伦兹力，绕以v_drift漂移的导向中心，以角速度ω₃=qB/m逆时针做匀速圆周运动，半径r'=m|v_circ|/(qB)", "入射Ⅲ时（与y轴负方向夹角74°）：v=(v₀sin74°,-v₀cos74°)，v_circ⁰=v-（0,v₀)=(v₀sin74°,-v₀(1+cos74°))=(24v₀/25,-32v₀/25)，|v_circ⁰|=2v₀cos37°=8v₀/5=r'·ω₃", "动能最大即|v|最大，发生在v_circ与v_drift同向（+y）的时刻：v_max=v₀+8v₀/5=13v₀/5；此刻粒子位置的x坐标（导向中心x坐标不随时间变化，因v_drift无x分量）为x_max=4R+32R/25+8R/5=172R/25=172mv₀/(25qB)"], "definitions": ["R：区域Ⅰ半径，R=mv₀/(qB)", "O₁=(R,R)：区域Ⅰ圆心；P=(R,0)：区域Ⅰ与x轴切点；S=(0,R)：区域Ⅰ与y轴切点", "O₂=(4R,R)：区域Ⅱ（半圆所在整圆）圆心；Q=(2R,R)：区域Ⅰ、Ⅱ切点；M=(4R,3R)、N=(4R,-R)：MN为区域Ⅱ直径，同时是区域Ⅲ左边界", "F=(2R,0)：过Q作x轴垂线的垂足，OF为发射器可发射范围", "r₁：粒子在区域Ⅰ内的轨道半径；r₂：粒子在区域Ⅱ内的轨道半径", "v_drift：区域Ⅲ内粒子速度中沿y正方向的匀速漂移分量，大小v₀（洛伦兹力与电场力抵消）", "v_circ：区域Ⅲ内粒子速度减去v_drift后剩余的圆周运动分量，绕以v_drift漂移的导向中心做匀速圆周运动", "r'：区域Ⅲ内圆周分量的轨道半径，r'=m|v_circ|/(qB)", "u：归一化物理过程进度"], "given_facts": ["F1 · 圆形区域Ⅰ与x轴切于P、与y轴切于S，O₁=(R,R)，P=(R,0)", "F2 · 半圆Ⅱ半径为2R，与Ⅰ外切于Q，O₁O₂∥x轴，O₂=(4R,R)，Q=(2R,R)，MN为过O₂的竖直直径，M=(4R,3R)，N=(4R,-R)", "F3 · 粒子经qU=(1/2)mv₀²加速，U=mv₀²/(2q)", "F4 · 区域Ⅰ内轨道半径r₁=mv₀/(qB)；P→Q几何关系要求r₁=R，故R=mv₀/(qB)", "F5 · 从P射入的粒子在区域Ⅰ内转过圆心角π/2到达Q，此时速度方向恰为+x（水平向右）", "F6 · 区域Ⅱ内轨道半径r₂=2R，与区域Ⅱ半径相等；水平射入Ⅱ的粒子轨迹与MN相切于N点，圆心角同为π/2，是能经MN射入区域Ⅲ的粒子中在Ⅱ内运动时间最短的情形", "F7 · 该粒子在Ⅰ、Ⅱ中运动总时间t=πm/(2qB)+πm/(qB)=3πm/(2qB)", "F8 · 区域Ⅲ中v₀方向漂移分量与洛伦兹力被电场力抵消，圆周分量大小|v_circ|=8v₀/5", "F9 · 动能最大时总速度v_max=13v₀/5，此刻位置到y轴距离x_max=172mv₀/(25qB)"], "normalization": "取 m=1, q=1, B=1, v₀=1（从而 R=mv₀/(qB)=1）为参考实现的具体数值；结论均为无量纲比例关系（如 v/v₀、位置/R、时间×qB/m），对任意 m,q,B,v₀ 均成立。case c1 以真实时间 t 归一化：u=0 对应粒子从P点射入区域Ⅰ的时刻，u=1 对应粒子到达N点（与MN相切、即将进入区域Ⅲ）的时刻。case c2 以区域Ⅲ内圆周分量转过的角度归一化：u=0 对应粒子经MN射入区域Ⅲ的时刻，u=1 对应圆周分量转过286°、粒子回到MN边界(x=4R)即将折返区域Ⅱ的时刻；u=0.5 恰为动能最大时刻（几何对称：粒子与MN的两个交点关于圆周运动最远点对称，最远点必在两交点角度的正中间）。", "free_parameters": ""}, "constants": {"B": 1.0, "m": 1.0, "q": 1.0, "v0": 1.0}, "reference": "def probe(u, case):\n    m = 1.0\n    q = 1.0\n    B = 1.0\n    v0 = 1.0\n    R = m*v0/(q*B)\n\n    if case == \"c1\":\n        omega1 = q*B/m\n        omega2 = q*B/(2*m)\n        t_boundary = pi/(2*omega1)\n        t_total = t_boundary + pi/(2*omega2)\n        t = u*t_total\n        if t <= t_boundary:\n            tau = t\n            phi1 = pi - omega1*tau\n            x = 2*R + R*cos(phi1)\n            y = R*sin(phi1)\n            vx = R*omega1*sin(phi1)\n            vy = -R*omega1*cos(phi1)\n        else:\n            tau2 = t - t_boundary\n            r2 = 2*R\n            phi2 = pi/2 - omega2*tau2\n            x = 2*R + r2*cos(phi2)\n            y = -R + r2*sin(phi2)\n            vx = r2*omega2*sin(phi2)\n            vy = -r2*omega2*cos(phi2)\n        speed = sqrt(vx*vx + vy*vy)\n        return {\"u\": u, \"t\": t, \"x\": x, \"y\": y, \"vx\": vx, \"vy\": vy, \"speed\": speed,\n                \"m\": m, \"q\": q, \"B\": B, \"v0\": v0, \"R\": R}\n    else:\n        omega3 = q*B/m\n        theta_total = 286.0*pi/180.0\n        theta = u*theta_total\n        t = theta/omega3\n        a = 24.0*v0/25.0\n        b = -32.0*v0/25.0\n        vcx = a*cos(theta) - b*sin(theta)\n        vcy = a*sin(theta) + b*cos(theta)\n        vx = vcx\n        vy = v0 + vcy\n        speed = sqrt(vx*vx + vy*vy)\n        x = 4*R + (a*sin(theta) + b*cos(theta) - b)/omega3\n        y0 = 0.0\n        y = y0 + v0*t + (a*(1 - cos(theta)) + b*sin(theta))/omega3\n        return {\"u\": u, \"t\": t, \"x\": x, \"y\": y, \"vx\": vx, \"vy\": vy, \"speed\": speed,\n                \"m\": m, \"q\": q, \"B\": B, \"v0\": v0, \"R\": R}", "invariants": [{"id": "c1-t-total", "why": "F7：区域Ⅰ、Ⅱ内运动总时间t=3πm/(2qB)，即第(2)问答案", "case": "c1", "expr": "abs(t[-1] - 3*pi*m[0]/(2*q[0]*B[0])) <= 0.04*3*pi*m[0]/(2*q[0]*B[0])", "report": "t[-1]"}, {"id": "c1-speed-conserved", "why": "F4/F6：磁场不做功，全程速率恒为v₀，是区域Ⅰ、Ⅱ轨道半径公式(r=mv₀/(qB))成立的前提", "case": "c1", "expr": "max(speed) - min(speed) <= 0.03*v0[0]", "report": "max(speed)-min(speed)"}, {"id": "c1-transition-u", "why": "F5：区域Ⅰ内转过π/2到达Q，占总时间t的1/3（πm/(2qB) ÷ 3πm/(2qB)），Q点为y坐标最大处", "case": "c1", "expr": "abs(u[argmax(y)] - 1/3) <= 0.02", "report": "u[argmax(y)]"}, {"id": "c1-vy-zero-at-ymax", "why": "自洽性：y取最大值处（区域Ⅰ→Ⅱ转换点Q）竖直速度分量vy必须为零，防止位置y与速度vy各自独立计算而互不自洽", "case": "c1", "expr": "abs(vy[argmax(y)]) <= 0.05*v0[0]", "report": "vy[argmax(y)]"}, {"id": "c1-regionI-radius", "why": "F4：区域Ⅰ内粒子轨道半径等于区域Ⅰ半径R（圆心C₁=(2R,0)）", "case": "c1", "expr": "abs(sqrt((interp(1/6,u,x)-2*R[0])**2 + interp(1/6,u,y)**2) - R[0]) <= 0.05*R[0]", "report": "region I curvature radius @u=1/6"}, {"id": "c1-regionII-radius", "why": "F6：区域Ⅱ内粒子轨道半径为2R（圆心C₂=(2R,-R)）", "case": "c1", "expr": "abs(sqrt((interp(2/3,u,x)-2*R[0])**2 + (interp(2/3,u,y)+R[0])**2) - 2*R[0]) <= 0.05*2*R[0]", "report": "region II curvature radius @u=2/3"}, {"id": "c1-endpoint-N", "why": "F2/F6：粒子最终在N=(4R,-R)与MN相切，几何上验证MN边界位置", "case": "c1", "expr": "abs(x[-1]-4*R[0]) <= 0.05*R[0]", "report": "x[-1]"}, {"id": "c1-endpoint-N-y", "why": "F2/F6：N点纵坐标为-R", "case": "c1", "expr": "abs(y[-1]+R[0]) <= 0.05*R[0]", "report": "y[-1]"}, {"id": "c1-x-vx-consistency", "why": "自洽性：位置x对时间的数值导数须与探针给出的vx一致", "case": "c1", "expr": "abs(mean(diff(x)/diff(t)) - mean(vx)) <= 0.05*v0[0]", "report": "mean(diff(x)/diff(t)) vs mean(vx)"}, {"id": "c1-y-vy-consistency", "why": "自洽性：位置y对时间的数值导数须与探针给出的vy一致", "case": "c1", "expr": "abs(mean(diff(y)/diff(t)) - mean(vy)) <= 0.05*v0[0]", "report": "mean(diff(y)/diff(t)) vs mean(vy)"}, {"id": "c2-vmax", "why": "F9：动能最大时总速度大小v_max=13v₀/5，第(3)问答案之一", "case": "c2", "expr": "abs(max(speed) - 13*v0[0]/5) <= 0.04*13*v0[0]/5", "report": "max(speed)"}, {"id": "c2-vmax-u", "why": "归一化定义：粒子与MN的两交点关于圆周运动最远点（动能最大点）对称，故动能最大恰发生在u=0.5", "case": "c2", "expr": "abs(u[argmax(speed)] - 0.5) <= 0.02", "report": "u[argmax(speed)]"}, {"id": "c2-xmax", "why": "F9：动能最大时粒子到y轴距离x_max=172mv₀/(25qB)，第(3)问答案之一", "case": "c2", "expr": "abs(x[argmax(speed)] - 172*R[0]/25) <= 0.05*172*R[0]/25", "report": "x[argmax(speed)]"}, {"id": "c2-vx-zero-at-xmax", "why": "自洽性：x取最大值处水平速度vx必须为零，防止position x与velocity vx各自独立计算而互不自洽（同时验证x的极值点与speed的极值点是同一时刻）", "case": "c2", "expr": "abs(vx[argmax(x)]) <= 0.05*v0[0]", "report": "vx[argmax(x)]"}, {"id": "c2-vcirc-conserved", "why": "F8：扣除漂移v_drift=(0,v₀)后的圆周分量大小|v_circ|=8v₀/5全程守恒", "case": "c2", "expr": "max(sqrt(vx**2+(vy-v0)**2)) - min(sqrt(vx**2+(vy-v0)**2)) <= 0.08*v0[0]", "report": "range of |v_circ|"}, {"id": "c2-entry-speed", "why": "粒子经区域Ⅰ、Ⅱ后速率不变，进入区域Ⅲ时速率仍为v₀", "case": "c2", "expr": "abs(speed[0]-v0[0]) <= 0.03*v0[0]", "report": "speed[0]"}, {"id": "c2-entry-x", "why": "F2：粒子经MN边界(x=4R)射入区域Ⅲ", "case": "c2", "expr": "abs(x[0]-4*R[0]) <= 0.03*R[0]", "report": "x[0]"}, {"id": "c2-x-vx-consistency", "why": "自洽性：位置x对时间的数值导数须与探针给出的vx一致", "case": "c2", "expr": "abs(mean(diff(x)/diff(t)) - mean(vx)) <= 0.05*v0[0]", "report": "mean(diff(x)/diff(t)) vs mean(vx)"}, {"id": "c2-y-vy-consistency", "why": "自洽性：位置y对时间的数值导数须与探针给出的vy一致（须包含导向中心沿y的漂移，否则与vy不自洽）", "case": "c2", "expr": "abs(mean(diff(y)/diff(t)) - mean(vy)) <= 0.05*v0[0]", "report": "mean(diff(y)/diff(t)) vs mean(vy)"}], "probe_keys": ["u", "t", "x", "y", "vx", "vy", "speed", "m", "q", "B", "v0", "R"], "disclosures": [{"why": "第(1)问答案，须在画面中直接读出", "must_contain": "U=mv₀²/(2q)，R=mv₀/(qB)"}, {"why": "第(2)问答案，须在画面中直接读出", "must_contain": "总时间t=3πm/(2qB)"}, {"why": "第(3)问答案，须在画面中直接读出", "must_contain": "动能最大时v=13v₀/5，到y轴距离=172mv₀/(25qB)"}, {"why": "三个区域场方向不同是解题关键，须明确标注避免混淆", "must_contain": "区域Ⅰ、Ⅱ磁场方向垂直纸面向外，区域Ⅲ磁场垂直纸面向里、电场沿x正方向"}], "sample_points": 401, "probe_key_meaning": {"B": "区域Ⅰ磁感应强度大小（常数数组）", "R": "区域Ⅰ半径，R=mv₀/(qB)（常数数组）", "m": "粒子质量（常数数组，每个采样点取相同值）", "q": "粒子电荷量（常数数组）", "t": "真实物理时间（s）。case c1：0到3πm/(2qB)；case c2：0到区域Ⅲ内圆周分量转过286°所需时间", "u": "归一化物理过程进度，等于传入的u。case c1：真实时间线性映射；case c2：区域Ⅲ内圆周分量转过的角度线性映射", "x": "粒子x坐标（m）", "y": "粒子y坐标（m）", "v0": "粒子射入区域Ⅰ时的速度大小（常数数组）", "vx": "粒子速度x分量（m/s）", "vy": "粒子速度y分量（m/s）", "speed": "粒子速度大小sqrt(vx²+vy²)（m/s），与动能单调对应"}, "process_endpoints": "case c1：u=0为粒子从P点以速度(0,v₀)射入区域Ⅰ的时刻；u=1/3为粒子到达Q点、以速度(v₀,0)射入区域Ⅱ的时刻；u=1为粒子到达N点（轨迹与MN相切，是该组粒子中在区域Ⅱ内运动时间最短的临界情形）的时刻。case c2：u=0为粒子经MN边界以与y轴负方向成74°角射入区域Ⅲ的时刻；u=0.5为粒子动能最大（速度13v₀/5，到y轴距离172mv₀/25R）的时刻；u=1为粒子圆周分量转回MN边界(x=4R)、即将折返区域Ⅱ的时刻。", "scene_requirements": ["圆形区域Ⅰ（与x轴切于P、与y轴切于S，标注圆心O₁与半径R）及其内部垂直纸面向外的磁场标记", "半圆形区域Ⅱ（标注圆心O₂、直径端点M、N，半径2R）及其内部垂直纸面向外（B/2）的磁场标记，与区域Ⅰ相切于Q点", "MN竖直线作为区域Ⅲ左边界，区域Ⅲ内叠加垂直纸面向里的磁场B与沿x正方向的电场E=Bv₀标记", "P点下方的加速电场与粒子源示意，以及OF发射范围标注", "case c1对应粒子的完整轨迹：区域Ⅰ内P→Q四分之一圆弧、区域Ⅱ内Q→N四分之一圆弧（与MN相切），并标注R、2R与总时间t=3πm/(2qB)", "case c2对应粒子在区域Ⅲ内的轨迹：入射角74°标注、导向中心沿+y漂移的示意、动能最大时刻的位置与速度标注（13v₀/5，到y轴距离172mv₀/(25qB)）", "关键数值读出面板：U、R、t、v_max、x_max"]};
+    out.scenes = Object.keys(window.Scenes || {});
+    var fig = document.querySelector('figure[data-scene="' + SID + '"]');
+    if (!fig) { out.errors.push("DOM 里找不到 figure[data-scene=" + SID + "]"); throw 0; }
+    var api = (window.__api || {})[SID];
+    if (!api) { out.errors.push("运行时未能构造该场景（工厂抛错或契约不符）"); throw 0; }
+    ["step","reset","probe"].forEach(function(k){
+      if (typeof api[k] !== "function") out.errors.push("api." + k + " 不是函数");
+    });
+    if (out.errors.length) throw 0;
+
+    var svg = fig.querySelector("svg");
+
+    // --- 渲染压力：跑 451 帧 step()，抓异常与脏数值 ---
+    try {
+      api.reset(); api.step(0);
+      for (var t = 0; t <= 18.0001; t += 0.04) api.step(t);
+    } catch (e) { rec("step() 抛异常: " + e); }
+    var dom = svg.outerHTML;
+    ["NaN","Infinity","undefined","null"].forEach(function(w){
+      var n = (dom.match(new RegExp(w, "g")) || []).length;
+      if (n) out.errors.push("渲染后 SVG 中出现 " + w + " ×" + n);
+    });
+
+    /* --- L3.5 渲染覆盖 ---
+       断言只跑 probe，看不见渲染。历史教训：把 translate(cx,cy) rotate(θ)
+       误写成 rotate(θ cx cy)，整组元素飞出画布，四层门禁 13/13 全绿放行。
+       这里补上：每个带 id 的 SVG 元素，必须在某一采样时刻真的画在 viewBox 内。
+       只查「位置」不查「可见性」—— opacity=0 的元素 getBBox 依然有效，
+       所以合法隐藏的结论框不会被误伤，而「整组飞出画布」是全时段的，必然被抓。*/
+    try {
+      api.reset();
+      var vb = svg.viewBox.baseVal;
+      var els = svg.querySelectorAll("[id]");
+      var ids = [], everOK = {}, everDrawn = {}, snaps = [];
+      for (var q0 = 0; q0 < els.length; q0++) ids.push(els[q0].getAttribute("id"));
+      /* 注意：不能用 el.getCTM() —— 它含 viewBox 缩放，返回的是渲染像素坐标，
+         拿去和 viewBox 数值比会把右下方的元素全部误判出界。
+         正确做法是经 svg 根的 screenCTM 求逆，换回 viewBox 用户单位。 */
+      for (var tq = 0; tq <= 20.0001; tq += 0.5) {
+        api.step(tq);
+        snaps.push(svg.innerHTML);
+        var rootM = svg.getScreenCTM();
+        if (!rootM) continue;
+        var invM = rootM.inverse();
+        for (var q1 = 0; q1 < els.length; q1++) {
+          var idq = ids[q1];
+          if (everOK[idq]) continue;
+          var bb, mm;
+          try { bb = els[q1].getBBox(); mm = els[q1].getScreenCTM(); } catch (err0) { continue; }
+          if (!mm) continue;
+          if (bb.width <= 0 && bb.height <= 0) continue;   /* 退化元素不判位置 */
+          everDrawn[idq] = true;
+          mm = invM.multiply(mm);                          /* → viewBox 用户单位 */
+          var cxq = bb.x + bb.width / 2, cyq = bb.y + bb.height / 2;
+          var XQ = mm.a * cxq + mm.c * cyq + mm.e;
+          var YQ = mm.b * cxq + mm.d * cyq + mm.f;
+          if (XQ >= vb.x - 2 && XQ <= vb.x + vb.width + 2 &&
+              YQ >= vb.y - 2 && YQ <= vb.y + vb.height + 2)
+            everOK[idq] = true;
+        }
+      }
+      var off = [], dead = [];
+      for (var q2 = 0; q2 < ids.length; q2++) {
+        if (!everDrawn[ids[q2]]) dead.push(ids[q2]);
+        else if (!everOK[ids[q2]]) off.push(ids[q2]);
+      }
+      if (off.length)
+        out.render.push("这些元素在全部 41 个采样时刻都画在 viewBox 之外（画面上看不到）：" + off.join(", "));
+      var moved = false;
+      for (var q3 = 1; q3 < snaps.length; q3++) if (snaps[q3] !== snaps[0]) { moved = true; break; }
+      if (!moved)
+        out.render.push("采样了 " + snaps.length + " 个不同时刻，SVG 内容完全没有变化——动画没有动");
+      out.notes.push("渲染覆盖：" + ids.length + " 个带 id 元素，" +
+                     Object.keys(everOK).length + " 个曾正常出现在画面内" +
+                     (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
+    } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
+
+    /* --- L5 版面：文字不许压文字 ---
+       断言只看 probe 的数值，L3.5 只看元素在不在画布内，谁都不看**画成什么样**。
+       实测 31 个场景有 14 个存在文字互压（读数行压说明、标签压标题），
+       而 ⑤ 的沙箱 agent 是**盲写坐标**的 —— 字号写在 CSS 里，它算不出自己
+       那行中文有多宽，只能靠这一层告诉它。
+
+       三条判据来自全库标定，不是拍脑袋：
+
+       1. **逐帧比，绝不取跨帧包络。** 挂在运动物体上的标签，其轨迹包络必然
+          互相交叠，但任一时刻都不真的压在一起。实测 q7「M」×「N」包络重叠
+          65.6px、逐帧 0；q14「圆心」×「v₂」包络 13.4px、逐帧 0。用包络判
+          会把一整类合法写法冤枉掉。
+
+       2. **判据是重叠矩形的短边，不是面积比。** 面积比对「长串薄重叠」系统性
+          高估（225×2.2 的虚碰也能顶到 17%），永远分不开两个峰。按短边重排，
+          全库分布是：16 个干净场景 ≤2.1px，两个边缘案例 3.5/3.6px，13 个
+          确凿缺陷 ≥7.4px —— 3.6 到 7.4 之间那道 3.8px 的空档是整个数据集
+          最宽的间隙，阈值取 5 落在正中，对字体和测量误差都留足了余量。
+          下界 2.1 的成因：em 盒比字墨高约 1.9px，两行「刚好贴着」会碰盒不碰墨。
+
+       3. **场标记不算文字。** `×` `·` 这些是用 <text> 画的底纹，本来就该被
+          别的东西盖住。q4-gen3 有 31 个，占它全部 text 的大半 —— 不排除的话
+          这个干净场景第一天就会被判红。*/
+    try {
+      api.reset();
+      var L5_FAIL = 5.0, L5_WARN = 2.5;
+      var MARK = {"×":1, "·":1, "⊙":1, "⊗":1, "•":1, "∙":1};
+      var allT = svg.querySelectorAll("text"), tel = [], tinfo = [], nMark = 0;
+      for (var a0 = 0; a0 < allT.length; a0++) {
+        var s0 = (allT[a0].textContent || "").replace(/^\s+|\s+$/g, "");
+        if (!s0) continue;
+        if (s0.length === 1 && MARK[s0]) { nMark++; continue; }
+        tel.push(allT[a0]); tinfo.push(s0.length > 34 ? s0.slice(0, 34) + "…" : s0);
+      }
+      /* 不用 getComputedStyle：热循环里每帧每元素调一次太慢，而契约禁止
+         figure 内写 <style>，透明度只可能来自 JS 设的属性或内联样式。 */
+      function vis(el) {
+        var n = el, op = 1;
+        while (n && n !== svg) {
+          if (n.style && n.style.display === "none") return false;
+          if (n.getAttribute && n.getAttribute("display") === "none") return false;
+          var o = NaN;
+          if (n.style && n.style.opacity !== "" && n.style.opacity != null) o = parseFloat(n.style.opacity);
+          else if (n.getAttribute && n.getAttribute("opacity") !== null) o = parseFloat(n.getAttribute("opacity"));
+          if (!isNaN(o)) op *= o;
+          n = n.parentNode;
+        }
+        return op > 0.05;
+      }
+      var NT = tel.length, worst = {}, rootM5, inv5;
+      function frame5(tv) {
+        rootM5 = svg.getScreenCTM(); if (!rootM5) return;
+        inv5 = rootM5.inverse();
+        var bx = [];
+        for (var k5 = 0; k5 < NT; k5++) {
+          if (!vis(tel[k5])) { bx.push(null); continue; }
+          var bb5, mm5;
+          try { bb5 = tel[k5].getBBox(); mm5 = tel[k5].getScreenCTM(); } catch (e5) { bx.push(null); continue; }
+          if (!mm5 || (bb5.width <= 0 && bb5.height <= 0)) { bx.push(null); continue; }
+          var m5 = inv5.multiply(mm5);
+          var px = [bb5.x, bb5.x + bb5.width], py = [bb5.y, bb5.y + bb5.height];
+          var X0 = 1e9, X1 = -1e9, Y0 = 1e9, Y1 = -1e9;
+          for (var u5 = 0; u5 < 2; u5++) for (var v5 = 0; v5 < 2; v5++) {
+            var xx = m5.a * px[u5] + m5.c * py[v5] + m5.e;
+            var yy = m5.b * px[u5] + m5.d * py[v5] + m5.f;
+            if (xx < X0) X0 = xx; if (xx > X1) X1 = xx;
+            if (yy < Y0) Y0 = yy; if (yy > Y1) Y1 = yy;
+          }
+          bx.push({x0: X0, x1: X1, y0: Y0, y1: Y1});
+        }
+        for (var i5 = 0; i5 < NT; i5++) { var A5 = bx[i5]; if (!A5) continue;
+          for (var j5 = i5 + 1; j5 < NT; j5++) { var B5 = bx[j5]; if (!B5) continue;
+            var w5 = Math.min(A5.x1, B5.x1) - Math.max(A5.x0, B5.x0);
+            var h5 = Math.min(A5.y1, B5.y1) - Math.max(A5.y0, B5.y0);
+            if (w5 <= 0 || h5 <= 0) continue;
+            var d5 = w5 < h5 ? w5 : h5, key5 = i5 + "_" + j5;
+            if (!worst[key5] || d5 > worst[key5].d)
+              worst[key5] = {d: d5, w: w5, h: h5, t: tv, i: i5, j: j5,
+                             a: [A5.x0, A5.y0, A5.x1, A5.y1],
+                             b: [B5.x0, B5.y0, B5.x1, B5.y1]};
+          }
+        }
+      }
+      /* 步长 0.25：判据的量词是「∃某一帧」，欠采样会直接漏判，
+         而 81 帧全量文字包围盒实测只要几毫秒，占整轮不到 1%。 */
+      frame5(0);
+      for (var t5 = 0; t5 <= 20.0001; t5 += 0.25) { api.step(t5); frame5(t5); }
+      var lfails = [], lwarn = 0;
+      for (var k6 in worst) { if (!worst.hasOwnProperty(k6)) continue;
+        var r6 = worst[k6];
+        if (r6.d >= L5_FAIL) {
+          lfails.push("「" + tinfo[r6.i] + "」与「" + tinfo[r6.j] + "」在 t=" +
+            r6.t.toFixed(2) + "s 压在一起：重叠 " + r6.w.toFixed(1) + "×" + r6.h.toFixed(1) +
+            "px（短边 " + r6.d.toFixed(1) + " ≥ " + L5_FAIL + "）。前者盒 [" +
+            r6.a[0].toFixed(0) + "," + r6.a[1].toFixed(0) + "]-[" + r6.a[2].toFixed(0) + "," + r6.a[3].toFixed(0) +
+            "]，后者盒 [" + r6.b[0].toFixed(0) + "," + r6.b[1].toFixed(0) + "]-[" + r6.b[2].toFixed(0) + "," + r6.b[3].toFixed(0) + "]");
+        } else if (r6.d >= L5_WARN) lwarn++;
+      }
+      lfails.sort();
+      out.layout = {fails: lfails, warns: lwarn, nText: NT, nMark: nMark};
+      api.reset();
+    } catch (errL) { out.layout = {fails: [], warns: 0, nText: 0, nMark: 0,
+                                   self: "版面检查自身失败: " + errL}; }
+
+    // --- probe 采样 ---
+    var N = SPEC.sample_points || 401;
+    for (var ci = 0; ci < SPEC.cases.length; ci++) {
+      var cid = SPEC.cases[ci].id;
+      var cols = {}; SPEC.probe_keys.forEach(function(k){ cols[k] = []; });
+
+      // 纯度 + 无副作用
+      var before = svg.outerHTML;
+      var a1 = api.probe(0.37, cid), a2 = api.probe(0.37, cid);
+      if (svg.outerHTML !== before) out.errors.push("[" + cid + "] probe() 修改了 DOM（必须是纯函数）");
+      SPEC.probe_keys.forEach(function(k){
+        if (!(k in a1)) out.errors.push("[" + cid + "] probe 返回值缺少键 " + k);
+        else if (a1[k] !== a2[k]) out.errors.push("[" + cid + "] probe 不纯：同一 u 两次调用 " + k + " 不同（" + a1[k] + " vs " + a2[k] + "）");
+      });
+
+      var nbad = 0;
+      for (var i = 0; i < N; i++) {
+        var u = i / (N - 1);
+        var r;
+        try { r = api.probe(u, cid); }
+        catch (e) { out.errors.push("[" + cid + "] probe(" + u.toFixed(3) + ") 抛异常: " + e); break; }
+        for (var ki = 0; ki < SPEC.probe_keys.length; ki++) {
+          var k = SPEC.probe_keys[ki], v = r ? r[k] : undefined;
+          if (typeof v !== "number" || !isFinite(v)) { nbad++; v = null; }
+          cols[k].push(v);
+        }
+      }
+      if (nbad) out.errors.push("[" + cid + "] probe 返回了 " + nbad + " 个非有限数值");
+      out.series[cid] = cols;
+    }
+    out.ok = out.errors.length === 0 && out.render.length === 0;
+  } catch (e) { if (e) rec(e); }
+  document.getElementById("TESTOUT").textContent = "@@" + JSON.stringify(out) + "@@";
+}
+/* 必须等运行时 boot 完（它也挂在 DOMContentLoaded 上，且注册在前），
+   同时保证 <pre id="TESTOUT"> 已经存在 */
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", __runProbe);
+else __runProbe();
+</script>
+<pre id="TESTOUT"></pre>

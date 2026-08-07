@@ -1,0 +1,253 @@
+{
+ "id": "q19",
+ "stem": "如图，在xOy坐标系中有三个区域。圆形区域Ⅰ分别与x轴、y轴相切于P点、S点，圆心为O₁，半径为R；半圆形区域Ⅱ的半径是区域Ⅰ半径的2倍，直径为竖直线段MN，圆心为O₂，O₁O₂连线与x轴平行，区域Ⅱ与区域Ⅰ相切于Q点；过Q作x轴的垂线，垂足为F。区域Ⅰ、Ⅱ内分别有磁感应强度大小为B、B/2、方向垂直纸面向外的匀强磁场。区域Ⅰ下方有粒子源和加速电场，可将质量为m、电荷量为q(q>0)的粒子由静止加速到速度v₀。改变发射器位置，可使带电粒子在OF范围内都沿y轴正方向以相同速度v₀射入区域Ⅰ（不计重力和粒子间相互作用）。已知某粒子从P点射入区域Ⅰ，并从Q点射入区域Ⅱ。(1) 求加速电场两板间电压U和区域Ⅰ的半径R；(2) 在能从MN边界射入区域Ⅲ的粒子中，某粒子在区域Ⅱ中运动的时间最短，求该粒子在区域Ⅰ和区域Ⅱ中运动的总时间t；(3) 在区域Ⅲ加入匀强磁场和匀强电场，磁感应强度大小为B、方向垂直纸面向里，电场强度大小E=Bv₀、方向沿x轴正方向。此后粒子源中某粒子经区域Ⅰ、Ⅱ射入区域Ⅲ，进入区域Ⅲ时速度方向与y轴负方向夹角为74°。当粒子动能最大时，求粒子的速度大小及所在位置到y轴的距离（sin37°=3/5，sin53°=4/5）。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "从P点射入区域Ⅰ、Q点射入区域Ⅱ的粒子：区域Ⅰ内P→Q四分之一圆弧，区域Ⅱ内Q→N（与MN相切）四分之一圆弧，对应第(1)(2)问"
+  },
+  {
+   "id": "c2",
+   "label": "经区域Ⅰ、Ⅱ后以与y轴负方向成74°角射入区域Ⅲ的粒子，在区域Ⅲ叠加电磁场中的漂移+圆周运动，对应第(3)问"
+  }
+ ],
+ "title": "带电粒子经圆形/半圆形磁场区域射入正交电磁场区域的运动分析",
+ "units": "m：kg；q：C；B：T；E：V/m；U：V；v₀、v、vx、vy、speed：m/s；R、x、y：m（几何量以 R=mv₀/(qB) 为自然长度单位）；t：s；u：无量纲过程进度(0到1)",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式或旋转方向。区域Ⅰ、Ⅱ磁场垂直纸面向外，正电荷做顺时针圆周运动；区域Ⅲ磁场垂直纸面向里，圆周分量做逆时针圆周运动。",
+  "equations": [
+   "加速：qU=(1/2)mv₀² → U=mv₀²/(2q)",
+   "区域Ⅰ内洛伦兹力提供向心力：qv₀B=mv₀²/r₁ → r₁=mv₀/(qB)；由P点射入、Q点射出的圆心在x轴上（圆心C₁=(R+r₁,0)）这一几何关系解得r₁=R，故R=mv₀/(qB)",
+   "区域Ⅰ轨迹：以C₁=(2R,0)为圆心、R为半径，粒子自P=(R,0)、初速度(0,v₀)出发，以角速度ω₁=qB/m顺时针转动；转过π/2后到达Q=(2R,R)，此时速度为(v₀,0)（水平向右）",
+   "区域Ⅱ轨道半径：qv₀(B/2)=mv₀²/r₂ → r₂=2mv₀/(qB)=2R，与区域Ⅱ半径相等",
+   "区域Ⅱ轨迹：以C₂=(2R,-R)（=Q+2R·(0,-1)）为圆心、2R为半径，粒子自Q=(2R,R)、初速度(v₀,0)出发，以角速度ω₂=q(B/2)/m顺时针转动；转过π/2后到达N=(4R,-R)，轨迹与MN相切（该粒子即为能经MN射入区域Ⅲ的粒子中在区域Ⅱ内运动时间最短的临界情形）",
+   "总时间：t=(π/2)/ω₁+(π/2)/ω₂=πm/(2qB)+πm/(qB)=3πm/(2qB)",
+   "区域Ⅲ：E=Bv₀沿+x，B沿-z（垂直纸面向里）；速度分解为v_drift=(0,v₀)（其洛伦兹力q·v_drift×B与电场力qE恰好抵消）与v_circ=v-v_drift；v_circ仅受洛伦兹力，绕以v_drift漂移的导向中心，以角速度ω₃=qB/m逆时针做匀速圆周运动，半径r'=m|v_circ|/(qB)",
+   "入射Ⅲ时（与y轴负方向夹角74°）：v=(v₀sin74°,-v₀cos74°)，v_circ⁰=v-（0,v₀)=(v₀sin74°,-v₀(1+cos74°))=(24v₀/25,-32v₀/25)，|v_circ⁰|=2v₀cos37°=8v₀/5=r'·ω₃",
+   "动能最大即|v|最大，发生在v_circ与v_drift同向（+y）的时刻：v_max=v₀+8v₀/5=13v₀/5；此刻粒子位置的x坐标（导向中心x坐标不随时间变化，因v_drift无x分量）为x_max=4R+32R/25+8R/5=172R/25=172mv₀/(25qB)"
+  ],
+  "definitions": [
+   "R：区域Ⅰ半径，R=mv₀/(qB)",
+   "O₁=(R,R)：区域Ⅰ圆心；P=(R,0)：区域Ⅰ与x轴切点；S=(0,R)：区域Ⅰ与y轴切点",
+   "O₂=(4R,R)：区域Ⅱ（半圆所在整圆）圆心；Q=(2R,R)：区域Ⅰ、Ⅱ切点；M=(4R,3R)、N=(4R,-R)：MN为区域Ⅱ直径，同时是区域Ⅲ左边界",
+   "F=(2R,0)：过Q作x轴垂线的垂足，OF为发射器可发射范围",
+   "r₁：粒子在区域Ⅰ内的轨道半径；r₂：粒子在区域Ⅱ内的轨道半径",
+   "v_drift：区域Ⅲ内粒子速度中沿y正方向的匀速漂移分量，大小v₀（洛伦兹力与电场力抵消）",
+   "v_circ：区域Ⅲ内粒子速度减去v_drift后剩余的圆周运动分量，绕以v_drift漂移的导向中心做匀速圆周运动",
+   "r'：区域Ⅲ内圆周分量的轨道半径，r'=m|v_circ|/(qB)",
+   "u：归一化物理过程进度"
+  ],
+  "given_facts": [
+   "F1 · 圆形区域Ⅰ与x轴切于P、与y轴切于S，O₁=(R,R)，P=(R,0)",
+   "F2 · 半圆Ⅱ半径为2R，与Ⅰ外切于Q，O₁O₂∥x轴，O₂=(4R,R)，Q=(2R,R)，MN为过O₂的竖直直径，M=(4R,3R)，N=(4R,-R)",
+   "F3 · 粒子经qU=(1/2)mv₀²加速，U=mv₀²/(2q)",
+   "F4 · 区域Ⅰ内轨道半径r₁=mv₀/(qB)；P→Q几何关系要求r₁=R，故R=mv₀/(qB)",
+   "F5 · 从P射入的粒子在区域Ⅰ内转过圆心角π/2到达Q，此时速度方向恰为+x（水平向右）",
+   "F6 · 区域Ⅱ内轨道半径r₂=2R，与区域Ⅱ半径相等；水平射入Ⅱ的粒子轨迹与MN相切于N点，圆心角同为π/2，是能经MN射入区域Ⅲ的粒子中在Ⅱ内运动时间最短的情形",
+   "F7 · 该粒子在Ⅰ、Ⅱ中运动总时间t=πm/(2qB)+πm/(qB)=3πm/(2qB)",
+   "F8 · 区域Ⅲ中v₀方向漂移分量与洛伦兹力被电场力抵消，圆周分量大小|v_circ|=8v₀/5",
+   "F9 · 动能最大时总速度v_max=13v₀/5，此刻位置到y轴距离x_max=172mv₀/(25qB)"
+  ],
+  "normalization": "取 m=1, q=1, B=1, v₀=1（从而 R=mv₀/(qB)=1）为参考实现的具体数值；结论均为无量纲比例关系（如 v/v₀、位置/R、时间×qB/m），对任意 m,q,B,v₀ 均成立。case c1 以真实时间 t 归一化：u=0 对应粒子从P点射入区域Ⅰ的时刻，u=1 对应粒子到达N点（与MN相切、即将进入区域Ⅲ）的时刻。case c2 以区域Ⅲ内圆周分量转过的角度归一化：u=0 对应粒子经MN射入区域Ⅲ的时刻，u=1 对应圆周分量转过286°、粒子回到MN边界(x=4R)即将折返区域Ⅱ的时刻；u=0.5 恰为动能最大时刻（几何对称：粒子与MN的两个交点关于圆周运动最远点对称，最远点必在两交点角度的正中间）。",
+  "free_parameters": ""
+ },
+ "constants": {
+  "B": 1.0,
+  "m": 1.0,
+  "q": 1.0,
+  "v0": 1.0
+ },
+ "reference": "def probe(u, case):\n    m = 1.0\n    q = 1.0\n    B = 1.0\n    v0 = 1.0\n    R = m*v0/(q*B)\n\n    if case == \"c1\":\n        omega1 = q*B/m\n        omega2 = q*B/(2*m)\n        t_boundary = pi/(2*omega1)\n        t_total = t_boundary + pi/(2*omega2)\n        t = u*t_total\n        if t <= t_boundary:\n            tau = t\n            phi1 = pi - omega1*tau\n            x = 2*R + R*cos(phi1)\n            y = R*sin(phi1)\n            vx = R*omega1*sin(phi1)\n            vy = -R*omega1*cos(phi1)\n        else:\n            tau2 = t - t_boundary\n            r2 = 2*R\n            phi2 = pi/2 - omega2*tau2\n            x = 2*R + r2*cos(phi2)\n            y = -R + r2*sin(phi2)\n            vx = r2*omega2*sin(phi2)\n            vy = -r2*omega2*cos(phi2)\n        speed = sqrt(vx*vx + vy*vy)\n        return {\"u\": u, \"t\": t, \"x\": x, \"y\": y, \"vx\": vx, \"vy\": vy, \"speed\": speed,\n                \"m\": m, \"q\": q, \"B\": B, \"v0\": v0, \"R\": R}\n    else:\n        omega3 = q*B/m\n        theta_total = 286.0*pi/180.0\n        theta = u*theta_total\n        t = theta/omega3\n        a = 24.0*v0/25.0\n        b = -32.0*v0/25.0\n        vcx = a*cos(theta) - b*sin(theta)\n        vcy = a*sin(theta) + b*cos(theta)\n        vx = vcx\n        vy = v0 + vcy\n        speed = sqrt(vx*vx + vy*vy)\n        x = 4*R + (a*sin(theta) + b*cos(theta) - b)/omega3\n        y0 = 0.0\n        y = y0 + v0*t + (a*(1 - cos(theta)) + b*sin(theta))/omega3\n        return {\"u\": u, \"t\": t, \"x\": x, \"y\": y, \"vx\": vx, \"vy\": vy, \"speed\": speed,\n                \"m\": m, \"q\": q, \"B\": B, \"v0\": v0, \"R\": R}",
+ "invariants": [
+  {
+   "id": "c1-t-total",
+   "why": "F7：区域Ⅰ、Ⅱ内运动总时间t=3πm/(2qB)，即第(2)问答案",
+   "case": "c1",
+   "expr": "abs(t[-1] - 3*pi*m[0]/(2*q[0]*B[0])) <= 0.04*3*pi*m[0]/(2*q[0]*B[0])",
+   "report": "t[-1]"
+  },
+  {
+   "id": "c1-speed-conserved",
+   "why": "F4/F6：磁场不做功，全程速率恒为v₀，是区域Ⅰ、Ⅱ轨道半径公式(r=mv₀/(qB))成立的前提",
+   "case": "c1",
+   "expr": "max(speed) - min(speed) <= 0.03*v0[0]",
+   "report": "max(speed)-min(speed)"
+  },
+  {
+   "id": "c1-transition-u",
+   "why": "F5：区域Ⅰ内转过π/2到达Q，占总时间t的1/3（πm/(2qB) ÷ 3πm/(2qB)），Q点为y坐标最大处",
+   "case": "c1",
+   "expr": "abs(u[argmax(y)] - 1/3) <= 0.02",
+   "report": "u[argmax(y)]"
+  },
+  {
+   "id": "c1-vy-zero-at-ymax",
+   "why": "自洽性：y取最大值处（区域Ⅰ→Ⅱ转换点Q）竖直速度分量vy必须为零，防止位置y与速度vy各自独立计算而互不自洽",
+   "case": "c1",
+   "expr": "abs(vy[argmax(y)]) <= 0.05*v0[0]",
+   "report": "vy[argmax(y)]"
+  },
+  {
+   "id": "c1-regionI-radius",
+   "why": "F4：区域Ⅰ内粒子轨道半径等于区域Ⅰ半径R（圆心C₁=(2R,0)）",
+   "case": "c1",
+   "expr": "abs(sqrt((interp(1/6,u,x)-2*R[0])**2 + interp(1/6,u,y)**2) - R[0]) <= 0.05*R[0]",
+   "report": "region I curvature radius @u=1/6"
+  },
+  {
+   "id": "c1-regionII-radius",
+   "why": "F6：区域Ⅱ内粒子轨道半径为2R（圆心C₂=(2R,-R)）",
+   "case": "c1",
+   "expr": "abs(sqrt((interp(2/3,u,x)-2*R[0])**2 + (interp(2/3,u,y)+R[0])**2) - 2*R[0]) <= 0.05*2*R[0]",
+   "report": "region II curvature radius @u=2/3"
+  },
+  {
+   "id": "c1-endpoint-N",
+   "why": "F2/F6：粒子最终在N=(4R,-R)与MN相切，几何上验证MN边界位置",
+   "case": "c1",
+   "expr": "abs(x[-1]-4*R[0]) <= 0.05*R[0]",
+   "report": "x[-1]"
+  },
+  {
+   "id": "c1-endpoint-N-y",
+   "why": "F2/F6：N点纵坐标为-R",
+   "case": "c1",
+   "expr": "abs(y[-1]+R[0]) <= 0.05*R[0]",
+   "report": "y[-1]"
+  },
+  {
+   "id": "c1-x-vx-consistency",
+   "why": "自洽性：位置x对时间的数值导数须与探针给出的vx一致",
+   "case": "c1",
+   "expr": "abs(mean(diff(x)/diff(t)) - mean(vx)) <= 0.05*v0[0]",
+   "report": "mean(diff(x)/diff(t)) vs mean(vx)"
+  },
+  {
+   "id": "c1-y-vy-consistency",
+   "why": "自洽性：位置y对时间的数值导数须与探针给出的vy一致",
+   "case": "c1",
+   "expr": "abs(mean(diff(y)/diff(t)) - mean(vy)) <= 0.05*v0[0]",
+   "report": "mean(diff(y)/diff(t)) vs mean(vy)"
+  },
+  {
+   "id": "c2-vmax",
+   "why": "F9：动能最大时总速度大小v_max=13v₀/5，第(3)问答案之一",
+   "case": "c2",
+   "expr": "abs(max(speed) - 13*v0[0]/5) <= 0.04*13*v0[0]/5",
+   "report": "max(speed)"
+  },
+  {
+   "id": "c2-vmax-u",
+   "why": "归一化定义：粒子与MN的两交点关于圆周运动最远点（动能最大点）对称，故动能最大恰发生在u=0.5",
+   "case": "c2",
+   "expr": "abs(u[argmax(speed)] - 0.5) <= 0.02",
+   "report": "u[argmax(speed)]"
+  },
+  {
+   "id": "c2-xmax",
+   "why": "F9：动能最大时粒子到y轴距离x_max=172mv₀/(25qB)，第(3)问答案之一",
+   "case": "c2",
+   "expr": "abs(x[argmax(speed)] - 172*R[0]/25) <= 0.05*172*R[0]/25",
+   "report": "x[argmax(speed)]"
+  },
+  {
+   "id": "c2-vx-zero-at-xmax",
+   "why": "自洽性：x取最大值处水平速度vx必须为零，防止position x与velocity vx各自独立计算而互不自洽（同时验证x的极值点与speed的极值点是同一时刻）",
+   "case": "c2",
+   "expr": "abs(vx[argmax(x)]) <= 0.05*v0[0]",
+   "report": "vx[argmax(x)]"
+  },
+  {
+   "id": "c2-vcirc-conserved",
+   "why": "F8：扣除漂移v_drift=(0,v₀)后的圆周分量大小|v_circ|=8v₀/5全程守恒",
+   "case": "c2",
+   "expr": "max(sqrt(vx**2+(vy-v0)**2)) - min(sqrt(vx**2+(vy-v0)**2)) <= 0.08*v0[0]",
+   "report": "range of |v_circ|"
+  },
+  {
+   "id": "c2-entry-speed",
+   "why": "粒子经区域Ⅰ、Ⅱ后速率不变，进入区域Ⅲ时速率仍为v₀",
+   "case": "c2",
+   "expr": "abs(speed[0]-v0[0]) <= 0.03*v0[0]",
+   "report": "speed[0]"
+  },
+  {
+   "id": "c2-entry-x",
+   "why": "F2：粒子经MN边界(x=4R)射入区域Ⅲ",
+   "case": "c2",
+   "expr": "abs(x[0]-4*R[0]) <= 0.03*R[0]",
+   "report": "x[0]"
+  },
+  {
+   "id": "c2-x-vx-consistency",
+   "why": "自洽性：位置x对时间的数值导数须与探针给出的vx一致",
+   "case": "c2",
+   "expr": "abs(mean(diff(x)/diff(t)) - mean(vx)) <= 0.05*v0[0]",
+   "report": "mean(diff(x)/diff(t)) vs mean(vx)"
+  },
+  {
+   "id": "c2-y-vy-consistency",
+   "why": "自洽性：位置y对时间的数值导数须与探针给出的vy一致（须包含导向中心沿y的漂移，否则与vy不自洽）",
+   "case": "c2",
+   "expr": "abs(mean(diff(y)/diff(t)) - mean(vy)) <= 0.05*v0[0]",
+   "report": "mean(diff(y)/diff(t)) vs mean(vy)"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "t",
+  "x",
+  "y",
+  "vx",
+  "vy",
+  "speed",
+  "m",
+  "q",
+  "B",
+  "v0",
+  "R"
+ ],
+ "disclosures": [
+  {
+   "why": "第(1)问答案，须在画面中直接读出",
+   "must_contain": "U=mv₀²/(2q)，R=mv₀/(qB)"
+  },
+  {
+   "why": "第(2)问答案，须在画面中直接读出",
+   "must_contain": "总时间t=3πm/(2qB)"
+  },
+  {
+   "why": "第(3)问答案，须在画面中直接读出",
+   "must_contain": "动能最大时v=13v₀/5，到y轴距离=172mv₀/(25qB)"
+  },
+  {
+   "why": "三个区域场方向不同是解题关键，须明确标注避免混淆",
+   "must_contain": "区域Ⅰ、Ⅱ磁场方向垂直纸面向外，区域Ⅲ磁场垂直纸面向里、电场沿x正方向"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "B": "区域Ⅰ磁感应强度大小（常数数组）",
+  "R": "区域Ⅰ半径，R=mv₀/(qB)（常数数组）",
+  "m": "粒子质量（常数数组，每个采样点取相同值）",
+  "q": "粒子电荷量（常数数组）",
+  "t": "真实物理时间（s）。case c1：0到3πm/(2qB)；case c2：0到区域Ⅲ内圆周分量转过286°所需时间",
+  "u": "归一化物理过程进度，等于传入的u。case c1：真实时间线性映射；case c2：区域Ⅲ内圆周分量转过的角度线性映射",
+  "x": "粒子x坐标（m）",
+  "y": "粒子y坐标（m）",
+  "v0": "粒子射入区域Ⅰ时的速度大小（常数数组）",
+  "vx": "粒子速度x分量（m/s）",
+  "vy": "粒子速度y分量（m/s）",
+  "speed": "粒子速度大小sqrt(vx²+vy²)（m/s），与动能单调对应"
+ },
+ "process_endpoints": "case c1：u=0为粒子从P点以速度(0,v₀)射入区域Ⅰ的时刻；u=1/3为粒子到达Q点、以速度(v₀,0)射入区域Ⅱ的时刻；u=1为粒子到达N点（轨迹与MN相切，是该组粒子中在区域Ⅱ内运动时间最短的临界情形）的时刻。case c2：u=0为粒子经MN边界以与y轴负方向成74°角射入区域Ⅲ的时刻；u=0.5为粒子动能最大（速度13v₀/5，到y轴距离172mv₀/25R）的时刻；u=1为粒子圆周分量转回MN边界(x=4R)、即将折返区域Ⅱ的时刻。",
+ "scene_requirements": [
+  "圆形区域Ⅰ（与x轴切于P、与y轴切于S，标注圆心O₁与半径R）及其内部垂直纸面向外的磁场标记",
+  "半圆形区域Ⅱ（标注圆心O₂、直径端点M、N，半径2R）及其内部垂直纸面向外（B/2）的磁场标记，与区域Ⅰ相切于Q点",
+  "MN竖直线作为区域Ⅲ左边界，区域Ⅲ内叠加垂直纸面向里的磁场B与沿x正方向的电场E=Bv₀标记",
+  "P点下方的加速电场与粒子源示意，以及OF发射范围标注",
+  "case c1对应粒子的完整轨迹：区域Ⅰ内P→Q四分之一圆弧、区域Ⅱ内Q→N四分之一圆弧（与MN相切），并标注R、2R与总时间t=3πm/(2qB)",
+  "case c2对应粒子在区域Ⅲ内的轨迹：入射角74°标注、导向中心沿+y漂移的示意、动能最大时刻的位置与速度标注（13v₀/5，到y轴距离172mv₀/(25qB)）",
+  "关键数值读出面板：U、R、t、v_max、x_max"
+ ]
+}

@@ -1,0 +1,143 @@
+<figure data-scene="q19"><svg viewBox="0 0 560 500" role="img" aria-label="带电粒子经圆形区域Ⅰ、半圆形区域Ⅱ磁场后射入区域Ⅲ正交电磁场的运动演示">
+
+<text x="14" y="16" class="u">带电粒子经区域Ⅰ、Ⅱ磁场射入区域Ⅲ电磁场：几何与轨迹演示</text>
+<text x="14" y="30" class="u">（m=q=B=v₀=1，R=mv₀/(qB) 为自然长度单位；下方展开图比例不同）</text>
+<text x="14" y="44" class="u">区域Ⅰ、Ⅱ磁场方向垂直纸面向外，区域Ⅲ磁场垂直纸面向里、电场沿x正方向</text>
+
+<!-- ============ 主图：区域Ⅰ、Ⅱ（常规坐标，x右 y上） ============ -->
+<line x1="80" y1="245" x2="300" y2="245" class="sh" marker-end="url(#ak)"></line>
+<text x="292" y="240">x</text>
+<line x1="100" y1="248" x2="100" y2="70" class="sh" marker-end="url(#ak)"></line>
+<text x="90" y="66">y</text>
+<text x="90" y="240" class="n">O</text>
+
+<!-- 区域Ⅰ：圆形，与x轴切于P、y轴切于S -->
+<circle cx="142" cy="182" r="42" class="sh wash-c"></circle>
+<circle cx="142" cy="182" r="2.5" class="fk"></circle>
+<text x="146" y="176">O₁</text>
+
+<!-- 区域Ⅱ：半圆（左半圆盘，直径MN），由 JS 依世界坐标采样生成 -->
+<path id="q19-regionII-boundary" class="sh wash-a" d=""></path>
+
+<!-- 关键点标记 -->
+<circle cx="142" cy="224" r="2.5" class="fk"></circle>
+<text x="146" y="238">P</text>
+<circle cx="100" cy="182" r="2.5" class="fk"></circle>
+<text x="80" y="178">S</text>
+<circle cx="184" cy="182" r="2.5" class="fk"></circle>
+<text x="188" y="174">Q</text>
+<circle cx="268" cy="182" r="2.5" class="fk"></circle>
+<text x="272" y="176">O₂</text>
+<circle cx="268" cy="98" r="2.5" class="fk"></circle>
+<text x="272" y="92">M</text>
+<circle cx="268" cy="266" r="2.5" class="fk"></circle>
+<text x="272" y="272">N</text>
+<circle cx="184" cy="224" r="2.5" class="fk"></circle>
+<text x="188" y="238">F</text>
+
+<!-- 轨迹圆心与半径作图虚线：区域Ⅰ内 C₁=(2R,0)=P到Q四分之一圆 -->
+<line x1="184" y1="224" x2="142" y2="224" class="sc"></line>
+<line x1="184" y1="224" x2="184" y2="182" class="sc"></line>
+<circle cx="184" cy="224" r="2" class="fc"></circle>
+<text x="160" y="216" class="c">R</text>
+
+<!-- 区域Ⅱ内轨迹圆心 C₂=(2R,-R)=Q到N四分之一圆，半径2R -->
+<line x1="184" y1="266" x2="184" y2="182" class="sc"></line>
+<line x1="184" y1="266" x2="268" y2="266" class="sc"></line>
+<circle cx="184" cy="266" r="2" class="fc"></circle>
+<text x="222" y="278" class="c">2R</text>
+
+<!-- MN 边界线，强调为区域Ⅲ左边界 -->
+<line x1="268" y1="98" x2="268" y2="266" class="sa" stroke-width="2"></line>
+<text x="272" y="280" class="u">区域Ⅲ→见下方展开图</text>
+<line x1="275" y1="180" x2="295" y2="180" class="sa" marker-end="url(#aa)"></line>
+<text x="297" y="176" class="a">E</text>
+<text x="280" y="140">×</text>
+<text x="280" y="222">×</text>
+
+<!-- 区域Ⅰ、Ⅱ内的磁场方向标记（垂直纸面向外，用点表示） -->
+<circle cx="130" cy="170" r="1.6" class="fk"></circle>
+<circle cx="154" cy="170" r="1.6" class="fk"></circle>
+<circle cx="130" cy="196" r="1.6" class="fk"></circle>
+<circle cx="154" cy="196" r="1.6" class="fk"></circle>
+<circle cx="200" cy="182" r="1.6" class="fk"></circle>
+<circle cx="222" cy="160" r="1.6" class="fk"></circle>
+<circle cx="222" cy="204" r="1.6" class="fk"></circle>
+<circle cx="246" cy="182" r="1.6" class="fk"></circle>
+
+<!-- 加速电场与粒子源（P点下方） -->
+<line x1="142" y1="278" x2="142" y2="227" class="sa" marker-end="url(#aa)"></line>
+<line x1="127" y1="260" x2="157" y2="260" class="sk"></line>
+<line x1="127" y1="243" x2="157" y2="243" class="sk"></line>
+<text x="161" y="255">U</text>
+<circle cx="142" cy="278" r="3" class="fk"></circle>
+<text x="110" y="292" class="u">粒子源</text>
+
+<!-- OF 发射范围：沿x轴，均以v₀沿+y射入 -->
+<line x1="100" y1="224" x2="184" y2="224" class="sa" stroke-width="2"></line>
+<line x1="121" y1="224" x2="121" y2="203" class="sh" stroke-dasharray="3 3" marker-end="url(#ak)"></line>
+<line x1="163" y1="224" x2="163" y2="203" class="sh" stroke-dasharray="3 3" marker-end="url(#ak)"></line>
+<text x="60" y="252" class="u">OF：发射范围，均以v₀沿+y射入</text>
+
+<!-- 情形c1：P→Q→N 完整参考轨迹（静态虚线）与动态进度 -->
+<path id="q19-c1-fullpath" class="sh" stroke-dasharray="3 3" fill="none" d=""></path>
+<path id="q19-c1-progress" class="sa" stroke-width="2" fill="none" d=""></path>
+<line id="q19-c1-varrow" class="sr" x1="142" y1="224" x2="142" y2="204" marker-end="url(#ar)"></line>
+<circle id="q19-c1-dot" class="fa" cx="142" cy="224" r="5"></circle>
+<text id="q19-c1-live" class="n" x="16" y="304">u=0.00 t=0.00 x=1.00 y=0.00 v=1.00</text>
+
+<!-- ============ 右侧文字面板 ============ -->
+<text x="326" y="58">U=mv₀²/(2q)，R=mv₀/(qB)</text>
+<text x="326" y="76">总时间t=3πm/(2qB)</text>
+<text x="326" y="94" class="u">参考数值(m=q=B=v₀=1)：</text>
+<text x="326" y="108" class="n">U=0.5  R=1  t=3π/2≈4.712</text>
+<text x="326" y="126" class="u">区域Ⅰ：半径R，B向外(顺时针)</text>
+<text x="326" y="140" class="u">区域Ⅱ：半径2R，B/2向外(顺时针)</text>
+<text x="326" y="154" class="u">区域Ⅲ：B向里，E=Bv₀沿+x(逆时针+漂移)</text>
+<text x="326" y="172" class="u">P→Q：区域Ⅰ内转90°</text>
+<text x="326" y="186" class="u">Q→N：区域Ⅱ内转90°，切于MN</text>
+<line x1="326" y1="202" x2="344" y2="202" class="sa"></line>
+<text x="348" y="206" class="u a">c1：P→N 轨迹(区域Ⅰ→Ⅱ)</text>
+<line x1="326" y1="216" x2="344" y2="216" class="sr"></line>
+<text x="348" y="220" class="u r">c2：区域Ⅲ轨迹(见下方)</text>
+
+<!-- ============ 区域Ⅲ展开图（第(3)问） ============ -->
+<text x="14" y="316" class="r">动能最大时v=13v₀/5，到y轴距离=172mv₀/(25qB)</text>
+<text x="14" y="330" class="u">区域Ⅲ展开图：横轴=沿MN漂移(y)，纵轴=深入区域Ⅲ(x-4R)，比例与主图不同</text>
+
+<line x1="54" y1="356" x2="342" y2="356" class="sa" stroke-width="2"></line>
+<text x="56" y="350" class="u a">MN边界(x=4R)</text>
+
+<!-- 区域Ⅲ场标记：B向里(×)，E沿+x(展开图中为向下) -->
+<text x="70" y="380">×</text>
+<text x="120" y="410">×</text>
+<text x="180" y="440">×</text>
+<text x="250" y="400">×</text>
+<line x1="110" y1="362" x2="110" y2="382" class="sa" marker-end="url(#aa)"></line>
+<text x="90" y="352" class="u a">E=Bv₀</text>
+
+<path id="q19-c2-fullpath" class="sh" stroke-dasharray="3 3" fill="none" d=""></path>
+<path id="q19-c2-progress" class="sr" stroke-width="2" fill="none" d=""></path>
+<line id="q19-c2-radius" class="sc" x1="60" y1="356" x2="60" y2="356"></line>
+<circle id="q19-c2-gc" class="fa" cx="60" cy="356" r="3"></circle>
+<line id="q19-c2-varrow" class="sr" x1="60" y1="356" x2="80" y2="360" marker-end="url(#ar)"></line>
+<circle id="q19-c2-dot" class="fr" cx="60" cy="356" r="5"></circle>
+
+<circle id="q19-c2-entrymark" class="fk" cx="60" cy="356" r="3"></circle>
+<line id="q19-c2-entryarrow" class="sk" x1="60" y1="356" x2="60" y2="356" marker-end="url(#ak)"></line>
+<line id="q19-c2-refline" class="sh" stroke-dasharray="2 2" x1="60" y1="356" x2="60" y2="356"></line>
+
+<line id="q19-c2-maxline" class="sc" stroke-dasharray="2 2" x1="54" y1="356" x2="340" y2="356"></line>
+<circle id="q19-c2-maxmark" class="fr" cx="60" cy="356" r="4"></circle>
+
+<text x="346" y="352" class="u">入射角74°(与-y轴夹角)</text>
+<text x="346" y="366" class="u">B向里 ×</text>
+<text x="346" y="380" class="u">E=Bv₀ →(沿深入方向)</text>
+<text id="q19-c2-live" class="n" x="346" y="396">u=0.00 x=4.00 y=0.00 v=1.00</text>
+<text x="346" y="412" class="u a">●导向中心：沿+y匀速漂移v₀</text>
+<text x="346" y="426" class="u r">○动能最大点(u=0.5)</text>
+<text x="346" y="440" class="n">x_max=172R/25≈6.88</text>
+<text x="346" y="454" class="n">v_max=13v₀/5=2.6</text>
+
+</svg>
+<figcaption class="u">主图（左上）：世界坐标系 x 右 y 上，比例尺 42px/R，O为坐标原点。区域Ⅰ为圆形磁场区（与x轴切于P、y轴切于S，圆心O₁=(R,R)，B垂直纸面向外），区域Ⅱ为半圆形磁场区（直径MN，圆心O₂=(4R,R)，半径2R，B/2垂直纸面向外，与区域Ⅰ相切于Q）。粒子源位于P点下方，经电压U加速后以速度v₀沿+y射入；OF区间(O到F=(2R,0))内任意位置发射的粒子均以v₀沿+y方向射入区域Ⅰ。图中蓝色(靛蓝)轨迹为题设粒子：从P点射入区域Ⅰ，沿半径R的圆弧顺时针转90°到达Q点（此时速度转为+x方向），再射入区域Ⅱ，沿半径2R的圆弧顺时针转90°到达N点，轨迹恰好与MN相切——这是所有能经MN射入区域Ⅲ的粒子中，在区域Ⅱ内运动时间最短的临界情形，region Ⅰ、Ⅱ内总运动时间t=3πm/(2qB)。下方展开图（红色轨迹，第(3)问）：区域Ⅲ叠加与区域Ⅰ、Ⅱ方向相反的磁场B(垂直纸面向里)以及电场E=Bv₀(沿x正方向)，粒子速度可分解为沿+y的匀速漂移v_drift=v₀(与电场力抵消)和绕漂移中心作逆时针匀速圆周运动的v_circ(大小8v₀/5)；由于展开图横轴方向的漂移量远大于纵轴方向的摆动量，此处将横轴取为漂移方向(y)、纵轴取为深入区域Ⅲ方向(x-4R)以便观察，比例尺40px/R，与主图不同。图中黑色小三角为入射点(与-y轴夹角74°)，靛蓝小圆为随时间沿+y匀速右移的导向中心，青色虚线为导向中心到粒子的连线(长度即r'=8R/5)，红色圆环为动能最大时刻(u=0.5，即v_circ与v_drift同向+y的瞬间)，此时粒子速度大小v_max=13v₀/5、到y轴距离x_max=172R/25=172mv₀/(25qB)。</figcaption></figure>
