@@ -527,12 +527,17 @@ def extract_rules(page):
 
 
 # ---------------------------------------------------------------- 整页渲染
-def render_pages(pdf, outdir, dpi=110):
-    exe = None
+def pdftoppm_exe():
+    """找 pdftoppm，找不到回 None。抽出来是因为 pages.py 也要用同一条探测路径。"""
     for cand in ("pdftoppm", "/opt/homebrew/bin/pdftoppm", "/usr/local/bin/pdftoppm"):
-        if subprocess.run(["which", cand], capture_output=True).returncode == 0 or os.path.exists(cand):
-            exe = cand
-            break
+        if subprocess.run(["which", cand], capture_output=True).returncode == 0 \
+                or os.path.exists(cand):
+            return cand
+    return None
+
+
+def render_pages(pdf, outdir, dpi=110):
+    exe = pdftoppm_exe()
     if not exe:
         print("   [warn] 找不到 pdftoppm（brew install poppler），跳过整页渲染")
         return 0
