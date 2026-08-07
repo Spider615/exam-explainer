@@ -53,6 +53,15 @@ PROMPT = """这是一份物理试卷的**参考答案**（印刷体）。
 页眉页脚、页码、水印一律忽略。
 """
 
+# 跨页上下文。参考答案常常从半道题开始翻页，页首只剩一个光秃秃的「(3)」——
+# 没有这句话，模型认不出它属于哪道题，按上面第 1 条会整条丢掉。
+# 实测：不给上下文时 14(3)、15(3)、16(3) 三条全丢了
+CARRY = """
+**这一页可能是上一页的续页。** 上一页最后读到的是**第 %d 题**。
+所以这一页开头若是没有主题号的小问（例如只写着「(3)」），它属于第 %d 题，
+请写成 "%d(3)" 这样的完整题号。若这一页开头有明确的主题号，以图上的为准。
+"""
+
 _QN = re.compile(r"^\s*(\d{1,2})\s*(?:[（(]\s*(\d{1,2})\s*[）)])?\s*$")
 
 
@@ -70,6 +79,22 @@ def qnum(s):
 def show_qnum(n):
     """1201 → `"12(1)"`，11 → `"11"`。页面与日志显示用。"""
     return "%d(%d)" % (n // 100, n % 100) if n >= 100 else str(n)
+
+
+def main_of(n):
+    """1201 → 12，11 → 11。跨页上下文要拿它当「上一页读到第几题」。"""
+    return n // 100 if n >= 100 else n
+
+
+def last_main_of(rows):
+    """
+    这一批里最大的主题号，留给下一页当上下文（见 CARRY）。一条都认不出回 None。
+
+    **取最大而不是取最后一条** —— 模型的输出顺序不保证与版面一致。
+    """
+    mains = [main_of(qnum(r.get("n"))) for r in rows if isinstance(r, dict)
+             and qnum(r.get("n")) is not None]
+    return max(mains) if mains else None
 
 
 def keep(rows):
@@ -110,20 +135,27 @@ def read(paper_name, page_files, verbose=True):
     work = os.path.join(ROOT, "work", paper_name)
     pgs = pages.normalize(page_files, os.path.join(work, "page"), prefix="p")
 
-    raw, failed = [], []
+    raw, failed, last_main = [], [], None
     for pg in pgs:
         # 送 hires 而不是 web：实测 1080×1441 比 540×720 还快，而且更清楚。
         # 但**绝不放大**（见 mathvlm.ask_raw 的说明）
+        prompt = PROMPT + (CARRY % (last_main, last_main, last_main)
+                           if last_main else "")
         try:
-            got = mathvlm.ask_raw(pg["hires"], PROMPT, want="array", timeout=600)
+            got = mathvlm.ask_raw(pg["hires"], prompt, want="array", timeout=600)
         except Exception as e:
             failed.append(pg["page"])
             log("   第%d页 ✗ 没读成：%s" % (pg["page"], str(e)[:120]))
             continue
         got = got if isinstance(got, list) else []
         raw += got
+        m = last_main_of(got)
+        if m is not None:
+            last_main = m if last_main is None else max(last_main, m)
         store.put_page_asset(paper_name, pg["hires"], "page/p%02d.png" % pg["page"])
-        log("   第%d页 读到 %d 条" % (pg["page"], len(got)))
+        log("   第%d页 读到 %d 条%s" % (pg["page"], len(got),
+                                      "" if last_main is None else
+                                      "（到第%d题）" % last_main))
 
     rows = keep(raw)
     if not rows:

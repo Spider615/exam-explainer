@@ -147,3 +147,21 @@ def test_表达式尾巴不许当单位(s):
     """不拒绝的话，2mv 会被读成「数值 2 + 单位 mv」，于是 2mv 和 2Mv 判等 ——
     一个静默的错误等价判断，正是这里最怕的"""
     assert grade.as_number(s) is None
+
+
+# ---------------------------------------------------------------- LaTeX 定界符
+def test_行内公式定界符不算内容():
+    """Ⓐ 读出来的答案定界符不统一：13(2) 是 `$8\\times10^{-12}$`，
+    15(1) 是裸的 `d_1=\\dfrac{2}{B}…`。不归一化的话互校会全线误报"""
+    assert grade.norm_expr(r"$8\times10^{-12}$") == grade.norm_expr(r"8\times10^{-12}")
+    assert grade.norm_expr(r"$$p_0hS=p_1h_1S$$") == grade.norm_expr("p_0hS=p_1h_1S")
+    assert grade.judge(r"$h_1=50\ \text{cm}$", r"h_1=50\ \text{cm}")[0] == "right"
+
+
+def test_text命令不算内容():
+    assert grade.norm_expr(r"50\ \text{cm}") == grade.norm_expr(r"50 cm")
+
+
+def test_定界符不会把别的美元号吃掉():
+    # 物理卷里不会出现货币，但别让归一化变成「删掉所有 $」那种粗暴规则
+    assert "$" not in grade.norm_expr("$a$")

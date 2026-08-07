@@ -139,6 +139,11 @@ def norm_expr(s):
     t = unicodedata.normalize("NFC", str(s or ""))
     for k, v in _SUBSUP.items():
         t = t.replace(k, v)
+    # 定界符与排版命令不是内容。Ⓐ 读出来的答案定界符不统一（有的 `$…$`、
+    # 有的裸写、有的 `$$…$$`），不去掉的话互校会全线误报
+    t = t.replace("$", "")
+    t = re.sub(r"\\(?:text|mathrm|mathit|operatorname)\s*\{([^{}]*)\}", r"\1", t)
+    t = t.replace("\\,", " ").replace("\\;", " ").replace("\\ ", " ").replace("\\!", "")
     t = t.replace("\\dfrac", "\\frac").replace("\\tfrac", "\\frac")
     t = t.replace("·", "\\cdot").replace("×", "\\times")
     t = re.sub(r"\^\{([^{}])\}", r"^\1", t)     # ^{2} → ^2

@@ -118,3 +118,26 @@ def test_老师那份材料第一页的真值():
     assert by_n[1302]["ref_answer"] == "8×10^-12"
     assert by_n[1401]["ref_solution"].startswith("物块静止")
     assert by_n[1]["ref_solution"] is None, "选择题没有解答过程"
+
+
+# ---------------------------------------------------------------- 跨页上下文
+def test_主题号提取():
+    assert refread.main_of(11) == 11
+    assert refread.main_of(1201) == 12
+    assert refread.main_of(1604) == 16
+
+
+def test_上一页读到第几题():
+    """参考答案常常从半道题开始翻页，页首只剩一个光秃秃的「(3)」。
+    实测不给上下文时 14(3)、15(3)、16(3) 三条全丢了"""
+    assert refread.last_main_of([{"n": "13(4)"}, {"n": "14(1)"}, {"n": "14(2)"}]) == 14
+
+
+def test_取最大而不是最后一条():
+    """模型的输出顺序不保证与版面一致"""
+    assert refread.last_main_of([{"n": "16(2)"}, {"n": "15(1)"}]) == 16
+
+
+def test_一条都认不出就没有上下文():
+    assert refread.last_main_of([]) is None
+    assert refread.last_main_of([{"n": "十一"}, None, "串"]) is None
