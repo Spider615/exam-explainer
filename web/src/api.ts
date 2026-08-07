@@ -66,6 +66,16 @@ export function uploadPdf(file: File) {
 export const sceneScriptUrl = (name: string) =>
   `/api/papers/${encodeURIComponent(name)}/scene.js`
 
+/**
+ * 重跑某一道题的动画（⑤）。返回任务 id，拿它去 getJob 轮询。
+ *
+ * 会 409 的两种情况：这道题已经在跑、或者整卷管线在跑。两种都不是错误，
+ * 是「等一下」——调用方要把 detail 原样显示出来，别糊成一句「失败」。
+ */
+export const rescene = (name: string, n: number) =>
+  post(`/api/papers/${encodeURIComponent(name)}/questions/${n}/rescene`)
+    .then(j<{ job: string; question: number }>)
+
 /** 删除结果。names 可能有已经不存在的（列表过期），后端如实分开回报 */
 export interface DeleteResult { deleted: string[]; missing: string[]; objects: number }
 

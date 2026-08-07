@@ -176,7 +176,14 @@ export interface Job {
   state: 'running' | 'solving' | 'finishing' | 'done' | 'error'
   step?: string
   name?: string
+  /** 整卷上传时是「切出几题」；单题重跑不用它，那条走 qn */
   n?: number
+  /** 'rescene' = 单题重跑。整卷上传的任务没有这个字段 */
+  kind?: string
+  /** 重跑的是第几题 */
+  qn?: number
+  /** 重跑成功后的新场景 id。没换成就没有这个字段 */
+  scene?: string
   solved?: number
   total?: number
   warnings?: string[]

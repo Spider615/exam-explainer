@@ -397,7 +397,10 @@ export default function PaperView({ name }: { name: string }) {
                       <h3>{head}</h3><span>{cnt} 题</span>
                     </div>
                   )}
-                  <QuestionCard q={q} paper={name} />
+                  {/* 重跑成功后调 load()：它重取试卷（拿到新的 sceneId），
+                      而 paper 身份一变，上面那个场景脚本 effect 会跟着重跑、
+                      带新时间戳重新加载 scene.js —— 新动画才真的换得上去 */}
+                  <QuestionCard q={q} paper={name} onRescened={load} />
                 </div>
               )
             })}

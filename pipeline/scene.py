@@ -339,8 +339,8 @@ def ark_build(sid, spec, workdir, rounds, model, images, log):
         ok, out = verify(sid, workdir)
         if ok:
             return True, out, rd, sid
-        fails = [l for l in out.splitlines() if l.strip().startswith("✗")]
-        log("     门禁 FAIL，%d 条不通过" % len(fails))
+        nfail, digest = fail_digest(out)
+        log("     门禁 FAIL，%d 条不通过%s" % (nfail, ("：" + digest) if digest else ""))
         msgs = again(ARK_RETRY.format(report=out[-6000:]))
     return False, out or "没有产出", rounds, sid
 
@@ -386,6 +386,26 @@ def verify(sid, workdir):
                        cwd=workdir, capture_output=True, text=True, timeout=900)
     out = (r.stdout or "") + (r.stderr or "")
     return out.rstrip().endswith("VERDICT: PASS"), out
+
+
+def fail_digest(out):
+    """
+    门禁报告 → (失败条数, "L4×2、L5×3")。
+
+    连**哪一层**一起报。只说「N 条不通过」的话，页面上看着这道题一轮一轮地跑，
+    却不知道它卡在物理断言还是卡在版面 —— 前者可能是 spec 本身有问题（人得介入），
+    后者 agent 自己挪挪坐标就能好（等着就行）。两种情况该做的事完全不同。
+
+    层级取自每条失败行的 `✗ [层/代号]`，不依赖 verify.py 汇总行的格式。
+    两条 backend 路径共用这一份，不各写一份。
+    """
+    fails = [l for l in out.splitlines() if l.strip().startswith("✗")]
+    by = {}
+    for l in fails:
+        m = re.search(r"✗\s*\[([^/\]]+)", l)
+        if m:
+            by[m.group(1)] = by.get(m.group(1), 0) + 1
+    return len(fails), "、".join("%s×%d" % kv for kv in sorted(by.items()))
 
 
 def build(sid, spec, rounds=6, model=MODEL, log=print, backend="relay", images=None):
@@ -467,8 +487,8 @@ def build(sid, spec, rounds=6, model=MODEL, log=print, backend="relay", images=N
         ok, out = verify(sid, workdir)
         if ok:
             return True, out, rd, sid
-        fails = [l for l in out.splitlines() if l.strip().startswith("✗")]
-        log("     门禁 FAIL，%d 条不通过" % len(fails))
+        nfail, digest = fail_digest(out)
+        log("     门禁 FAIL，%d 条不通过%s" % (nfail, ("：" + digest) if digest else ""))
         msg = ("上一轮门禁没过。**不要修改 spec 或 harness，改你自己的实现。**\n"
                "完整报告如下，按里面的层级和 id 逐条修：\n\n" + out[-6000:])
     return False, out, rounds, sid
@@ -552,14 +572,24 @@ def main():
         nonlocal ok, fail
         q, row = item
         sid = row["spec"].get("id") or ("q%d" % q["n"])
+        # 只做一道题时**边跑边打**，不攒到最后。
+        #
+        # 攒着是为了多题并行时输出不交错（三路一起打，读都没法读）。但只有一道
+        # 题就没有交错可言，而这正是网页「重跑这一题」走的路 —— 攒着的话十几
+        # 分钟里页面上一行不动，跟卡死一模一样，而一轮就要几分钟，人根本不知道
+        # 它是在跑第几轮、还是已经挂了。api.py 的 run_step 也正是靠逐行 stdout
+        # 把进度送上去的。
+        stream = len(todo) == 1
         buf = []
+        emit = ((lambda s: print("       第%2d题 %s" % (q["n"], s.strip()), flush=True))
+                if stream else buf.append)
         t0 = time.time()
         # 原卷插图给方舟那条路用：实测有图时它画出来的几何和原图一致，
         # 没图就只能靠题干文字猜杆是朝上还是朝下 —— 那是会画反的
         imgs = [os.path.join(ROOT, "work", name, f) for f in (q.get("figures") or [])]
         try:
             passed, out, rd, sid = build(sid, row["spec"], a.rounds, model,
-                                         log=buf.append, backend=backend, images=imgs)
+                                         log=emit, backend=backend, images=imgs)
         except Exception as e:
             # 崩了也要留一行「试过」。不留的话进度里的 sceneTried 永远追不上
             # ready，⑤ 那一步会永远显示在跑 —— 卷子早停了也一样

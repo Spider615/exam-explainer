@@ -776,12 +776,29 @@ def picked(name):
 
 
 def put_scene(qid, sid, rounds, passed):
+    """
+    ⑤ 的产出。**失败不许覆盖成功** —— 这是 WHERE 那一行的全部意义。
+
+    没有它的话，重跑一道已经有动画的题、而这次跑满轮数没过，就会把库里那行
+    `passed=true` 改成 `false`；`paper_scenes` 只取 passed 的，于是页面上那道题的
+    动画**凭空消失**了 —— 用户只是想让它更好看一点，结果连原来的都没了。
+    磁盘上的旧场景文件还在，但库是唯一真相源，没人会去捞。
+
+    三种情形，一条 WHERE 说清：
+      新的过了            → 覆盖（不管旧的什么样）
+      新旧都没过          → 覆盖（刷新这条尝试记录，sceneTried 才数得对）
+      新的没过、旧的过了  → **跳过**
+
+    这跟下面 put_scene_attempt 的 DO NOTHING 是同一个直觉，只是那条管的是
+    「⑤ 抛异常」，这条管的是「跑满轮数仍未通过」—— 两条路都能抹掉好结果。
+    """
     with connect() as c:
         c.execute("""INSERT INTO scenes (question_id, scene_id, rounds, passed)
                      VALUES (%s,%s,%s,%s)
                      ON CONFLICT (question_id) DO UPDATE SET
                        scene_id=EXCLUDED.scene_id, rounds=EXCLUDED.rounds,
-                       passed=EXCLUDED.passed, created_at=now()""",
+                       passed=EXCLUDED.passed, created_at=now()
+                     WHERE EXCLUDED.passed OR NOT scenes.passed""",
                   (qid, sid, rounds, passed))
         c.commit()
 

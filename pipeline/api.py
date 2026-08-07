@@ -362,6 +362,14 @@ def step_path(mod):
 # ⑤ 一题几分钟到几十分钟，一卷可能跑几个钟头。超时按整卷给，可用环境变量调。
 SCENE_TIMEOUT = int(os.environ.get("EXAM_SCENE_TIMEOUT", 4 * 3600))
 
+# 单题重跑的轮次上限。**比整卷的默认 6 少**，因为这是「点一下等结果」的交互：
+# scene.py 一轮上限 40 分钟，6 轮就是 4 小时，和整卷超时一样长，没人会等。
+# 实测多数题两三轮就过（海南卷第19题重跑是第 1 轮、14 分钟），4 轮够用，
+# 最坏压到 2.7 小时。超时再留 10 分钟给进程启停和落库。
+RESCENE_ROUNDS = int(os.environ.get("EXAM_RESCENE_ROUNDS", "4"))
+RESCENE_TIMEOUT = int(os.environ.get("EXAM_RESCENE_TIMEOUT",
+                                     2400 * RESCENE_ROUNDS + 600))
+
 
 def finish_paper(jid, name):
     """
@@ -588,10 +596,15 @@ def active_job_for(name):
 
     JOBS 是进程内的 dict，重启后端就空了。这是有意的：任务状态是临时的，
     真结果都在库里 —— 重启后进度带消失，但标志位和题目照样是对的。
+
+    **只认整卷管线，不认单题重跑**（`kind="rescene"`）。重跑一道题的动画不是
+    「这份卷子在处理中」：算进来的话，点一下重跑，整份卷子在列表和试卷页上
+    都变成「处理中」、六格进度带全亮，而其余十几道题根本没在动。
+    单题重跑有自己的可见路径 —— 前端拿那个 jid 单独轮询。
     """
     with LOCK:
         live = [(jid, j) for jid, j in JOBS.items()
-                if j.get("name") == name
+                if j.get("name") == name and j.get("kind") != "rescene"
                 and j.get("state") in ("running", "solving", "finishing")]
         if not live:
             return None
@@ -615,9 +628,14 @@ def failed_job_for(name):
     失败」。代号是 `stage_of` 的口径，调用方拿它比一下就知道说的是不是眼下这步。
     代号可能是 None（publish 前后的兜底异常，说不清属于哪一步），那种情况只报
     原因、不往任何一格上按。
+
+    同样**不认单题重跑**（理由见 active_job_for）：重跑一道题没成功，是那道题的事，
+    不该在试卷页顶上挂一条「上一次没跑完」的红横幅、再把某一格标志染红 ——
+    整卷是好的，十几道题的动画都还在。
     """
     with LOCK:
-        mine = [j for j in JOBS.values() if j.get("name") == name]
+        mine = [j for j in JOBS.values()
+                if j.get("name") == name and j.get("kind") != "rescene"]
     if not mine or mine[-1].get("state") != "error":
         return None, None
     return (mine[-1].get("err") or "未说明原因"), mine[-1].get("err_code")
@@ -1016,6 +1034,105 @@ def scene_js(name: str, user=Depends(current_user)):
     for n, s in sorted(scenes_for(name).items()):
         parts.append(open(s["js"], encoding="utf-8").read())
     return Response("\n".join(parts), media_type="application/javascript")
+
+
+def scene_runs(name, cmds=None):
+    """
+    这份卷子上正在跑的场景任务：返回 (单题重跑的题号集合, 有没有整卷任务)。
+
+    两者的闸门口径不同，所以必须分开数：**同一道题不许并跑，但两道不同的题
+    各自重跑是允许的**。只用 `pipeline_running(name)` 判的话，重跑第 7 题会被
+    正在重跑的第 5 题挡下来 —— 那不是想要的。
+
+    判据是命令行里带不带 `--only`：单题重跑带，整卷不带（见 finish_paper）。
+    读 `ps` 而不是只读 JOBS，是因为命令行起的任务也要算 —— JOBS 只认得出
+    这个进程里起过的。
+    """
+    cmds = running_cmds() if cmds is None else cmds
+    only, whole = set(), False
+    pats = [re.compile(r"(?:^|\s)%s(?:\s+-|$)" % re.escape(s))
+            for s in (name, os.path.join(WORK, name))]
+    for ln in cmds:
+        if not any(p.search(ln) for p in pats):
+            continue
+        m = re.search(r"--only\s+(\d[\d,]*)", ln)
+        if m and "scene.py" in ln:
+            only |= {int(x) for x in m.group(1).split(",") if x.strip()}
+        else:
+            whole = True
+    return only, whole
+
+
+def run_rescene(jid, name, n):
+    """
+    重跑一道题的 ⑤。
+
+    **成功与否要去库里看，不能信退出码** —— `scene.py` 跑满轮数没过门禁时
+    照样 `return 0`（它是整卷工具，一道题没做成不算整体失败）。所以拿库里
+    `scenes` 那行的 scene_id 前后比一次：换了才是真做出了新动画。
+
+    这也正好说得出那句最要紧的话：**没换成的时候，你原来那个动画还在**
+    —— `store.put_scene` 的 WHERE 保证了失败不会覆盖成功。
+    """
+    before = store.paper_scenes(name).get(n)
+    run_step(jid, "⑤ 重跑第%d题（最多 %d 轮）" % (n, RESCENE_ROUNDS),
+             step_path("scene.py") + [name, "--only", str(n),
+                                      "--rounds", str(RESCENE_ROUNDS)],
+             timeout=RESCENE_TIMEOUT)
+    after = store.paper_scenes(name).get(n)
+    swapped = bool(after) and after != before
+    # **job_log 必须在锁外面**：它自己要拿 LOCK，而 threading.Lock 不可重入 ——
+    # 在 `with LOCK:` 里面调它就是自己锁死自己，而且锁再也放不掉，
+    # 之后每个碰 JOBS 的请求（含所有轮询）全部挂起。run_pipeline 里也是这个写法。
+    with LOCK:
+        if swapped:
+            JOBS[jid].update(state="done", step="完成", scene=after)
+        else:
+            # 措辞要能覆盖两种收场：跑满轮数没过门禁、以及中途被打断（超时、
+            # 后端重启、进程被杀）。写死「跑满 N 轮」的话，第 1 轮就被掐掉时
+            # 这句话是假的 —— 具体到底怎么回事，日志里有
+            JOBS[jid].update(state="error", err_code="scene",
+                             err="第%d题这次没做出新动画（最多跑 %d 轮）。"
+                                 "原来那个动画没动，页面上照常能看" % (n, RESCENE_ROUNDS))
+    job_log(jid, ("✓ 第%d题重跑出新动画：%s（原来是 %s）" % (n, after, before))
+            if swapped else
+            ("✗ 第%d题没做出新动画。旧动画 %s 保持不变" % (n, before)))
+
+
+@app.post("/api/papers/{name}/questions/{n}/rescene")
+def rescene(name: str, n: int, user=Depends(current_user)):
+    """
+    重跑某一道题的动画。**只做重跑，不做补做** —— 这道题必须已经有动画。
+
+    没动画的题（④c 判不值得、④ 写不出断言、⑤ 跑失败）不从这里走：那几种
+    情况各有各的成因，一个按钮糊上去只会让人以为点了就能有。
+    """
+    mine(name, user)
+    if n not in store.paper_scenes(name):
+        raise HTTPException(400, "第%d题没有通过门禁的动画，这个入口只做重跑" % n)
+
+    # 闸门按从便宜到贵排：先查进程内的 JOBS，再去扫 ps
+    with LOCK:
+        busy = any(j.get("kind") == "rescene" and j.get("name") == name
+                   and j.get("qn") == n and j.get("state") == "running"
+                   for j in JOBS.values())
+    if busy:
+        raise HTTPException(409, "第%d题正在重跑，等它跑完" % n)
+    only, whole = scene_runs(name)
+    if n in only:
+        raise HTTPException(409, "第%d题正在重跑（命令行起的），等它跑完" % n)
+    # 整卷管线在跑时一律拦：`pipeline_running` 判不出它跑到哪一步、正在做第几题，
+    # 而整卷 ⑤ 恰好在做这道题的话，两个沙箱做同一道，烧双份额度还要抢 put_scene
+    if whole or active_job_for(name):
+        raise HTTPException(409, "这份卷子整条管线在跑，等它跑完再重跑单题")
+
+    jid = uuid.uuid4().hex[:12]
+    with LOCK:
+        JOBS[jid] = {"state": "running", "step": "排队中", "kind": "rescene",
+                     "name": name, "qn": n, "owner_id": user["id"],
+                     "log": ["重跑第%d题的动画（⑤），最多 %d 轮" % (n, RESCENE_ROUNDS)]}
+    threading.Thread(target=run_rescene, args=(jid, name, n), daemon=True).start()
+    return {"job": jid, "question": n}
 
 
 def send(name, row):
