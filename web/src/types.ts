@@ -138,6 +138,8 @@ export interface Progress {
   failedStage: string | null
   questions: number
   labels: number
+  /** 挂上知识点的题数（③c）。分母是题数，不是解出来的题数 */
+  kps: number
   solutions: number
   specs: number
   approved: number

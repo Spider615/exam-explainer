@@ -765,6 +765,10 @@ def stage_of(pg):
         return "solve", "③ 解题", "解题中", sol, q
     if pg["labels"] < q:
         return "outline", "③b 目录", "生成目录", pg["labels"], q
+    # ③c 知识点。分母是题数不是解出来的题数 —— 没解出来的题也该有知识点
+    # （只看题干也判得出个大概），而诊断报告要拿它做聚合
+    if pg.get("kps", 0) < q:
+        return "kpmark", "③c 知识点", "标知识点", pg.get("kps", 0), q
     # ④c 的候选是「解出来的题」，不是全部题 —— 没解出来的它压根不判
     if pg["judged"] < sol:
         return "pick", "④c 选题", "动画选题", pg["judged"], sol
