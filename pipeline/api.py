@@ -468,7 +468,7 @@ def finish_paper(jid, name):
 def run_pipeline(jid, pdf_path, name, owner_id=None):
     """
     网页上传走的整条链：
-    ① 摄入 → ② 切分 → ②b 公式 → ②c 入库 → ③ 解题 → ③b 目录 → ④ 断言
+    ① 摄入 → ② 切分 → ②b 公式 → ②c 入库 → ②d 标准答案 → ③ 解题 → ③b 目录 → ④ 断言
     → ④b spec 自检 → ⑤ 生成场景 → ⑦ 装配。
 
     和 `pipeline/run.py` 那条命令行链是同一串。两条入口跑出来的东西必须一样，
@@ -513,6 +513,9 @@ def run_pipeline(jid, pdf_path, name, owner_id=None):
             JOBS[jid].update(state="solving", name=name, n=n_q,
                              warnings=q.get("warnings", []), solved=0, total=n_q)
         log("✓ 切出 %d 题，入库 %d 份资产。可以开始看了，解题在后台继续" % (n_q, r["assets"]))
+        # ②d 标准答案：纯代码、几十毫秒，读 doc.json 按题号切。抽不到就全记
+        # none —— 高考真题本来就不带答案，那不是失败。失败也不中止整条链
+        run_step(jid, "②d 标准答案", step_path("refans.py") + [name], timeout=120)
         solve_paper(jid, name)
         finish_paper(jid, name)
     except Exception as e:

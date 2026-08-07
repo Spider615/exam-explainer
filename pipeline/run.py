@@ -10,6 +10,7 @@ run.py —— 一条命令跑完管线
     segment.py    ② doc.json → questions.json
     mathvlm.py    ②b 含公式的选项 → 视觉模型 → LaTeX（按图哈希缓存）
     store.publish ②c 构建产物 → 库（此后一切以库为准）
+    refans.py     ②d 卷子自带的「参考答案」段落 → 每题的标准答案（纯代码）
     solve.py      ③ 解题（DeepSeek 盲试 → 看不到图才升级视觉模型）
     outline.py    ③b 整卷一次调用 → 每题的短标题与短答案（目录/速览用）
     pick.py       ④c 动画选题：一次调用判整卷「哪些题值得做动画」
@@ -97,6 +98,12 @@ def main():
                              "print('归属：' + (u['email'] if u else "
                              "'无主（.env 里设 EXAM_OWNER_EMAIL，或事后 store.py claim）'))"
                              % (HERE, work)])
+
+    # ②d 标准答案：纯代码，读 doc.json 找「参考答案」段落按题号切。
+    # 抽不到就全记 none —— 高考真题本来就不带答案，那不是失败。
+    # （编号用 ②d 而不是 ②c：②c 已经是「发布入库」了）
+    total += step("②d", "标准答案抽取",
+                  [PY, os.path.join(HERE, "refans.py"), name])
 
     if not a.no_solve:
         total += step("③", "解题", [PY, os.path.join(HERE, "solve.py"), name,
