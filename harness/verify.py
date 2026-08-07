@@ -198,6 +198,110 @@ function __runProbe(){
                      (dead.length ? "，" + dead.length + " 个全程无几何(" + dead.slice(0, 6).join(",") + ")" : ""));
     } catch (errR) { out.render.push("渲染覆盖检查自身失败: " + errR); }
 
+    /* --- L5 版面：文字不许压文字 ---
+       断言只看 probe 的数值，L3.5 只看元素在不在画布内，谁都不看**画成什么样**。
+       实测 31 个场景有 14 个存在文字互压（读数行压说明、标签压标题），
+       而 ⑤ 的沙箱 agent 是**盲写坐标**的 —— 字号写在 CSS 里，它算不出自己
+       那行中文有多宽，只能靠这一层告诉它。
+
+       三条判据来自全库标定，不是拍脑袋：
+
+       1. **逐帧比，绝不取跨帧包络。** 挂在运动物体上的标签，其轨迹包络必然
+          互相交叠，但任一时刻都不真的压在一起。实测 q7「M」×「N」包络重叠
+          65.6px、逐帧 0；q14「圆心」×「v₂」包络 13.4px、逐帧 0。用包络判
+          会把一整类合法写法冤枉掉。
+
+       2. **判据是重叠矩形的短边，不是面积比。** 面积比对「长串薄重叠」系统性
+          高估（225×2.2 的虚碰也能顶到 17%），永远分不开两个峰。按短边重排，
+          全库分布是：16 个干净场景 ≤2.1px，两个边缘案例 3.5/3.6px，13 个
+          确凿缺陷 ≥7.4px —— 3.6 到 7.4 之间那道 3.8px 的空档是整个数据集
+          最宽的间隙，阈值取 5 落在正中，对字体和测量误差都留足了余量。
+          下界 2.1 的成因：em 盒比字墨高约 1.9px，两行「刚好贴着」会碰盒不碰墨。
+
+       3. **场标记不算文字。** `×` `·` 这些是用 <text> 画的底纹，本来就该被
+          别的东西盖住。q4-gen3 有 31 个，占它全部 text 的大半 —— 不排除的话
+          这个干净场景第一天就会被判红。*/
+    try {
+      api.reset();
+      var L5_FAIL = 5.0, L5_WARN = 2.5;
+      var MARK = {"×":1, "·":1, "⊙":1, "⊗":1, "•":1, "∙":1};
+      var allT = svg.querySelectorAll("text"), tel = [], tinfo = [], nMark = 0;
+      for (var a0 = 0; a0 < allT.length; a0++) {
+        var s0 = (allT[a0].textContent || "").replace(/^\s+|\s+$/g, "");
+        if (!s0) continue;
+        if (s0.length === 1 && MARK[s0]) { nMark++; continue; }
+        tel.push(allT[a0]); tinfo.push(s0.length > 34 ? s0.slice(0, 34) + "…" : s0);
+      }
+      /* 不用 getComputedStyle：热循环里每帧每元素调一次太慢，而契约禁止
+         figure 内写 <style>，透明度只可能来自 JS 设的属性或内联样式。 */
+      function vis(el) {
+        var n = el, op = 1;
+        while (n && n !== svg) {
+          if (n.style && n.style.display === "none") return false;
+          if (n.getAttribute && n.getAttribute("display") === "none") return false;
+          var o = NaN;
+          if (n.style && n.style.opacity !== "" && n.style.opacity != null) o = parseFloat(n.style.opacity);
+          else if (n.getAttribute && n.getAttribute("opacity") !== null) o = parseFloat(n.getAttribute("opacity"));
+          if (!isNaN(o)) op *= o;
+          n = n.parentNode;
+        }
+        return op > 0.05;
+      }
+      var NT = tel.length, worst = {}, rootM5, inv5;
+      function frame5(tv) {
+        rootM5 = svg.getScreenCTM(); if (!rootM5) return;
+        inv5 = rootM5.inverse();
+        var bx = [];
+        for (var k5 = 0; k5 < NT; k5++) {
+          if (!vis(tel[k5])) { bx.push(null); continue; }
+          var bb5, mm5;
+          try { bb5 = tel[k5].getBBox(); mm5 = tel[k5].getScreenCTM(); } catch (e5) { bx.push(null); continue; }
+          if (!mm5 || (bb5.width <= 0 && bb5.height <= 0)) { bx.push(null); continue; }
+          var m5 = inv5.multiply(mm5);
+          var px = [bb5.x, bb5.x + bb5.width], py = [bb5.y, bb5.y + bb5.height];
+          var X0 = 1e9, X1 = -1e9, Y0 = 1e9, Y1 = -1e9;
+          for (var u5 = 0; u5 < 2; u5++) for (var v5 = 0; v5 < 2; v5++) {
+            var xx = m5.a * px[u5] + m5.c * py[v5] + m5.e;
+            var yy = m5.b * px[u5] + m5.d * py[v5] + m5.f;
+            if (xx < X0) X0 = xx; if (xx > X1) X1 = xx;
+            if (yy < Y0) Y0 = yy; if (yy > Y1) Y1 = yy;
+          }
+          bx.push({x0: X0, x1: X1, y0: Y0, y1: Y1});
+        }
+        for (var i5 = 0; i5 < NT; i5++) { var A5 = bx[i5]; if (!A5) continue;
+          for (var j5 = i5 + 1; j5 < NT; j5++) { var B5 = bx[j5]; if (!B5) continue;
+            var w5 = Math.min(A5.x1, B5.x1) - Math.max(A5.x0, B5.x0);
+            var h5 = Math.min(A5.y1, B5.y1) - Math.max(A5.y0, B5.y0);
+            if (w5 <= 0 || h5 <= 0) continue;
+            var d5 = w5 < h5 ? w5 : h5, key5 = i5 + "_" + j5;
+            if (!worst[key5] || d5 > worst[key5].d)
+              worst[key5] = {d: d5, w: w5, h: h5, t: tv, i: i5, j: j5,
+                             a: [A5.x0, A5.y0, A5.x1, A5.y1],
+                             b: [B5.x0, B5.y0, B5.x1, B5.y1]};
+          }
+        }
+      }
+      /* 步长 0.25：判据的量词是「∃某一帧」，欠采样会直接漏判，
+         而 81 帧全量文字包围盒实测只要几毫秒，占整轮不到 1%。 */
+      frame5(0);
+      for (var t5 = 0; t5 <= 20.0001; t5 += 0.25) { api.step(t5); frame5(t5); }
+      var lfails = [], lwarn = 0;
+      for (var k6 in worst) { if (!worst.hasOwnProperty(k6)) continue;
+        var r6 = worst[k6];
+        if (r6.d >= L5_FAIL) {
+          lfails.push("「" + tinfo[r6.i] + "」与「" + tinfo[r6.j] + "」在 t=" +
+            r6.t.toFixed(2) + "s 压在一起：重叠 " + r6.w.toFixed(1) + "×" + r6.h.toFixed(1) +
+            "px（短边 " + r6.d.toFixed(1) + " ≥ " + L5_FAIL + "）。前者盒 [" +
+            r6.a[0].toFixed(0) + "," + r6.a[1].toFixed(0) + "]-[" + r6.a[2].toFixed(0) + "," + r6.a[3].toFixed(0) +
+            "]，后者盒 [" + r6.b[0].toFixed(0) + "," + r6.b[1].toFixed(0) + "]-[" + r6.b[2].toFixed(0) + "," + r6.b[3].toFixed(0) + "]");
+        } else if (r6.d >= L5_WARN) lwarn++;
+      }
+      lfails.sort();
+      out.layout = {fails: lfails, warns: lwarn, nText: NT, nMark: nMark};
+      api.reset();
+    } catch (errL) { out.layout = {fails: [], warns: 0, nText: 0, nMark: 0,
+                                   self: "版面检查自身失败: " + errL}; }
+
     // --- probe 采样 ---
     var N = SPEC.sample_points || 401;
     for (var ci = 0; ci < SPEC.cases.length; ci++) {
@@ -282,6 +386,25 @@ def run_browser(sid, spec, fig, js, workdir):
         print("  · %s" % n)
     if not data.get("render"):
         ok("L3.5", "渲染覆盖：所有带 id 元素都曾画在 viewBox 内，且画面随时间变化")
+
+    # --- L5 版面 ---
+    lay = data.get("layout")
+    if lay is None:
+        bad("L5", "no-layout", "版面检查没有产出结果")
+    elif lay.get("self"):
+        bad("L5", "self", lay["self"])
+    else:
+        for e in lay.get("fails", []):
+            bad("L5", "overlap", e)
+        if not lay.get("fails"):
+            ok("L5", "版面：%d 条文字两两不压（另有 %d 个场标记不计）"
+               % (lay.get("nText", 0), lay.get("nMark", 0)))
+        # 黄灯只报数不判红：em 盒比字墨高约 1.9px，两行「刚好贴着」会碰盒不碰墨。
+        # 说出来是为了让人知道它们存在，也知道**不用管** —— 不说的话，
+        # 下一个看到这份报告的人会去修一批根本看不出问题的东西
+        if lay.get("warns"):
+            print("  · 版面：另有 %d 对文字贴着 em 盒边缘（短边 2.5~5px），不判红"
+                  % lay["warns"])
     return data
 
 
@@ -375,7 +498,7 @@ def main():
         for l, c, _ in FAILS: by[l] = by.get(l, 0) + 1
         print("失败 %d 条：%s" % (len(FAILS), ", ".join("%s×%d" % kv for kv in sorted(by.items()))))
         print("VERDICT: FAIL"); sys.exit(1)
-    print("全部通过：静态门禁 + 装载 + 探针 + %d 条物理断言" % len(spec["invariants"]))
+    print("全部通过：静态门禁 + 装载 + 探针 + 版面 + %d 条物理断言" % len(spec["invariants"]))
     print("VERDICT: PASS"); sys.exit(0)
 
 
