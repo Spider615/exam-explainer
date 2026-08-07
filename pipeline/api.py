@@ -1099,6 +1099,35 @@ def run_rescene(jid, name, n):
             ("✗ 第%d题没做出新动画。旧动画 %s 保持不变" % (n, before)))
 
 
+@app.get("/api/papers/{name}/questions/{n}/scenes")
+def question_scenes(name: str, n: int, user=Depends(current_user)):
+    """
+    这道题历次做出来的能用版本。重跑**不丢旧的** —— 新的不一定更好
+    （实测重跑会把标签甩离对象），人得能自己换回去。
+    """
+    mine(name, user)
+    qid = store.question_id(name, n)
+    if not qid:
+        raise HTTPException(404, "没有第%d题" % n)
+    return {"versions": store.scene_versions(qid)}
+
+
+@app.post("/api/papers/{name}/questions/{n}/scene")
+def pick_scene(name: str, n: int, body: dict = Body(...), user=Depends(current_user)):
+    """
+    把这道题切到某个历史版本。**只认版本表里有的** —— 否则这个接口就成了
+    「前端说哪个目录就读哪个目录」，而那个目录可能不存在、也可能是别人的题。
+    """
+    mine(name, user)
+    qid = store.question_id(name, n)
+    if not qid:
+        raise HTTPException(404, "没有第%d题" % n)
+    sid = (body or {}).get("sceneId") or ""
+    if not store.use_scene(qid, sid):
+        raise HTTPException(400, "第%d题没有名为 %s 的历史版本" % (n, sid[:40]))
+    return {"sceneId": sid}
+
+
 @app.post("/api/papers/{name}/questions/{n}/rescene")
 def rescene(name: str, n: int, user=Depends(current_user)):
     """

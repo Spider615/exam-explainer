@@ -170,6 +170,23 @@ CREATE TABLE IF NOT EXISTS scenes (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- 一道题历次做出来的**能用的**场景。scenes 那张表只记「现在用哪个」，
+-- 一行一题；重跑一次就把它盖掉，于是上一个版本在库里再也找不回来 ——
+-- 而磁盘上 `runs/<id>/` 明明还在。实测重跑会变差（标签被甩离对象、
+-- 几何重画得更糟），那时候人要的是「把原来那个换回来」，不是再赌一次。
+--
+-- 只记通过门禁的：没过门禁的场景不是一个可选项，列出来只会让人误点。
+-- append-only，UNIQUE 挡住同一个 scene_id 重复入账。
+CREATE TABLE IF NOT EXISTS scene_versions (
+  id          bigserial PRIMARY KEY,
+  question_id bigint NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  scene_id    text   NOT NULL,
+  rounds      int    NOT NULL DEFAULT 0,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (question_id, scene_id)
+);
+CREATE INDEX IF NOT EXISTS scene_versions_q_idx ON scene_versions (question_id);
+
 CREATE TABLE IF NOT EXISTS vlm_cache (
   img_sha256 text PRIMARY KEY,
   kind       text,

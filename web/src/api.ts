@@ -72,6 +72,22 @@ export const sceneScriptUrl = (name: string) =>
  * 会 409 的两种情况：这道题已经在跑、或者整卷管线在跑。两种都不是错误，
  * 是「等一下」——调用方要把 detail 原样显示出来，别糊成一句「失败」。
  */
+/** 这道题历次做出来的能用版本。重跑不丢旧的，人得能自己换回去 */
+export interface SceneVersion {
+  sceneId: string
+  rounds: number
+  createdAt: string
+  current: boolean
+}
+
+export const listSceneVersions = (name: string, n: number) =>
+  fetch(`/api/papers/${encodeURIComponent(name)}/questions/${n}/scenes`, CRED)
+    .then(j<{ versions: SceneVersion[] }>)
+
+export const pickScene = (name: string, n: number, sceneId: string) =>
+  post(`/api/papers/${encodeURIComponent(name)}/questions/${n}/scene`, { sceneId })
+    .then(j<{ sceneId: string }>)
+
 export const rescene = (name: string, n: number) =>
   post(`/api/papers/${encodeURIComponent(name)}/questions/${n}/rescene`)
     .then(j<{ job: string; question: number }>)
