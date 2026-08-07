@@ -202,19 +202,32 @@ def loads_lenient(txt):
         return json.loads(fixed)
 
 
-def ask_model(img_path, prompt=None):
+def ask_raw(img_path, prompt, want="object", timeout=240):
+    """
+    调视觉模型读一张图，返回解析后的 JSON。
+
+    `want="array"` 时找 `[...]`，否则找 `{...}`。参考答案与答题卡那两条链要的
+    是数组，这里参数化一下，免得几处各写一份调用与容错。
+
+    **不要送放大过的图。** 实测同一页 1080×1441 只要 57 秒，放大到 1620×2208
+    之后 600 秒都回不来。要看清细节就裁小一块，别整张放大。
+    """
     if not CLI:
         raise RuntimeError("找不到 claude 可执行文件；视觉通道不可用")
-    prompt = (prompt or PROMPT) + "\n图片：" + os.path.abspath(img_path)
     r = subprocess.run([CLI, "-p", "--model", MODEL],
-                       input=prompt, capture_output=True, text=True, timeout=240,
+                       input=prompt + "\n图片：" + os.path.abspath(img_path),
+                       capture_output=True, text=True, timeout=timeout,
                        env=dict(os.environ, **clishim.ensure()))
     if r.returncode != 0:
         raise RuntimeError("模型调用失败：%s" % (r.stderr or "")[-200:])
-    m = re.search(r"\{.*\}", r.stdout, re.S)
+    m = re.search(r"\[.*\]" if want == "array" else r"\{.*\}", r.stdout, re.S)
     if not m:
         raise RuntimeError("模型没有返回 JSON：%s" % r.stdout[:200])
     return loads_lenient(m.group(0))
+
+
+def ask_model(img_path, prompt=None):
+    return ask_raw(img_path, prompt or PROMPT, want="object")
 
 
 def main():
