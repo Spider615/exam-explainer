@@ -97,16 +97,29 @@ def keep(rows):
 
 
 def read(paper_name, page_files, verbose=True):
-    """读一批参考答案图，写进库，返回写了几题。"""
-    log = print if verbose else (lambda *a, **k: None)
+    """
+    读一批参考答案图，写进库，返回写了几题。
+
+    **一页失败不拖垮整批。** 一页要一分钟上下，四页就是好几分钟；最后一页
+    超时就把前三页的结果一起丢掉，代价太大。失败的页记下来、照实报出来，
+    只有**一页都没成**才算失败。
+    """
+    # flush 不能省：这个函数从 API 那条链上是当子进程跑的，print 走管道是块
+    # 缓冲，不 flush 的话跑五分钟外面一个字都看不到，跟卡死分不出来
+    log = ((lambda s: print(s, flush=True)) if verbose else (lambda *a, **k: None))
     work = os.path.join(ROOT, "work", paper_name)
     pgs = pages.normalize(page_files, os.path.join(work, "page"), prefix="p")
 
-    raw = []
+    raw, failed = [], []
     for pg in pgs:
         # 送 hires 而不是 web：实测 1080×1441 比 540×720 还快，而且更清楚。
         # 但**绝不放大**（见 mathvlm.ask_raw 的说明）
-        got = mathvlm.ask_raw(pg["hires"], PROMPT, want="array", timeout=600)
+        try:
+            got = mathvlm.ask_raw(pg["hires"], PROMPT, want="array", timeout=600)
+        except Exception as e:
+            failed.append(pg["page"])
+            log("   第%d页 ✗ 没读成：%s" % (pg["page"], str(e)[:120]))
+            continue
         got = got if isinstance(got, list) else []
         raw += got
         store.put_page_asset(paper_name, pg["hires"], "page/p%02d.png" % pg["page"])
@@ -128,6 +141,11 @@ def read(paper_name, page_files, verbose=True):
         # 缺了就说缺了。这些题只能靠 Ⓔ 读来的题干挂知识点
         log("   %d 题只有答案没有过程 —— 它们要靠题目图（Ⓔ）才挂得上知识点"
             % (len(rows) - n_sol))
+    if failed:
+        # 失败的页必须报出来。悄悄少几页的话，缺的那几道题看起来就像
+        # 「这份卷子本来就没有」，没人能发现
+        log("   ⚠ 有 %d 页没读成（第 %s 页），这几页上的题全缺了，请重传"
+            % (len(failed), "、".join(map(str, failed))))
     return len(rows)
 
 
