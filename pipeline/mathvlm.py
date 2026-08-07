@@ -186,20 +186,46 @@ def crop(page_png, box, page_h, dst):
     return dst
 
 
+# JSON 里合法、但在 LaTeX 里几乎必然是命令前缀的那几个转义。
+# 模型写 `"$8\times10^{-12}$"`，`\t` 是合法 JSON 转义，json.loads 会**静默地**
+# 把它变成一个真制表符，于是 `\times` 变成 TAB+"imes" —— 公式坏了而且看不见。
+# 这几个字符在物理答案里从来不是有意为之，还原回去是安全的。
+#
+# **`\n` 不在其中**：`\nu`/`\neq` 有，但解答过程里真正的换行也有，还原会把
+# 「解得\nT=288K」弄成 `\nT`。宁可漏修 `\nu` 那一类，也不制造新的错。
+_CTRL_BACK = {"\t": "\\t", "\f": "\\f", "\b": "\\b", "\r": "\\r"}
+
+
+def _unctrl(o):
+    """把 JSON 吃掉的 LaTeX 反斜杠还原回来。见 _CTRL_BACK 的说明。"""
+    if isinstance(o, str):
+        for ch, back in _CTRL_BACK.items():
+            o = o.replace(ch, back)
+        return o
+    if isinstance(o, list):
+        return [_unctrl(x) for x in o]
+    if isinstance(o, dict):
+        return {k: _unctrl(v) for k, v in o.items()}
+    return o
+
+
 def loads_lenient(txt):
     """
     容错解析模型返回的 JSON。
 
-    LaTeX 里全是反斜杠（dfrac、sqrt 前面那个），模型偶尔会漏转义，
-    产生 Invalid-escape 这类 JSON 错误。这里只做一件事：
-    把**不是合法 JSON 转义**的孤立反斜杠补成 `\\`，别的一概不动 ——
-    不能为了解析成功去猜内容。
+    做两件事：
+
+    1. 把**不是合法 JSON 转义**的孤立反斜杠补成 `\\`（模型漏转义时的
+       Invalid-escape 错误）。别的一概不动 —— 不能为了解析成功去猜内容。
+    2. 把 `\\t` `\\f` `\\b` `\\r` 这几个**合法但几乎必然是 LaTeX 命令前缀**的
+       转义还原回去。它们不会报错，只会静默地把 `\\times`/`\\frac`/`\\right`
+       变成控制字符 —— 实测第 13(2)、13(3)、14(1) 题就是这么坏的。
     """
     try:
-        return json.loads(txt)
+        d = json.loads(txt)
     except json.JSONDecodeError:
-        fixed = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', txt)
-        return json.loads(fixed)
+        d = json.loads(re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', txt))
+    return _unctrl(d)
 
 
 def ask_raw(img_path, prompt, want="object", timeout=240):
