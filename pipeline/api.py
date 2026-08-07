@@ -1250,9 +1250,36 @@ def image(name: str, fn: str, user=Depends(current_user)):
 
 
 # ---------------------------------------------------------------- 前端静态
+class SPAStatic(StaticFiles):
+    """
+    带内容哈希的资源长缓存，**index.html 每次回源验一遍**。
+
+    这是为一个真实发生过、而且会在每次发版复发的现象加的：后端更新了、
+    构建也做了，页面上什么都没变，普通刷新还没用。
+
+    原因是 `index.html` 里写着当前那一版 JS 的**文件名**。Starlette 的
+    StaticFiles 只给 etag 和 last-modified，不给 Cache-Control；而没有
+    Cache-Control 时，浏览器**可以按启发式自己定新鲜期**（常见做法是取
+    「距上次修改时长」的 10%）。于是 index.html 被缓存住，浏览器拿到的
+    是旧的文件名，新包永远加载不进来 —— 而且它不报任何错。
+
+    assets/ 下的文件名里带内容哈希（Vite 生成），内容变了名字就变，
+    所以可以放心 immutable。其余文件不表态，维持原有行为。
+    """
+
+    def file_response(self, full_path, stat_result, scope, status_code=200):
+        r = super().file_response(full_path, stat_result, scope, status_code)
+        p = str(full_path)
+        if p.endswith(".html"):
+            r.headers["Cache-Control"] = "no-cache"
+        elif os.sep + "assets" + os.sep in p:
+            r.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return r
+
+
 DIST = os.path.join(ROOT, "web", "dist")
 if os.path.isdir(DIST):
-    app.mount("/", StaticFiles(directory=DIST, html=True), name="web")
+    app.mount("/", SPAStatic(directory=DIST, html=True), name="web")
 else:
     @app.get("/")
     def dev_hint():
