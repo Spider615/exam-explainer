@@ -398,7 +398,7 @@ def get_paper(name):
                               stem_low_conf, stem_image, option_image, text_quality,
                               quality_reason, n_chars, pages, label,
                               anim_worth, anim_why,
-                              kps, ref_answer, ref_answer_src,
+                              kps, ref_answer, ref_answer_src, ref_solution,
                               stem_math, flattened, layout
                          FROM questions WHERE paper_id=%s ORDER BY n""", (pid,))
         cols = [d[0] for d in cur.description]
@@ -480,6 +480,109 @@ def put_ref_answer(qid, text, src):
     with connect() as c:
         c.execute("UPDATE questions SET ref_answer=%s, ref_answer_src=%s WHERE id=%s",
                   (text, src, qid))
+        c.commit()
+
+
+# ------------------------------------------------- 只有参考答案 + 题目图的卷子
+def create_answers_paper(name, owner_id=None):
+    """
+    建一份「参考答案 + 题目图」的卷子。没有 questions.json，所以**不走 publish**。
+
+    题目由 Ⓐ（refread）一条条写进去，题干由 Ⓔ（stemread）按题号填。
+    两步分工写死，谁都不许碰对方那一列 —— 见 put_answer_question / put_stem。
+    """
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""
+            INSERT INTO papers (name, n_questions, source_kind, updated_at,
+                                run_started_at, owner_id)
+            VALUES (%s, 0, 'answers_only', now(), now(), %s)
+            ON CONFLICT (name) DO UPDATE SET
+              updated_at=now(), run_started_at=now(),
+              source_kind='answers_only',
+              owner_id=COALESCE(papers.owner_id, EXCLUDED.owner_id)
+            RETURNING id""", (name, owner_id))
+        pid = cur.fetchone()[0]
+        c.commit()
+        return pid
+
+
+def source_kind_of(name):
+    """`pdf` / `answers_only`；卷子不存在回 None。"""
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("SELECT source_kind FROM papers WHERE name=%s", (name,))
+        r = cur.fetchone()
+        return r[0] if r else None
+
+
+def _bump_qcount(cur, paper_name):
+    cur.execute("""UPDATE papers SET
+                     n_questions=(SELECT count(*) FROM questions q
+                                   WHERE q.paper_id=papers.id),
+                     updated_at=now()
+                   WHERE name=%s""", (paper_name,))
+
+
+def put_answer_question(paper_name, n, ref_answer, ref_solution):
+    """
+    Ⓐ 的产出：一道题的标准答案与官方解答过程。返回 question_id。
+
+    **只更新这三列。** `stem` 是 Ⓔ 的、`kps` 是 ③c 的 —— 列进 DO UPDATE SET
+    就会在重跑 Ⓐ 时把它们冲没了。期一 publish 那次就是这个坑。
+    """
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""
+            INSERT INTO questions (paper_id, n, stem, ref_answer, ref_solution,
+                                   ref_answer_src)
+            SELECT p.id, %s, '', %s, %s, 'answer_file' FROM papers p WHERE p.name=%s
+            ON CONFLICT (paper_id, n) DO UPDATE SET
+              ref_answer=EXCLUDED.ref_answer,
+              ref_solution=EXCLUDED.ref_solution,
+              ref_answer_src=EXCLUDED.ref_answer_src
+            RETURNING id""", (n, ref_answer, ref_solution, paper_name))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError("库里没有「%s」" % paper_name)
+        _bump_qcount(cur, paper_name)
+        c.commit()
+        return row[0]
+
+
+def put_stem(paper_name, n, stem):
+    """
+    Ⓔ 的产出：一道题的题干。
+
+    **只更新 stem 一列。** 答案、解答过程、知识点都不许碰 —— 同上。
+    题号必须已经由 Ⓐ 写进来过（参考答案上的题号是权威的），没有就抛。
+    """
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""UPDATE questions q SET stem=%s
+                        FROM papers p
+                       WHERE p.id=q.paper_id AND p.name=%s AND q.n=%s
+                       RETURNING q.id""", (stem, paper_name, n))
+        if not cur.fetchone():
+            raise ValueError("「%s」里没有第 %s 题 —— 题号清单以参考答案为准"
+                             % (paper_name, n))
+        c.commit()
+
+
+def put_page_asset(paper_name, local_path, rel_path):
+    """把一页原图挂到卷子上。资产行的形状与 publish 里那段一致。"""
+    row = put_asset(local_path, rel_path)
+    with connect() as c:
+        c.execute("""
+            INSERT INTO assets (paper_id, kind, rel_path, sha256, bytes,
+                                content_type, storage, object_key)
+            SELECT p.id, %s,%s,%s,%s,%s,%s,%s FROM papers p WHERE p.name=%s
+            ON CONFLICT (paper_id, rel_path) DO UPDATE SET
+              sha256=EXCLUDED.sha256, bytes=EXCLUDED.bytes,
+              content_type=EXCLUDED.content_type,
+              storage=EXCLUDED.storage, object_key=EXCLUDED.object_key""",
+            (row["kind"], row["rel_path"], row["sha256"], row["bytes"],
+             row["content_type"], row["storage"], row["object_key"], paper_name))
         c.commit()
 
 

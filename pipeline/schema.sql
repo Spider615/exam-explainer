@@ -305,3 +305,16 @@ CREATE TABLE IF NOT EXISTS sheet_answers (
   UNIQUE (sheet_id, n)
 );
 CREATE INDEX IF NOT EXISTS sheet_answers_sheet_idx ON sheet_answers (sheet_id);
+
+-- ---------------------------------------------------------------- 只有参考答案的卷子
+-- pdf          走 ①②③ 的完整试卷
+-- answers_only 老师传的是参考答案 + 题目图，不进 ③④⑤⑦
+--
+-- **stage_of 必须按它分支**：answers_only 的卷子 solutions/specs/scenes 恒为 0，
+-- 不分支的话进度带永远转、done 永远是 false。期一加 ③c 那一格踩过一次一样的坑
+ALTER TABLE papers ADD COLUMN IF NOT EXISTS source_kind text NOT NULL DEFAULT 'pdf';
+
+-- 参考答案里的解答过程。ref_answer 是最终答案，这一列是过程。
+-- 分两列而不是一列：判对错拿前者，「怎么提升」展示后者，混在一起两边都不好用。
+-- 实测：参考答案只有大题有详解，选择填空这一列多半是 NULL，那是常态不是缺陷
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS ref_solution text;
