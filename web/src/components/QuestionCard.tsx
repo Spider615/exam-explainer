@@ -152,6 +152,40 @@ export default function QuestionCard({ q, paper, onRescened }: {
 
         <div className="stem"><StemBody q={q} /></div>
 
+        {/* 知识点。挂不上就明说 —— 不显示的话，「没挂上」和「还没跑过 ③c」
+            在页面上长得一模一样 */}
+        <div className="kps">
+          {q.kps?.length
+            ? q.kps.map((k) => (
+                <span className="pill a" key={k.code} title={`${k.chapter} · ${k.why}`}>
+                  {k.name}
+                </span>
+              ))
+            : <span className="kp-none">这道题没挂上知识点</span>}
+        </div>
+
+        {/* 卷子上的标准答案。三种状态要分得出来：没跑过 ②d（不显示这一块）、
+            跑过但卷子没答案、抽到了 */}
+        {q.refAnswerSrc && (
+          <div className="refans">
+            {q.refAnswer ? (
+              <>
+                <b>卷子上的答案：</b>{q.refAnswer}
+                <span className="src">
+                  （{q.refAnswerSrc === 'paper' ? '从这份卷子里抽的' : '老师上传的答案文件'}）
+                </span>
+                {q.refAnswerAgrees === false && (
+                  <span className="pill w">与 AI 答案不一致</span>
+                )}
+              </>
+            ) : (
+              <span className="src">
+                这份卷子里没有参考答案 —— 判学生对错时这道题会记「判不了」，不算错
+              </span>
+            )}
+          </div>
+        )}
+
         {/* 重跑的结果说在动画旁边。重跑失败时这句话尤其要紧 —— 后端会明说
             「原来那个动画没动」，否则人会以为自己把它点没了 */}
         {note && (

@@ -14,6 +14,15 @@ export interface Option {
   latex?: string | null
 }
 
+/** ③c 挂在题上的知识点。name/chapter 由后端从词表带出，前端不存第二份词表 */
+export interface KnowledgePoint {
+  code: string
+  name: string
+  chapter: string
+  /** 针对这道题的一句话，不是知识点定义 */
+  why: string
+}
+
 export interface Question {
   n: number
   type: string
@@ -38,6 +47,14 @@ export interface Question {
   qualityReason: string
   /** 选项区的原卷截图，作为兜底与「对照原卷」的依据 */
   optionImage?: string | null
+  /** ③c 挂的知识点。空数组 = 没挂上，页面要明说，不能干脆不显示 */
+  kps?: KnowledgePoint[]
+  /** ②d 从卷子里抽的标准答案 */
+  refAnswer?: string | null
+  /** null = 还没跑过 ②d；'none' = 跑过但卷子里没有答案。两件事 */
+  refAnswerSrc?: string | null
+  /** 卷子答案与 AI 答案是否一致。**null = 比不了，不是对不上** */
+  refAnswerAgrees?: boolean | null
   sceneId: string | null
   sceneFigure: string | null
   /** 阶段③ 的解题结果。没解过就是 null，前端必须显式呈现「未生成」 */

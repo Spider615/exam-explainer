@@ -40,11 +40,12 @@ questions.json。现在没 publish 就不算数，漂移无从发生。
 为什么管线是 Python：PDF 解析、坐标运算、数值求解、无头浏览器编排，
 这几件事在 Node 生态里没有对等的库。前端不必因此也用 Python。
 """
-import json, os, re, secrets, signal, subprocess, sys, threading, time, uuid
+import json, os, re, secrets, signal, subprocess, sys, threading, time, unicodedata, uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import segment          # 跨页表的合并规则只写一份，前后端不能各有一套
 import store            # 库与资产存储；API 只经过它
+import kp               # 知识点词表：标签的名字与所属章由后端给，前端不再存一份
 import mailer           # 验证码信；没配 SMTP 时退化成打日志
 
 from fastapi import Body, Depends, FastAPI, Request, UploadFile, File, HTTPException
@@ -917,6 +918,39 @@ def scenes_for(name):
     return out
 
 
+_PUNCT = re.compile(r"[\s。，、；：．.,;:!？?（）()【】\[\]]+")
+
+
+def answers_agree(a, b):
+    """
+    卷子上的标准答案与 ③ 的 AI 答案是不是一回事。
+
+    **任一边为空回 None，不是 False。** 「比不了」和「对不上」在页面上是
+    两句完全不同的话：前者是缺数据，后者是有一方错了。压成 False 等于
+    在没有任何证据的情况下指认 AI 解错了。
+
+    只做归一化字符串比与选择题的集合比 —— 本期不引 sympy（它解析带单位
+    带下标的 LaTeX 会**静默**判错，正是这个项目最怕的错）。形式不同就报
+    不同，让人去看，比静默判等安全。
+    """
+    def norm(s):
+        if not s:
+            return ""
+        s = unicodedata.normalize("NFKC", str(s)).strip().upper()
+        return _PUNCT.sub("", s)
+
+    na, nb = norm(a), norm(b)
+    if not na or not nb:
+        return None
+    if na == nb:
+        return True
+    # 选择题：两边都只由 A-D 组成才按集合比。「AB两点」和「BA两点」带了别的字，
+    # 不能按集合算成同一个答案
+    if re.fullmatch(r"[A-D]+", na) and re.fullmatch(r"[A-D]+", nb):
+        return set(na) == set(nb)
+    return False
+
+
 @app.get("/api/papers/{name}")
 def paper(name: str, user=Depends(current_user)):
     q = store.get_paper(mine(name, user))
@@ -940,6 +974,7 @@ def paper(name: str, user=Depends(current_user)):
         return {"url": "/api/papers/%s/%s" % (name, f),
                 "widthPct": max(18, min(100, round(g["w"] / 476 * 100))) if g else 100}
 
+    cat = kp.load()
     qs = []
     for x in q["questions"]:
         s = sc.get(x["n"])
@@ -982,6 +1017,22 @@ def paper(name: str, user=Depends(current_user)):
             # 选项区原卷截图：兜底 + 「对照原卷」
             "optionImage": ("/api/papers/%s/%s" % (name, x["option_image"])
                             if x.get("option_image") else None),
+            # ③c 挂的知识点。带上名字和章 —— 前端不该为了显示一个标签再去
+            # 拉一份词表，而且词表是后端的种子数据。词表里查不到的 code 退回
+            # 显示 code 本身，不吞掉：那说明词表被改过而库里还留着旧标签
+            "kps": [{"code": k["code"], "why": k.get("why", ""),
+                     "name": cat[k["code"]]["name"] if k["code"] in cat else k["code"],
+                     "chapter": cat[k["code"]]["chapter"] if k["code"] in cat else ""}
+                    for k in (x.get("kps") or [])],
+            # ②d 从卷子里抽的标准答案。src=None 表示还没跑过 ②d，
+            # src='none' 表示跑过但这份卷子里没有答案 —— 两件事
+            "refAnswer": x.get("ref_answer"),
+            "refAnswerSrc": x.get("ref_answer_src"),
+            # 白捡的红绿灯：卷子答案与 ③ 的 AI 答案比一次。不一致意味着
+            # 要么 AI 解错了、要么那份答案有误，两种都必须让人看见。
+            # None = 比不了（有一边没有），**不是**对不上
+            "refAnswerAgrees": answers_agree(
+                x.get("ref_answer"), sol and sol.get("short_answer")),
             "sceneId": s["id"] if s else None,
             "sceneFigure": s["figure"] if s else None,
             # 阶段③ 的解题结果。**必须连 confidence 和 assumptions 一起给**：

@@ -414,3 +414,11 @@ td.prg{white-space:nowrap}
 .run i{width:6px;height:6px;border-radius:50%;background:var(--cy);
        animation:progpulse 1.3s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){.run i{animation:none}}
+
+/* ③c 知识点 / ②d 卷子上的答案。颜色一律走 :root 的变量，深色模式白拿 */
+.kps{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;align-items:center}
+/* 挂不上是常态不是错误，要看得见但不抢眼 */
+.kp-none{font-size:12px;color:var(--ink3)}
+.refans{margin:8px 0;font-size:14px;line-height:1.7}
+.refans .src{color:var(--ink3);font-size:12px;margin-left:6px}
+.refans .pill.w{margin-left:8px}
