@@ -23,10 +23,17 @@ def test_比不了就回None():
     assert api.answers_agree("  ", "  ") is None
 
 
-def test_不做数值等价():
-    # 本期不引 sympy，也不做 3/2 == 1.5。形式不同就是不同，
-    # 页面上标出来让人看，比静默判等安全
-    assert api.answers_agree("3/2", "1.5") is False
+def test_分数与小数判等():
+    # 分数转浮点是精确可验的，不是 sympy 那种会静默出错的符号推理。
+    # 共用 grade.judge 之后这里跟阅卷口径一致 —— 两份判等逻辑迟早会漂，
+    # 漂的后果是「页面说不一致、阅卷说一致」这种自相矛盾
+    assert api.answers_agree("3/2", "1.5") is True
+
+
+def test_仍然不做符号等价():
+    # 这才是「不引 sympy」真正挡掉的东西：形式不同就报不同，让人去看
+    assert api.answers_agree("mgh", "mgH") is False
+    assert api.answers_agree(r"\frac{1}{2}mv^2", "0.5mv²") is False
 
 
 def test_字母集合只对纯字母生效():

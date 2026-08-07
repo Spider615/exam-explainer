@@ -40,12 +40,13 @@ questions.json。现在没 publish 就不算数，漂移无从发生。
 为什么管线是 Python：PDF 解析、坐标运算、数值求解、无头浏览器编排，
 这几件事在 Node 生态里没有对等的库。前端不必因此也用 Python。
 """
-import json, os, re, secrets, signal, subprocess, sys, threading, time, unicodedata, uuid
+import json, os, re, secrets, signal, subprocess, sys, threading, time, uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import segment          # 跨页表的合并规则只写一份，前后端不能各有一套
 import store            # 库与资产存储；API 只经过它
 import kp               # 知识点词表：标签的名字与所属章由后端给，前端不再存一份
+import grade            # 判等的口径只写一份，阅卷和「AI vs 卷子」共用
 import mailer           # 验证码信；没配 SMTP 时退化成打日志
 
 from fastapi import Body, Depends, FastAPI, Request, UploadFile, File, HTTPException
@@ -922,9 +923,6 @@ def scenes_for(name):
     return out
 
 
-_PUNCT = re.compile(r"[\s。，、；：．.,;:!？?（）()【】\[\]]+")
-
-
 def answers_agree(a, b):
     """
     卷子上的标准答案与 ③ 的 AI 答案是不是一回事。
@@ -933,26 +931,12 @@ def answers_agree(a, b):
     两句完全不同的话：前者是缺数据，后者是有一方错了。压成 False 等于
     在没有任何证据的情况下指认 AI 解错了。
 
-    只做归一化字符串比与选择题的集合比 —— 本期不引 sympy（它解析带单位
-    带下标的 LaTeX 会**静默**判错，正是这个项目最怕的错）。形式不同就报
-    不同，让人去看，比静默判等安全。
+    判据跟阅卷共用 `grade.judge` —— 原来这里自己写了一份归一化，跟
+    `grade.py` 重了一份。**两份判等逻辑迟早会漂**，而漂的后果是
+    「页面说不一致、阅卷说一致」这种自相矛盾。
     """
-    def norm(s):
-        if not s:
-            return ""
-        s = unicodedata.normalize("NFKC", str(s)).strip().upper()
-        return _PUNCT.sub("", s)
-
-    na, nb = norm(a), norm(b)
-    if not na or not nb:
-        return None
-    if na == nb:
-        return True
-    # 选择题：两边都只由 A-D 组成才按集合比。「AB两点」和「BA两点」带了别的字，
-    # 不能按集合算成同一个答案
-    if re.fullmatch(r"[A-D]+", na) and re.fullmatch(r"[A-D]+", nb):
-        return set(na) == set(nb)
-    return False
+    v, _ = grade.judge(a, b)
+    return None if v is None else (v == "right")
 
 
 @app.get("/api/papers/{name}")
