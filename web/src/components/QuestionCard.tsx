@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ApiError, getJob, listSceneVersions, pickScene, rescene, Unauthorized } from '../api'
-import type { SceneVersion } from '../api'
+import { ApiError, getJob, rescene, revertScene, Unauthorized } from '../api'
 import Latex from './Latex'
 import MathText from './MathText'
 import StemBody from './StemBody'
@@ -37,8 +36,6 @@ export default function QuestionCard({ q, paper, onRescened }: {
   const [compare, setCompare] = useState(false)
   const [job, setJob] = useState<Job | null>(null)
   const [note, setNote] = useState<string | null>(null)
-  /** null = 还没查过。**懒加载**：一卷十几道题，进页面就每道都查一次太浪费 */
-  const [vers, setVers] = useState<SceneVersion[] | null>(null)
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
 
@@ -86,24 +83,16 @@ export default function QuestionCard({ q, paper, onRescened }: {
     }
   }
 
-  async function toggleVersions() {
-    if (vers) { setVers(null); return }
+  async function revert() {
     try {
-      setVers((await listSceneVersions(paper, q.n)).versions)
-    } catch (e) {
-      setNote(e instanceof Error ? e.message : String(e))
-    }
-  }
-
-  async function switchTo(sceneId: string) {
-    try {
-      await pickScene(paper, q.n, sceneId)
+      await revertScene(paper, q.n)
     } catch (e) {
       setNote(e instanceof Error ? e.message : String(e)); return
     }
-    setVers(null)
-    onRescened?.()      // 换了版本，外面要重取试卷并重新加载 scene.js
+    setNote('已换回重跑之前那个动画')
+    onRescened?.()
   }
+
   // 题目可能跨页，把页码区间展开成一串页号
   const pages: number[] = []
   for (let p = q.pages[0]; p <= q.pages[1]; p++) pages.push(p)
@@ -125,13 +114,12 @@ export default function QuestionCard({ q, paper, onRescened }: {
             {running ? (digest(job?.log ?? []) ?? '重跑中…') : '重跑动画'}
           </button>
         )}
-        {/* 重跑出来的不一定更好（实测会把标签甩离它标注的对象），所以旧版一律
-            留着，随时能换回去。懒加载：进页面时不查，点开才查 */}
-        {q.sceneId && (
-          <button className="btn" aria-pressed={!!vers}
-                  onClick={() => void toggleVersions()}
-                  title="这道题历次做出来的动画版本，可以换回旧的">
-            {vers ? '收起版本' : '历史版本'}
+        {/* 只在重跑换过之后才出现。重跑出来的不一定更好（实测会把标签甩离
+            它标注的对象），这是那种情况下的退路 */}
+        {q.prevScene && (
+          <button className="btn" onClick={() => void revert()}
+                  title={`换回 ${q.prevScene}`}>
+            换回原来那个
           </button>
         )}
         {q.stemLatex && <span className="pill g">公式 · 视觉识别</span>}
@@ -195,29 +183,6 @@ export default function QuestionCard({ q, paper, onRescened }: {
           </div>
         )}
 
-        {vers && (
-          <div className="note">
-            {vers.length <= 1
-              ? '这道题只有当前这一个版本。'
-              : <>这道题做出过 {vers.length} 个通过门禁的版本。
-                  <b>新的不一定更好</b> —— 挑一个用：</>}
-            <ul className="opts" style={{ marginTop: 8 }}>
-              {vers.map((v) => (
-                <li key={v.sceneId}>
-                  <em>{v.current ? '●' : '○'}</em>
-                  <span>
-                    <code>{v.sceneId}</code>
-                    　第 {v.rounds} 轮过门禁　{v.createdAt.slice(0, 16).replace('T', ' ')}
-                    {v.current
-                      ? <b>　（当前）</b>
-                      : <>　<button className="btn"
-                             onClick={() => void switchTo(v.sceneId)}>用这个</button></>}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         {q.sceneId && q.sceneFigure
           ? <SceneMount sceneId={q.sceneId} figureHtml={q.sceneFigure} />

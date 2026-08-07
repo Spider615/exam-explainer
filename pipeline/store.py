@@ -791,22 +791,65 @@ def put_scene(qid, sid, rounds, passed):
 
     这跟下面 put_scene_attempt 的 DO NOTHING 是同一个直觉，只是那条管的是
     「⑤ 抛异常」，这条管的是「跑满轮数仍未通过」—— 两条路都能抹掉好结果。
+
+    换掉一个已经能用的场景时，把被换下来的那个记进 `prev_scene_id`，
+    好让页面上能「换回原来那个」—— 重跑出来的不一定更好（实测有一次把标签
+    甩离了它标注的对象，门禁全绿但图废了）。只留上一个，不做版本历史。
     """
     with connect() as c:
         c.execute("""INSERT INTO scenes (question_id, scene_id, rounds, passed)
                      VALUES (%s,%s,%s,%s)
                      ON CONFLICT (question_id) DO UPDATE SET
+                       -- SET 里引用 scenes.* 拿到的是**更新前**那一行，正好是
+                       -- 被换下来的那个。只在「好换好、且确实换了个别的」时记
+                       prev_scene_id = CASE
+                         WHEN scenes.passed AND EXCLUDED.passed
+                              AND scenes.scene_id <> EXCLUDED.scene_id
+                         THEN scenes.scene_id ELSE scenes.prev_scene_id END,
                        scene_id=EXCLUDED.scene_id, rounds=EXCLUDED.rounds,
                        passed=EXCLUDED.passed, created_at=now()
                      WHERE EXCLUDED.passed OR NOT scenes.passed""",
                   (qid, sid, rounds, passed))
-        # 过了门禁的都记进版本表，好让人换回来。没过的不记 —— 它不是一个可选项
-        if passed:
-            c.execute("""INSERT INTO scene_versions (question_id, scene_id, rounds)
-                         VALUES (%s,%s,%s)
-                         ON CONFLICT (question_id, scene_id) DO NOTHING""",
-                      (qid, sid, rounds))
         c.commit()
+
+
+def paper_prev_scenes(name):
+    """{题号: 上一个能换回去的场景 id}。没有退路的题不在里面。"""
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT q.n, sc.prev_scene_id FROM scenes sc
+                         JOIN questions q ON q.id = sc.question_id
+                         JOIN papers p ON p.id = q.paper_id
+                        WHERE p.name = %s AND sc.prev_scene_id IS NOT NULL""", (name,))
+        return {r[0]: r[1] for r in cur.fetchall()}
+
+
+def prev_scene(qid):
+    """上一个能换回去的场景 id；没有就是 None。"""
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("SELECT prev_scene_id FROM scenes WHERE question_id=%s", (qid,))
+        r = cur.fetchone()
+        return r[0] if r and r[0] else None
+
+
+def revert_scene(qid):
+    """
+    换回上一个场景。成功返回换回去的 id，没得换返回 None。
+
+    换完就把 `prev_scene_id` 清掉：这是一条**退路**，不是来回切换的开关。
+    留着的话按钮会一直在，而它指向的是刚被你否掉的那个 —— 只会让人点错。
+    """
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""UPDATE scenes
+                          SET scene_id = prev_scene_id, prev_scene_id = NULL,
+                              passed = true, created_at = now()
+                        WHERE question_id = %s AND prev_scene_id IS NOT NULL
+                    RETURNING scene_id""", (qid,))
+        r = cur.fetchone()
+        c.commit()
+        return r[0] if r else None
 
 
 def question_id(name, n):
@@ -819,103 +862,7 @@ def question_id(name, n):
         return r[0] if r else None
 
 
-def scene_versions(qid):
-    """这道题历次做出来的能用版本，新的在前。current 由 scenes 那张表说了算。"""
-    with connect() as c:
-        cur = c.cursor()
-        cur.execute("""SELECT v.scene_id, v.rounds, v.created_at,
-                              (s.scene_id = v.scene_id) AS is_current
-                         FROM scene_versions v
-                         LEFT JOIN scenes s ON s.question_id = v.question_id
-                        WHERE v.question_id = %s
-                        ORDER BY v.created_at DESC""", (qid,))
-        return [{"sceneId": r[0], "rounds": r[1],
-                 "createdAt": r[2].isoformat(), "current": bool(r[3])}
-                for r in cur.fetchall()]
 
-
-def use_scene(qid, sid):
-    """
-    把这道题切到某个历史版本。**只允许切到 scene_versions 里有的**——
-    否则这个接口就成了「让前端随便指定一个目录名」，而那个目录可能不存在、
-    也可能是别人的题。返回是否切成功。
-    """
-    with connect() as c:
-        cur = c.cursor()
-        cur.execute("""SELECT rounds FROM scene_versions
-                        WHERE question_id=%s AND scene_id=%s""", (qid, sid))
-        row = cur.fetchone()
-        if not row:
-            return False
-        cur.execute("""INSERT INTO scenes (question_id, scene_id, rounds, passed)
-                       VALUES (%s,%s,%s,true)
-                       ON CONFLICT (question_id) DO UPDATE SET
-                         scene_id=EXCLUDED.scene_id, rounds=EXCLUDED.rounds,
-                         passed=true, created_at=now()""", (qid, sid, row[0]))
-        c.commit()
-        return True
-
-
-def backfill_scene_versions():
-    """
-    把历史版本补进版本表。版本表是后加的，不补的话页面上每道题都只有一个版本，
-    而磁盘上 `runs/` 里明明躺着好几代。幂等，可以反复跑。
-
-    两个来源：
-      1. `scenes` 里现在用着的那个（一定能用，它就是当前值）
-      2. `runs/<id>/` 里同族的历史目录 —— 场景 id 形如 `q13` / `q13-gen2`，
-         同族靠 ④ 给的 spec id 认（DB 里 specs 那行存的始终是原始 id，
-         `-genN` 是 scene.py 落盘时才加的避让后缀）。
-         只收**门禁判过的**：`_verify_log.jsonl` 末行 verdict 是 PASS。
-         没过门禁的不是可选项，列出来只会让人误点。
-
-    返回补进去的条数。
-    """
-    runs = os.path.join(ROOT, "runs")
-    with connect() as c:
-        cur = c.cursor()
-        cur.execute("""INSERT INTO scene_versions (question_id, scene_id, rounds, created_at)
-                       SELECT question_id, scene_id, rounds, created_at FROM scenes
-                        WHERE passed
-                       ON CONFLICT (question_id, scene_id) DO NOTHING""")
-        n = cur.rowcount or 0
-        if not os.path.isdir(runs):
-            c.commit()
-            return n
-        # 不用 jsonb 的 `?` 操作符：它和驱动的参数占位符长得一样，容易出岔子
-        cur.execute("SELECT question_id, spec->>'id' FROM specs "
-                    "WHERE spec->>'id' IS NOT NULL")
-        for qid, base in cur.fetchall():
-            if not base:
-                continue
-            for d in sorted(os.listdir(runs)):
-                if d != base and not re.match(re.escape(base) + r"-gen\d+$", d):
-                    continue
-                sd = os.path.join(runs, d)
-                if not os.path.exists(os.path.join(sd, d + ".figure.html")):
-                    continue
-                log = os.path.join(sd, "_verify_log.jsonl")
-                if not os.path.exists(log):
-                    continue
-                last = None
-                for line in open(log, encoding="utf-8"):
-                    if line.strip():
-                        last = line
-                if not last:
-                    continue
-                try:
-                    rec = json.loads(last)
-                except ValueError:
-                    continue
-                if rec.get("verdict") != "PASS":
-                    continue
-                cur.execute("""INSERT INTO scene_versions (question_id, scene_id, rounds)
-                               VALUES (%s,%s,%s)
-                               ON CONFLICT (question_id, scene_id) DO NOTHING""",
-                            (qid, d, rec.get("round") or 0))
-                n += cur.rowcount or 0
-        c.commit()
-    return n
 
 
 def put_scene_attempt(qid, sid):

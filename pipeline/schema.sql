@@ -170,23 +170,6 @@ CREATE TABLE IF NOT EXISTS scenes (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- 一道题历次做出来的**能用的**场景。scenes 那张表只记「现在用哪个」，
--- 一行一题；重跑一次就把它盖掉，于是上一个版本在库里再也找不回来 ——
--- 而磁盘上 `runs/<id>/` 明明还在。实测重跑会变差（标签被甩离对象、
--- 几何重画得更糟），那时候人要的是「把原来那个换回来」，不是再赌一次。
---
--- 只记通过门禁的：没过门禁的场景不是一个可选项，列出来只会让人误点。
--- append-only，UNIQUE 挡住同一个 scene_id 重复入账。
-CREATE TABLE IF NOT EXISTS scene_versions (
-  id          bigserial PRIMARY KEY,
-  question_id bigint NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
-  scene_id    text   NOT NULL,
-  rounds      int    NOT NULL DEFAULT 0,
-  created_at  timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (question_id, scene_id)
-);
-CREATE INDEX IF NOT EXISTS scene_versions_q_idx ON scene_versions (question_id);
-
 CREATE TABLE IF NOT EXISTS vlm_cache (
   img_sha256 text PRIMARY KEY,
   kind       text,
@@ -207,6 +190,11 @@ ALTER TABLE solutions ADD COLUMN IF NOT EXISTS short_answer text;
 -- ④c 现在跑在 ④ **之前**（判「值不值得做动画」只要一次调用 28 秒，
 -- 而写断言一道 6 分钟——把便宜的筛子排在贵的前面才对）。
 -- 那时候 specs 这一行还不存在，挂在它上面写不进去。
+-- 重跑之前用的那个场景。重跑出来的**不一定更好**（实测有一次把标签甩离了它
+-- 标注的对象，门禁全绿但图废了），所以要留一条退路：页面上「换回原来那个」。
+-- 只存一个，不做版本历史 —— 需要的只是「上一次那个」，不是一份档案。
+ALTER TABLE scenes ADD COLUMN IF NOT EXISTS prev_scene_id text;
+
 ALTER TABLE questions ADD COLUMN IF NOT EXISTS anim_worth boolean;
 ALTER TABLE questions ADD COLUMN IF NOT EXISTS anim_why   text;
 -- specs 上那两列留着只为兼容老数据，新代码不再写
