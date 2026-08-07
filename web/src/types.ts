@@ -136,6 +136,13 @@ export interface Progress {
    * 异常）—— 那种情况**不许**把这条失败按到任何一格上，只能整条说出来
    */
   failedStage: string | null
+  /**
+   * 'pdf' | 'answers_only'。
+   *
+   * `answers_only` 是「参考答案 + 题目图」的卷子：没跑过 ①②③，终点是 ③c。
+   * 阶段条要按它收缩 —— 否则那几格永远灭着，看起来像卡住了
+   */
+  sourceKind?: string
   questions: number
   labels: number
   /** 挂上知识点的题数（③c）。分母是题数，不是解出来的题数 */

@@ -745,7 +745,7 @@ def progress(name):
     with connect() as c:
         cur = c.cursor()
         cur.execute("""
-            SELECT p.id, p.n_questions, p.assembled_at, p.run_started_at,
+            SELECT p.id, p.n_questions, p.assembled_at, p.run_started_at, p.source_kind,
                    (SELECT count(*) FROM questions q WHERE q.paper_id=p.id),
                    (SELECT count(*) FROM questions q WHERE q.paper_id=p.id AND q.label IS NOT NULL),
                    (SELECT count(*) FROM questions q
@@ -788,12 +788,14 @@ def progress(name):
         r = cur.fetchone()
     if not r:
         return None
-    (_pid, _nq, asm_at, started, n_q, n_label, n_kps, n_sol, n_spec, n_appr, n_judged,
+    (_pid, _nq, asm_at, started, src_kind,
+     n_q, n_label, n_kps, n_sol, n_spec, n_appr, n_judged,
      n_worth, n_scene, n_spec_worth, n_draft, n_ready, n_scene_try, last, now) = r
     idle = (now - last).total_seconds()
     # 总时长：跑完了就是 起点→装配完成，还在跑就是 起点→现在
     elapsed = ((asm_at or now) - started).total_seconds() if started else None
-    return {"questions": n_q, "labels": n_label, "kps": n_kps, "solutions": n_sol,
+    return {"sourceKind": src_kind,
+            "questions": n_q, "labels": n_label, "kps": n_kps, "solutions": n_sol,
             "startedAt": started.timestamp() if started else None,
             "elapsedSeconds": elapsed,
             "specs": n_spec, "approved": n_appr, "judged": n_judged,

@@ -762,6 +762,17 @@ def stage_of(pg):
     ①②③ 标志对得上）；`short` 是给试卷库列表用的白话，那里没有编号可对照。
     """
     q, sol = pg["questions"], pg["solutions"]
+
+    # 「参考答案 + 题目图」的卷子：没跑过 ①②③，进不了 ④⑤⑦。终点是 ③c 挂完知识点。
+    # **不分支的话 solutions/specs/scenes 恒为 0，进度带永远转、done 永远是 false。**
+    # 期一加 ③c 那一格已经踩过一次一模一样的坑
+    if pg.get("sourceKind") == "answers_only":
+        if not q:
+            return "refread", "Ⓐ 读参考答案", "读参考答案", 0, 1
+        if pg.get("kps", 0) < q:
+            return "kpmark", "③c 知识点", "标知识点", pg.get("kps", 0), q
+        return "done", "完成", "已完成", 1, 1
+
     if sol < q:
         return "solve", "③ 解题", "解题中", sol, q
     if pg["labels"] < q:
