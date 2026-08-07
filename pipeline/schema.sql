@@ -244,3 +244,16 @@ CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
 -- 不可逆操作。归属没了就退回无主，重新 claim 就能拿回来。
 ALTER TABLE papers ADD COLUMN IF NOT EXISTS owner_id bigint REFERENCES users(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS papers_owner_idx ON papers (owner_id);
+
+-- ---------------------------------------------------------------- 期一：知识点与标准答案
+-- kps 用 jsonb 存 [{code, why}] 而不是关联表：范围是单人单卷十几道题，
+-- 聚合在应用层做就够。代价是 code 没有外键保护，所以 ③c 写入时要拿
+-- 词表校一遍（见 kpmark.keep），挂不上的明说挂不上。
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS kps jsonb NOT NULL DEFAULT '[]';
+-- 卷子上的标准答案。ref_answer_src 三个值：
+--   paper        从题目那份文件里抽出来的
+--   answer_file  老师另传的答案文件（期三）
+--   none         抽不到。**这一列不许留 NULL** —— 「没抽到」和「还没跑过 ②c」
+--                是两件事，页面上要分得出来
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS ref_answer     text;
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS ref_answer_src text;

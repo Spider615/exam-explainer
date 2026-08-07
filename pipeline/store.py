@@ -398,6 +398,7 @@ def get_paper(name):
                               stem_low_conf, stem_image, option_image, text_quality,
                               quality_reason, n_chars, pages, label,
                               anim_worth, anim_why,
+                              kps, ref_answer, ref_answer_src,
                               stem_math, flattened, layout
                          FROM questions WHERE paper_id=%s ORDER BY n""", (pid,))
         cols = [d[0] for d in cur.description]
@@ -450,6 +451,35 @@ def put_outline(qid, label, short):
         if short:
             c.execute("UPDATE solutions SET short_answer=%s WHERE question_id=%s",
                       (short, qid))
+        c.commit()
+
+
+def put_kps(qid, kps):
+    """
+    阶段③c 的产出：这道题的知识点标签，形如 `[{"code": ..., "why": ...}]`。
+
+    整体替换而不是追加：③c 是整卷一次调用，每次都给出这道题的完整清单，
+    追加会让重跑一次就变成两倍标签。
+    """
+    with connect() as c:
+        c.execute("UPDATE questions SET kps=%s WHERE id=%s",
+                  (json.dumps(kps, ensure_ascii=False), qid))
+        c.commit()
+
+
+def put_ref_answer(qid, text, src):
+    """
+    阶段②c 的产出：卷子上的标准答案。`src` 必须是 paper / answer_file / none 之一。
+
+    抽不到也要写一行（text=None, src='none'）—— 「抽不到」和「还没跑过 ②c」
+    在页面上是两句不同的话，靠这一列区分。src 写野了当场抛：这一列的值
+    会决定页面上说哪句话，混进第四个值会让页面静静地什么都不说。
+    """
+    if src not in ("paper", "answer_file", "none"):
+        raise ValueError("ref_answer_src 只能是 paper/answer_file/none，给的是 %r" % src)
+    with connect() as c:
+        c.execute("UPDATE questions SET ref_answer=%s, ref_answer_src=%s WHERE id=%s",
+                  (text, src, qid))
         c.commit()
 
 
