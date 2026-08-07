@@ -257,3 +257,51 @@ ALTER TABLE questions ADD COLUMN IF NOT EXISTS kps jsonb NOT NULL DEFAULT '[]';
 --                是两件事，页面上要分得出来
 ALTER TABLE questions ADD COLUMN IF NOT EXISTS ref_answer     text;
 ALTER TABLE questions ADD COLUMN IF NOT EXISTS ref_answer_src text;
+
+-- ---------------------------------------------------------------- 期二：答题卡
+-- 一份答题卡 = 一个学生的一次作答。
+-- **不建 students 表**：范围定死单人、不做班级，学生就是老师随手填的一个标识。
+-- 建了表就要配增删改查和「同一学生的历次考试」，那是另一个功能。
+CREATE TABLE IF NOT EXISTS answer_sheets (
+  id            bigserial PRIMARY KEY,
+  paper_id      bigint NOT NULL REFERENCES papers(id) ON DELETE CASCADE,
+  owner_id      bigint REFERENCES users(id) ON DELETE SET NULL,
+  student_label text,
+  n_pages       int NOT NULL DEFAULT 0,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  -- 老师改判会 touch 它。诊断过没过期，拿它跟 diagnoses.created_at 比 ——
+  -- 跟 papers.assembled_at 判 out.html 旧没旧是同一个套路
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS sheets_paper_idx ON answer_sheets (paper_id);
+
+CREATE TABLE IF NOT EXISTS sheet_answers (
+  id          bigserial PRIMARY KEY,
+  sheet_id    bigint NOT NULL REFERENCES answer_sheets(id) ON DELETE CASCADE,
+  -- **可空**：认出了题号但卷子里没这道题（串号、学生多写一道）。
+  -- 挂不上就是挂不上，页面明说，不许猜一个最近的题号安上去
+  question_id bigint REFERENCES questions(id) ON DELETE CASCADE,
+  n           int  NOT NULL,
+  raw_text    text,        -- 模型认出的最终作答，**原样**，不加工
+  norm        text,        -- 归一化后的形式，判定拿它比
+  crop_rel    text,        -- 原图切片的 assets.rel_path
+  box         jsonb,
+  page        int,
+  read_conf   text,        -- 模型自称的把握 high/medium/low
+  reread      boolean NOT NULL DEFAULT false,
+  reread_raw  text,        -- 复读认出来的东西。两次都留着，页面标「复读后改判」
+
+  -- **verdict_by 才是红绿灯** —— 同一个「错」，代码判的和模型判的
+  -- 可信度差一个量级，页面必须分得出来
+  verdict         text,    -- right | wrong | blank | unsure
+  verdict_by      text,    -- code | model
+  verdict_why     text,
+
+  -- 老师改判**单独一列，不覆盖系统原判**。留着原判才看得出系统错在哪，
+  -- 也才撤得回来。读取一律走 store.sheet_answers 里那一个 COALESCE，
+  -- 不让每个调用点各写一份 —— api.ts 那次 401 广播就是这个教训
+  teacher_verdict text,
+
+  UNIQUE (sheet_id, n)
+);
+CREATE INDEX IF NOT EXISTS sheet_answers_sheet_idx ON sheet_answers (sheet_id);

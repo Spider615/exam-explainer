@@ -483,6 +483,122 @@ def put_ref_answer(qid, text, src):
         c.commit()
 
 
+# ---------------------------------------------------------------- 答题卡
+# 允许写进 sheet_answers 的列。**白名单，不是 kwargs 直通** ——
+# 拼错一个列名会静默写不进去，而阅卷结果错了页面上看不出来
+_SHEET_COLS = ("question_id", "raw_text", "norm", "crop_rel", "box", "page",
+               "read_conf", "reread", "reread_raw",
+               "verdict", "verdict_by", "verdict_why")
+
+_VERDICTS = ("right", "wrong", "blank", "unsure")
+
+
+def create_sheet(paper_name, student_label, owner_id, n_pages=0):
+    """新建一份答题卡，返回 id。卷子不存在就当场抛。"""
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""INSERT INTO answer_sheets (paper_id, owner_id, student_label, n_pages)
+                       SELECT p.id, %s, %s, %s FROM papers p WHERE p.name=%s
+                       RETURNING id""",
+                    (owner_id, student_label, n_pages, paper_name))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError("库里没有「%s」" % paper_name)
+        c.commit()
+        return row[0]
+
+
+def set_sheet_pages(sheet_id, n):
+    with connect() as c:
+        c.execute("UPDATE answer_sheets SET n_pages=%s WHERE id=%s", (n, sheet_id))
+        c.commit()
+
+
+def put_sheet_answer(sheet_id, n, **fields):
+    """
+    写一题的作答与判定。**按 (sheet_id, n) 覆盖，不追加** —— 复读会把同一题
+    再写一次，追加的话页面上会出现两行。
+
+    **只更新这次给了的列。** 复读那一步只写 reread_raw 和 verdict，不该顺手
+    把 crop_rel 抹成 NULL —— 原图切片没了，这个功能唯一的红绿灯就废了。
+    """
+    bad = set(fields) - set(_SHEET_COLS)
+    if bad:
+        raise ValueError("不认识的列：%s" % ", ".join(sorted(bad)))
+    cols = [k for k in _SHEET_COLS if k in fields]
+    vals = [json.dumps(fields[k], ensure_ascii=False) if k == "box" else fields[k]
+            for k in cols]
+    sets = ", ".join("%s=EXCLUDED.%s" % (k, k) for k in cols) or "n=EXCLUDED.n"
+    sql = ("INSERT INTO sheet_answers (sheet_id, n%s) VALUES (%%s, %%s%s) "
+           "ON CONFLICT (sheet_id, n) DO UPDATE SET %s"
+           % ("".join(", " + k for k in cols), ", %s" * len(cols), sets))
+    with connect() as c:
+        c.execute(sql, [sheet_id, n] + vals)
+        c.commit()
+
+
+def sheet_answers(sheet_id):
+    """
+    一份答题卡的全部作答，按题号。
+
+    **`final_verdict` 只在这里算一次。** 老师改判存在单独一列，对外读到的
+    必须是改判后的结果 —— 让每个调用点各写一份 COALESCE，总会漏掉一个，
+    漏掉的那个表现为「老师改了判，某个地方还显示旧结果」。
+    """
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT id, question_id, n, raw_text, norm, crop_rel, box, page,
+                              read_conf, reread, reread_raw,
+                              verdict, verdict_by, verdict_why, teacher_verdict,
+                              COALESCE(teacher_verdict, verdict) AS final_verdict
+                         FROM sheet_answers WHERE sheet_id=%s ORDER BY n""",
+                    (sheet_id,))
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+
+def set_teacher_verdict(sheet_id, n, verdict):
+    """
+    老师改判。`verdict=None` 表示撤回改判，退回系统原判。
+
+    **不碰 verdict 那一列。** 留着原判才看得出系统错在哪，也才撤得回来。
+    """
+    if verdict is not None and verdict not in _VERDICTS:
+        raise ValueError("verdict 只能是 right/wrong/blank/unsure 或 None，"
+                         "给的是 %r" % verdict)
+    with connect() as c:
+        c.execute("UPDATE sheet_answers SET teacher_verdict=%s WHERE sheet_id=%s AND n=%s",
+                  (verdict, sheet_id, n))
+        # 诊断过没过期靠它判，所以改判必须 touch
+        c.execute("UPDATE answer_sheets SET updated_at=now() WHERE id=%s", (sheet_id,))
+        c.commit()
+
+
+def list_sheets(paper_name):
+    """这份卷子下面的所有答题卡，新的在前。错题数按**改判后**的算。"""
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT s.id, s.student_label, s.n_pages, s.created_at, s.updated_at,
+                              (SELECT count(*) FROM sheet_answers a WHERE a.sheet_id=s.id),
+                              (SELECT count(*) FROM sheet_answers a WHERE a.sheet_id=s.id
+                                AND COALESCE(a.teacher_verdict, a.verdict)='wrong')
+                         FROM answer_sheets s JOIN papers p ON p.id=s.paper_id
+                        WHERE p.name=%s ORDER BY s.created_at DESC""", (paper_name,))
+        return [{"id": r[0], "student": r[1], "nPages": r[2],
+                 "created_at": r[3], "updated_at": r[4],
+                 "answers": r[5], "wrong": r[6]} for r in cur.fetchall()]
+
+
+def sheet_owner(sheet_id):
+    """这份答题卡属于哪份卷子、归谁。返回 (卷名, owner_id) 或 (None, None)。"""
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT p.name, p.owner_id FROM answer_sheets s
+                         JOIN papers p ON p.id = s.paper_id WHERE s.id=%s""", (sheet_id,))
+        r = cur.fetchone()
+        return (r[0], r[1]) if r else (None, None)
+
+
 def outline_missing(name):
     """还差多少题没有短标题/短答案。③b 靠它决定要不要跑，以及跑完对不对得上。"""
     with connect() as c:
