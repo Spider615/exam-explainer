@@ -17,3 +17,5 @@ logs/
 
 # 本机部署配置（含整条隧道的 ingress 表），不进公开仓库
 cloudflared-config.yml
+
+.pytest_cache/
