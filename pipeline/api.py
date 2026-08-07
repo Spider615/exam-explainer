@@ -910,7 +910,6 @@ def paper(name: str, user=Depends(current_user)):
     if not q:
         raise HTTPException(404, "没有这份试卷")
     sc = scenes_for(name)
-    prevs = store.paper_prev_scenes(name)
     sols = store.paper_solutions(name)
     # 插图的原始尺寸只在 doc.json 里，而 doc.json 是构建产物、不入库
     # （117 KB/卷 的逐字符坐标，只有管线自己读）。取不到就按满宽渲染。
@@ -972,9 +971,6 @@ def paper(name: str, user=Depends(current_user)):
                             if x.get("option_image") else None),
             "sceneId": s["id"] if s else None,
             "sceneFigure": s["figure"] if s else None,
-            # 重跑之前那个动画。非空时页面上给一个「换回原来那个」——
-            # 重跑出来的不一定更好，得留条退路
-            "prevScene": prevs.get(x["n"]),
             # 阶段③ 的解题结果。**必须连 confidence 和 assumptions 一起给**：
             # 这段讲解是模型生成的，assumptions 是它自己补的、题面没给的前提。
             # 只给结论不给这两样，等于把一个未经检验的答案伪装成权威解法。
@@ -1102,24 +1098,6 @@ def run_rescene(jid, name, n):
             if swapped else
             ("✗ 第%d题没做出新动画。旧动画 %s 保持不变" % (n, before)))
 
-
-@app.post("/api/papers/{name}/questions/{n}/revert-scene")
-def revert_scene(name: str, n: int, user=Depends(current_user)):
-    """
-    换回重跑之前那个动画。
-
-    重跑出来的**不一定更好** —— 实测有一次把标签甩离了它标注的对象，
-    门禁全绿但图废了。这是那种情况下的退路。换回去之后这条退路就没了
-    （`prev_scene_id` 清空），要再换只能重跑。
-    """
-    mine(name, user)
-    qid = store.question_id(name, n)
-    if not qid:
-        raise HTTPException(404, "没有第%d题" % n)
-    sid = store.revert_scene(qid)
-    if not sid:
-        raise HTTPException(400, "第%d题没有可换回的动画" % n)
-    return {"sceneId": sid}
 
 
 @app.post("/api/papers/{name}/questions/{n}/rescene")

@@ -72,11 +72,6 @@ export const sceneScriptUrl = (name: string) =>
  * 会 409 的两种情况：这道题已经在跑、或者整卷管线在跑。两种都不是错误，
  * 是「等一下」——调用方要把 detail 原样显示出来，别糊成一句「失败」。
  */
-/** 换回重跑之前那个动画。重跑出来的不一定更好，这是退路 */
-export const revertScene = (name: string, n: number) =>
-  post(`/api/papers/${encodeURIComponent(name)}/questions/${n}/revert-scene`)
-    .then(j<{ sceneId: string }>)
-
 export const rescene = (name: string, n: number) =>
   post(`/api/papers/${encodeURIComponent(name)}/questions/${n}/rescene`)
     .then(j<{ job: string; question: number }>)

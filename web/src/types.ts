@@ -40,8 +40,6 @@ export interface Question {
   optionImage?: string | null
   sceneId: string | null
   sceneFigure: string | null
-  /** 重跑之前那个动画。非空时给一个「换回原来那个」—— 重跑出来的不一定更好 */
-  prevScene?: string | null
   /** 阶段③ 的解题结果。没解过就是 null，前端必须显式呈现「未生成」 */
   solution: Solution | null
 }

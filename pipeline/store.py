@@ -28,7 +28,7 @@ ingest / segment / mathvlm / verify 继续读写本地目录。它们是靠目�
 harness 那套无头 Chrome 门禁也要本地文件。让它们改说 SQL 只会把一条能跑的
 管线搅乱，收益却只是少一步 publish。
 """
-import hashlib, json, mimetypes, os, re, sys
+import hashlib, json, mimetypes, os, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORK = os.path.join(ROOT, "work")
@@ -792,74 +792,20 @@ def put_scene(qid, sid, rounds, passed):
     这跟下面 put_scene_attempt 的 DO NOTHING 是同一个直觉，只是那条管的是
     「⑤ 抛异常」，这条管的是「跑满轮数仍未通过」—— 两条路都能抹掉好结果。
 
-    换掉一个已经能用的场景时，把被换下来的那个记进 `prev_scene_id`，
-    好让页面上能「换回原来那个」—— 重跑出来的不一定更好（实测有一次把标签
-    甩离了它标注的对象，门禁全绿但图废了）。只留上一个，不做版本历史。
+    **被换下来的那个不记在库里。** 试过记一列 `prev_scene_id` 做「换回上一个」，
+    但它只存一级、连跑两次就被覆盖，而真正兜底的是 `runs/<id>/` 里的文件和
+    git —— 那两样删不掉。为一个够不着的退路留一列和一堆代码不划算。
     """
     with connect() as c:
         c.execute("""INSERT INTO scenes (question_id, scene_id, rounds, passed)
                      VALUES (%s,%s,%s,%s)
                      ON CONFLICT (question_id) DO UPDATE SET
-                       -- SET 里引用 scenes.* 拿到的是**更新前**那一行，正好是
-                       -- 被换下来的那个。只在「好换好、且确实换了个别的」时记
-                       prev_scene_id = CASE
-                         WHEN scenes.passed AND EXCLUDED.passed
-                              AND scenes.scene_id <> EXCLUDED.scene_id
-                         THEN scenes.scene_id ELSE scenes.prev_scene_id END,
                        scene_id=EXCLUDED.scene_id, rounds=EXCLUDED.rounds,
                        passed=EXCLUDED.passed, created_at=now()
                      WHERE EXCLUDED.passed OR NOT scenes.passed""",
                   (qid, sid, rounds, passed))
         c.commit()
 
-
-def paper_prev_scenes(name):
-    """{题号: 上一个能换回去的场景 id}。没有退路的题不在里面。"""
-    with connect() as c:
-        cur = c.cursor()
-        cur.execute("""SELECT q.n, sc.prev_scene_id FROM scenes sc
-                         JOIN questions q ON q.id = sc.question_id
-                         JOIN papers p ON p.id = q.paper_id
-                        WHERE p.name = %s AND sc.prev_scene_id IS NOT NULL""", (name,))
-        return {r[0]: r[1] for r in cur.fetchall()}
-
-
-def prev_scene(qid):
-    """上一个能换回去的场景 id；没有就是 None。"""
-    with connect() as c:
-        cur = c.cursor()
-        cur.execute("SELECT prev_scene_id FROM scenes WHERE question_id=%s", (qid,))
-        r = cur.fetchone()
-        return r[0] if r and r[0] else None
-
-
-def revert_scene(qid):
-    """
-    换回上一个场景。成功返回换回去的 id，没得换返回 None。
-
-    换完就把 `prev_scene_id` 清掉：这是一条**退路**，不是来回切换的开关。
-    留着的话按钮会一直在，而它指向的是刚被你否掉的那个 —— 只会让人点错。
-    """
-    with connect() as c:
-        cur = c.cursor()
-        cur.execute("""UPDATE scenes
-                          SET scene_id = prev_scene_id, prev_scene_id = NULL,
-                              passed = true, created_at = now()
-                        WHERE question_id = %s AND prev_scene_id IS NOT NULL
-                    RETURNING scene_id""", (qid,))
-        r = cur.fetchone()
-        c.commit()
-        return r[0] if r else None
-
-
-def question_id(name, n):
-    """(卷名, 题号) → question_id。没有就是 None。"""
-    with connect() as c:
-        cur = c.cursor()
-        cur.execute("""SELECT q.id FROM questions q JOIN papers p ON p.id = q.paper_id
-                        WHERE p.name = %s AND q.n = %s""", (name, n))
-        r = cur.fetchone()
-        return r[0] if r else None
 
 
 
