@@ -208,12 +208,40 @@ def call_ark(payload, timeout):
     return json.loads(urllib.request.urlopen(r, timeout=timeout).read())
 
 
+def fingerprint(key):
+    """认得出是哪把 key，又不泄漏它。全文任何时候都不许打出来。"""
+    return "%s…%s" % (key[:6], key[-4:]) if len(key) >= 10 else ("（无）" if not key else "…")
+
+
+def identity():
+    """这个进程的垫片配置。跨进程比对的就是这三样。"""
+    return {"thinking": THINKING, "base": ARK_BASE, "key": fingerprint(ARK_KEY)}
+
+
+def probe(port, timeout=1.0):
+    """问端口上那位是谁。不是垫片就回 None。"""
+    try:
+        d = json.loads(urllib.request.urlopen(
+            "http://127.0.0.1:%d/" % port, timeout=timeout).read())
+    except Exception:
+        return None
+    return d if isinstance(d, dict) and d.get("ok") and "thinking" in d else None
+
+
 def ensure(port=None):
     """
     保证垫片在跑，返回该塞给 claude CLI 的环境变量。
 
     和 clishim.ensure() 同一个形状，方便 scene.py 用同一套代码起 agent ——
     区别只在于这个上游说的是 OpenAI 协议，要翻译。
+
+    **端口通了不等于可以用。** 思考开关和方舟 key 都是垫片**进程启动时读一次**
+    的常量，改 .env 影响不到已经在跑的那个。原来这里探到端口通就直接复用，于是：
+    上一轮起了个开思考的垫片没退出，这一轮改成关思考再跑 —— 端口是通的，
+    复用，拿到的还是开思考那个，慢 2.6 倍，零提示。key 换了更糟：请求静默
+    发到旧账号。所以复用前核对身份，对不上就当场停，把两边都打出来。
+
+    不自动去杀那个进程 —— 它可能是别人正在用的。
     """
     if not ARK_KEY:
         return {}
@@ -221,20 +249,35 @@ def ensure(port=None):
     import socket
     with socket.socket() as s:
         s.settimeout(0.4)
-        if s.connect_ex(("127.0.0.1", port)) != 0:
-            import subprocess
-            subprocess.Popen([sys.executable, os.path.abspath(__file__),
-                              "--port", str(port), "-q"],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                             start_new_session=True)
-            for _ in range(40):
-                time.sleep(0.25)
-                with socket.socket() as s2:
-                    s2.settimeout(0.4)
-                    if s2.connect_ex(("127.0.0.1", port)) == 0:
-                        break
-            else:
-                return {}
+        busy = s.connect_ex(("127.0.0.1", port)) == 0
+    if busy:
+        live, want = probe(port), identity()
+        if live is None:
+            raise RuntimeError(
+                "127.0.0.1:%d 上蹲着的不是方舟垫片。换个端口："
+                "EXAM_ARKSHIM_PORT=8899，或先腾出来：lsof -ti:%d | xargs kill" % (port, port))
+        diff = [(k, live.get(k), want[k]) for k in want if live.get(k) != want[k]]
+        if diff:
+            raise RuntimeError(
+                "127.0.0.1:%d 上在跑的垫片跟这次要的对不上，%s。\n"
+                "它是上一轮留下的 —— 那些设置是进程启动时读死的，改 .env 影响不到它。\n"
+                "换掉它：lsof -ti:%d | xargs kill，或换端口 EXAM_ARKSHIM_PORT=8899"
+                % (port, "；".join("%s 在跑的是 %r、这次要 %r" % (k, a, b)
+                                   for k, a, b in diff), port))
+    else:
+        import subprocess
+        subprocess.Popen([sys.executable, os.path.abspath(__file__),
+                          "--port", str(port), "-q"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+        for _ in range(40):
+            time.sleep(0.25)
+            with socket.socket() as s2:
+                s2.settimeout(0.4)
+                if s2.connect_ex(("127.0.0.1", port)) == 0:
+                    break
+        else:
+            return {}
     # ANTHROPIC_API_KEY 必须有值，CLI 才会走 BASE_URL 而不是订阅；
     # 真正的鉴权在垫片里用方舟的 key 完成，这里给什么都行
     return {"ANTHROPIC_API_KEY": "arkshim", "ANTHROPIC_BASE_URL": "http://127.0.0.1:%d" % port}
@@ -320,7 +363,9 @@ def make_handler(verbose, timeout):
 
 
         def do_GET(self):
-            self._send(200, b'{"ok":true}')
+            # 身份牌。ensure() 复用之前拉这个对一对 —— 思考开关和 key 都是
+            # 启动时读死的，光看端口通不通认不出这是不是自己要的那个垫片
+            self._send(200, json.dumps(dict(identity(), ok=True)).encode())
     return H
 
 
