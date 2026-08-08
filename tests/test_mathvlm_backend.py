@@ -36,10 +36,21 @@ def png(tmp_path):
     return str(p)
 
 
-def test_默认仍然是订阅那条路(monkeypatch):
-    """不设环境变量时行为一个字都不能变 —— 切后端必须是显式的。"""
+def test_不设环境变量时默认是订阅那条路(monkeypatch):
+    """
+    切后端必须是显式的。
+
+    这里重新求一遍那行默认值，不能直接断言 `mathvlm.BACKEND` —— 它是 import
+    时读的快照，而这台机器的 .env 里已经写了 doubao，那样断言的是环境不是逻辑。
+    """
     monkeypatch.delenv("EXAM_VLM_BACKEND", raising=False)
-    assert mathvlm.resolve_backend(None) == "subscription"
+    assert os.environ.get("EXAM_VLM_BACKEND", "subscription") == "subscription"
+
+
+def test_不传后端就跟着模块配置走(monkeypatch):
+    monkeypatch.setattr(mathvlm, "BACKEND", "doubao")
+    assert mathvlm.resolve_backend(None) == "doubao"
+    assert mathvlm.resolve_backend("subscription") == "subscription"   # 显式的赢
 
 
 def test_后端名写错要当场报错(monkeypatch):

@@ -62,6 +62,57 @@ PY = os.path.join(ROOT, ".venv", "bin", "python")
 if not os.path.exists(PY):
     PY = sys.executable
 
+DOTENV = os.path.join(ROOT, ".env")
+# 值里带这些字的一律打码后再进日志
+SECRETISH = ("KEY", "TOKEN", "SECRET", "PASS")
+
+
+def dotenv_now():
+    """
+    **现在**磁盘上的 .env。读法必须和 `store.py` 顶上那段逐字一致 ——
+    按第一个等号切、整行注释跳过、**不认行尾注释**（.env 里白纸黑字写着这条）。
+    两处读法不一样比读错还难查。
+    """
+    if not os.path.exists(DOTENV):
+        return {}
+    out = {}
+    for l in open(DOTENV, encoding="utf-8"):
+        if "=" in l and not l.strip().startswith("#"):
+            k, v = l.strip().split("=", 1)
+            out[k.strip()] = v.strip()
+    return out
+
+
+def _mask(k, v):
+    return (v[:4] + "…" + v[-4:] if len(v) >= 10 else "…") \
+        if any(s in k.upper() for s in SECRETISH) else v
+
+
+def dotenv_drift():
+    """
+    .env 改了、但后端还在用启动时那份快照的那些键。返回 [(键, 在跑的, .env 里的)]。
+
+    `store.py` 读 .env 用的是 `os.environ.setdefault`，所以后端一启动，那时的
+    .env 就被烤进了它的 os.environ，之后改文件对它没有任何影响。
+    """
+    return [(k, _mask(k, os.environ[k]), _mask(k, v))
+            for k, v in dotenv_now().items()
+            if k in os.environ and os.environ[k] != v]
+
+
+def step_env():
+    """
+    给管线子进程的环境。**.env 有最终解释权。**
+
+    原来这里是 `dict(os.environ, …)`，于是子进程拿到的是后端启动那一刻的快照：
+    子进程自己那句 `setdefault` 键已经在了，改不动。改完 .env 从页面点重跑，
+    跑的还是旧后端旧模型，日志里一个字的提示都没有 —— 实测切方舟时踩过。
+
+    PYTHONUNBUFFERED 不能省：子进程是 Python，stdout 不是 tty 时按块缓冲，
+    「边跑边送日志」就是空话（实测 ④ 跑了二十分钟，日志只有孤零零一行）。
+    """
+    return dict(os.environ, **dotenv_now(), PYTHONUNBUFFERED="1")
+
 app = FastAPI(title="exam-explainer")
 # allow_credentials 是必须的：会话是 cookie，跨源请求默认不带 cookie。
 # 开发时前端在 5173、API 在 8712，是两个源。上线同源部署时这条不生效也无害。
@@ -286,10 +337,12 @@ def run_step(jid, label, cmd, timeout=900):
     with LOCK:
         JOBS[jid]["step"] = label
     timed = {"hit": False}
-    # PYTHONUNBUFFERED 不能省。子进程是 Python，stdout 不是 tty 时它按块缓冲，
-    # 不掀掉这层缓冲上面那句「边跑边送」就是空话 —— 实测 ④ 跑了二十分钟，
-    # 日志里只有孤零零一行「▸ ④ 写断言」，和卡死长得一模一样。
-    env = dict(os.environ, PYTHONUNBUFFERED="1")
+    # 子进程按**磁盘上当前的** .env 跑，不是按后端启动那一刻的快照（见 step_env）。
+    # 漂移了要说出来 —— 悄悄换掉后端和模型，比用旧的更糟
+    for k, was, now in dotenv_drift():
+        job_log(jid, "   .env 已改：%s 由 %s → %s（本步按新值跑；"
+                     "后端进程内其它地方仍是旧值，重启后端才彻底一致）" % (k, was, now))
+    env = step_env()
     # start_new_session 让子进程自成一个进程组，这样超时能 killpg 整组端掉 ——
     # 子进程自己还会 fork，只杀直接子进程会留下孙进程继续烧额度（⑤ 实测超时后
     # 又跑了一个半小时）。
