@@ -315,34 +315,102 @@ def after(a, b):
 
 
 # ---------------------------------------------------------------- 题干清洗
+# 同一行的顶边容差。实测全库同一行的顶边**极差恒为 0.00pt**（图跟着字母标记
+# 打在同一制表位上），3pt 是给舍入抖动的
+ROW_TOL = 3.0
+# 行间空隙的上界，相对块内最大图高。实测真网格的行间空隙全是 7.5pt，十倍余量。
+# 没有这条的话，相隔 267pt 的两行（分属两道题）会被凑成一块「2×2 网格」
+GAP_MAX = 1.0
+# 尺寸相近。宽的容差不能是 0.25 —— 江苏卷 q5 的 A 是阻尼振荡曲线、其余是直线图，
+# 宽度极差 38.4%，那是真实版式不是排版错误，0.25 会误拒一道真题
+W_TOL, H_TOL = 0.40, 0.30
+# 行间同列的左边缘对齐容差。实测最大错位 0.75pt
+COL_TOL = 3.0
+
+
+def _rows_by_top(figs):
+    """
+    按**顶边**分行，行内按 x 从左到右，行间按阅读顺序（页小在前、顶边高在前）。
+
+    不能按底边。同一行的图往往顶边齐而底边不齐 —— 陕西 q8 那两张并排图底边
+    差 18pt，旧规则 `round(y/12)` 把它们劈到了两个桶里，2×2 于是永远凑不齐。
+    """
+    rows = []
+    for f in sorted(figs, key=lambda f: (f["page"], -(f["y"] + f["h"]), f["x"])):
+        top = f["y"] + f["h"]
+        if rows and rows[-1][0]["page"] == f["page"] \
+                and abs(rows[-1][0]["y"] + rows[-1][0]["h"] - top) <= ROW_TOL:
+            rows[-1].append(f)
+        else:
+            rows.append([f])
+    for r in rows:
+        r.sort(key=lambda f: f["x"])
+    return rows
+
+
+def _is_grid(run):
+    """一组连续的行能不能算一块规整的选项网格。"""
+    m = len(run[0])
+    if m < 2 or any(len(r) != m for r in run):
+        return False                      # 3+1 不是网格；每行一张和题干竖排分不开
+    flat = [f for r in run for f in r]
+    if len({f["page"] for f in flat}) != 1:
+        return False
+    ws, hs = [f["w"] for f in flat], [f["h"] for f in flat]
+    if max(ws) - min(ws) > W_TOL * max(ws) or max(hs) - min(hs) > H_TOL * max(hs):
+        return False
+    for r in run:                          # 行内不许横向重叠
+        for a, b in zip(r, r[1:]):
+            if a["x"] + a["w"] > b["x"] + 1e-6:
+                return False
+    for r in run[1:]:                      # 行间同列左边缘对齐
+        if any(abs(a["x"] - b["x"]) > COL_TOL for a, b in zip(run[0], r)):
+            return False
+    tall = max(hs)
+    for up, lo in zip(run, run[1:]):       # 行间空隙不许太大
+        if min(f["y"] for f in up) - max(f["y"] + f["h"] for f in lo) > GAP_MAX * tall:
+            return False
+    return True
+
+
 def group_option_figures(figs, n_options):
     """
-    把「一行 N 个并排的小图」识别为选项配图。
+    把「排成一行或一块网格的 N 张小图」识别为选项配图，回 `(题干图, 选项图)`。
 
-    判据全是几何的：同页、y 几乎相同、尺寸相近、个数等于选项数。
-    第4题就是这种——p02_03~06 同在 y≈297、都是 99×62、x 均匀分布，
-    它们是 A/B/C/D 四个选项的图，不是题干图。混在一起会让下游把选项图
-    当成情境图去还原，属于会直接画错的那类错误。
+    选项本身是图的题（「下列四幅电场线图哪个正确」）要靠这个把四张图分给
+    A/B/C/D。**认不出的后果不是报错**：选项文本为空又没配图 → `text_quality`
+    判 degraded → 页面上选项全空、图无标号挂在题干下面，读题的人分不出哪张是
+    哪个选项；③ 解题只拿到「题干插图1..N」没有字母，只能靠数数猜，错位就是
+    整道题全错而且静默 —— 全链路没有一层核对选项字母。
+
+    判据全是几何的：同页、顶边分行、连续 k 行 × 每行 m 张恰好 = 选项数、
+    尺寸相近、行内不重叠、行间同列对齐、行间不太远。有多块都像时取**靠后**
+    那块（选项印在题干之后），但不钉死在末尾 —— 钉死的话网格下方漏进一张图
+    就从 N 张退回 0 张，比不改还差，而这管线真出过图片超范围归属。
+
+    返回的选项图是**行优先的阅读序**（上行左→右，再下行），对应 A/B/C/D；
+    卷面上的 A./B./C./D. 字母坐标核对过 6 道题 24 个配对，全部一致。
+    题干图保持输入顺序 —— 下游「题干插图1..N」的编号靠它。
     """
     if n_options < 2 or len(figs) < n_options:
         return figs, []
-    by_row = {}
-    for f in figs:
-        if f["y"] is None:
-            continue
-        by_row.setdefault((f["page"], round(f["y"] / 12.0)), []).append(f)
-    for key, row in by_row.items():
-        if len(row) != n_options:
-            continue
-        ws = [f["w"] for f in row if f["w"]]
-        hs = [f["h"] for f in row if f["h"]]
-        if len(ws) != len(row):
-            continue
-        if max(ws) - min(ws) > 0.25 * max(ws) or max(hs) - min(hs) > 0.3 * max(hs):
-            continue
-        row.sort(key=lambda f: f["x"])
-        rest = [f for f in figs if f not in row]
-        return rest, row
+    # 坐标缺失或零尺寸的图不参与判定。旧规则那句 `if f["w"]` 顺手挡住了 0，
+    # 而尺寸判据在全 0 时是 `0 > 0` = 假、一路放行，改写时很容易漏掉这道闸
+    usable = [f for f in figs
+              if f.get("x") is not None and f.get("y") is not None
+              and f.get("w") and f.get("h")]
+    rows = _rows_by_top(usable)
+    # 滑窗扫所有连续行块，从靠后的开始试
+    for start in range(len(rows) - 1, -1, -1):
+        for end in range(start + 1, len(rows) + 1):
+            run = rows[start:end]
+            got = sum(len(r) for r in run)
+            if got > n_options:
+                break
+            if got == n_options and _is_grid(run):
+                opt = [f for r in run for f in r]
+                ids = {id(f) for f in opt}
+                return [f for f in figs if id(f) not in ids], opt
     return figs, []
 
 
