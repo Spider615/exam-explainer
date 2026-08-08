@@ -1,0 +1,76 @@
+<figure data-scene="q13-tp2"><svg viewBox="0 0 560 360" role="img" aria-label="斜面双导体棒电磁感应弹性碰撞动画：ab接电阻R、cd接电容C，二者相向滑至MN处发生弹性碰撞">
+  <!-- 两条导轨（沿斜面，30°示意） -->
+  <line class="sk" x1="71.7" y1="326.2" x2="391.7" y2="96.2"/>
+  <line class="sk" x1="48.3" y1="293.8" x2="368.3" y2="63.8"/>
+
+  <!-- 顶端：电阻R 桥接两导轨 -->
+  <line class="sh" stroke-width="3" x1="391.7" y1="96.2" x2="368.3" y2="63.8"/>
+  <text class="u" text-anchor="middle" x="394.6" y="69.5">R</text>
+
+  <!-- 底端：电容C 桥接两导轨 -->
+  <line class="sh" stroke-width="3" x1="71.7" y1="326.2" x2="48.3" y2="293.8"/>
+  <text class="u" text-anchor="middle" x="45.4" y="320.5">C</text>
+
+  <!-- M、N 绝缘连接点 -->
+  <line class="sc" x1="247.7" y1="199.7" x2="224.3" y2="167.3"/>
+  <circle class="fk" cx="247.7" cy="199.7" r="3"/>
+  <circle class="fk" cx="224.3" cy="167.3" r="3"/>
+  <text class="u" text-anchor="middle" x="255.8" y="215.0">M</text>
+  <text class="u" text-anchor="middle" x="216.2" y="151.9">N</text>
+
+  <!-- 磁场B（垂直斜面向外，圆点表示） -->
+  <circle class="sh" fill="none" cx="156" cy="241" r="4"/>
+  <circle class="fk" cx="156" cy="241" r="1.3"/>
+  <circle class="sh" fill="none" cx="188" cy="218" r="4"/>
+  <circle class="fk" cx="188" cy="218" r="1.3"/>
+  <circle class="sh" fill="none" cx="268" cy="161.5" r="4"/>
+  <circle class="fk" cx="268" cy="161.5" r="1.3"/>
+  <circle class="sh" fill="none" cx="300" cy="138.5" r="4"/>
+  <circle class="fk" cx="300" cy="138.5" r="1.3"/>
+  <circle class="sh" fill="none" cx="410" cy="100" r="4"/>
+  <circle class="fk" cx="410" cy="100" r="1.3"/>
+  <text class="u" x="420" y="104">B=0.2T</text>
+  <text class="u" x="420" y="120">方向垂直斜面向外</text>
+
+  <!-- R上焦耳热QR 进度条 -->
+  <text class="u" x="420" y="146">QR 焦耳热累积</text>
+  <rect class="sh" fill="none" x="420" y="150" width="100" height="12"/>
+  <rect id="q13-tp2-QRfill" class="fr" x="420" y="150" width="0" height="12"/>
+
+  <!-- ab棒（接R），初始位置在MN上方（远端接R） -->
+  <line id="q13-tp2-ab" class="sa" stroke-width="5" x1="343.7" y1="130.7" x2="320.3" y2="98.3"/>
+  <text id="q13-tp2-ab-label" class="u" text-anchor="middle" x="350.7" y="140.5">ab</text>
+  <text id="q13-tp2-a1" class="n" text-anchor="middle" x="305.7" y="78.0">a1=0.00</text>
+  <line id="q13-tp2-v1arrow" class="sa" marker-end="url(#aa)" x1="332" y1="114.5" x2="332" y2="114.5"/>
+
+  <!-- cd棒（接C），初始位置在MN下方（远端接C），受恒力F -->
+  <line id="q13-tp2-cd" class="sr" stroke-width="5" x1="132.5" y1="282.5" x2="109.1" y2="250.1"/>
+  <text id="q13-tp2-cd-label" class="u" text-anchor="middle" x="139.5" y="292.3">cd</text>
+  <text id="q13-tp2-a2" class="n" text-anchor="middle" x="94.5" y="229.8">a2=0.00</text>
+  <line id="q13-tp2-v2arrow" class="sr" marker-end="url(#ar)" x1="120.8" y1="266.3" x2="120.8" y2="266.3"/>
+  <line id="q13-tp2-F" class="sc" marker-end="url(#ac)" x1="120.8" y1="266.3" x2="149.2" y2="245.9"/>
+  <text id="q13-tp2-F-label" class="u" text-anchor="middle" x="156.2" y="255.6">F</text>
+
+  <!-- 碰撞高亮 -->
+  <circle id="q13-tp2-flash" class="fa" cx="236" cy="183.5" r="18" opacity="0"/>
+  <line id="q13-tp2-v1postarrow" class="sa" marker-end="url(#aa)" opacity="0" x1="236" y1="183.5" x2="236" y2="183.5"/>
+  <line id="q13-tp2-v2postarrow" class="sr" marker-end="url(#ar)" opacity="0" x1="236" y1="183.5" x2="236" y2="183.5"/>
+
+  <!-- 碰撞信息（左上角，碰撞前瞬间淡入） -->
+  <text id="q13-tp2-Fremoved" class="u" x="20" y="24" opacity="0">F已撤去</text>
+  <text id="q13-tp2-v1post" class="n" x="20" y="42" opacity="0">v1'=0.00 m/s</text>
+  <text id="q13-tp2-v2post" class="n" x="20" y="60" opacity="0">v2'=0.00 m/s</text>
+
+  <g id="q13-tp2-panel">
+<rect class="sh" x="415.7" y="10.0" width="132.3" height="70.4" rx="2" fill="var(--panel)"/>
+  <text class="u" x="421.7" y="26.9">自释放时刻起</text>
+  <text class="n" id="q13-tp2-ro-t" x="542.0" y="26.9" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="41.5">ab棒下滑的</text>
+  <text class="n" id="q13-tp2-ro-v1" x="542.0" y="41.5" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="56.1">cd棒上滑的</text>
+  <text class="n" id="q13-tp2-ro-v2" x="542.0" y="56.1" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="70.8">电阻R自释放</text>
+  <text class="n" id="q13-tp2-ro-QR" x="542.0" y="70.8" text-anchor="end">–</text>
+</g>
+</svg>
+<figcaption>斜面双导体棒电磁感应（ab接电阻、cd接电容）与弹性碰撞。两棒运动时间t1≈1.2s。cd加速度a2=6m/s²、碰前cd速度v2=7.2m/s。R上焦耳热QR≈0.78J。碰撞后瞬间ab速度≈3.3m/s、cd速度≈8.4m/s。</figcaption></figure>

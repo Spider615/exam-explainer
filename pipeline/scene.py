@@ -126,55 +126,87 @@ def resolve_backend(name):
 
 MODEL = os.environ.get("EXAM_SCENE_MODEL") or DEFAULT_MODEL[resolve_backend(BACKEND)]
 
-BRIEF_CODEGEN = """你要为一道物理题画一个动画场景。
+BRIEF_CODEGEN = """你要为一道物理题画一个动画场景。**下面是全部信息，不用去翻仓库。**
 
-**物理不用你算。** spec 里的 `reference` 已经被预计算成数值表，`probe(u, caseId)`、
-读数面板、figcaption 全部由代码生成好了。你只画图。
+物理不用你算：spec 的 `reference` 已经预计算成数值表，`probe(u, caseId)`、
+读数面板、figcaption 全部生成好了。**你只画图。**
 
-工作目录就是当前目录。**只允许写这两个文件**：
+═════════ 你只写这两个文件（就在当前目录，别去别处）═════════
 
-    {id}.figure.html
-    {id}.draw.js
+【1】{id}.figure.html —— 画物理场景
 
-规范见 {contract}（必读）。题目规格见 {spec}（**只读**）。
+<figure data-scene="{id}"><svg viewBox="0 0 560 H" role="img" aria-label="…">
+  …你的图元，每个要动的元素都要有 id="{id}-xxx"…
+  <g id="{id}-panel"></g>          ← 必须留着，读数面板由代码注入
+</svg>
+<figcaption>随便写</figcaption></figure>
 
-{id}.figure.html
-----------------
-画物理场景本身：斜面、导轨、粒子、箭头、坐标轴……
-**必须留一个空的 `<g id="{id}-panel"></g>`** —— 读数面板由代码注入到那里。
-**{rect} 这块矩形是禁区**，别把任何东西画进去。
-figcaption 也由代码生成，你写什么都会被覆盖。
+· 所有 id 必须以 `{id}-` 开头，否则静态门禁不过
+· **{rect} 这块矩形是禁区**，别画进去（读数面板占着）
+· figcaption 会被代码覆盖，你写什么都行
+· 可用样式类：sk(主线) sh(辅线) sa(蓝) sr(红) sc(虚线) fk/fa/fr(填充)
+  u(中文标签) n(等宽数字)；箭头用 marker-end="url(#ak)"（或 aa/ar/ac）
+· **文字不许压文字**：中文字宽 13.1px、ASCII 6.0px、行高 14.9px，按这个留间距
 
-{id}.draw.js
-------------
-只写这四样，**别的一律不许定义**：
+【2】{id}.draw.js —— 只准定义这四样，别的一律不许
 
-    var PERIOD = 4.0;                    // 一次完整过程播几秒。不写默认 6
-    var READOUTS = {readouts};           // 面板显示哪些量（可改，须是 probe_keys 的子集）
-    function drawFrame(ps, u, svg) {{ }} // ps 是 {{情形id: {{量名: 数值}}}}
-    function drawReset(svg) {{ }}        // 清掉轨迹之类的累积状态
-
-可用的量：{keys}
+var PERIOD = 4.0;                   // 一次完整过程播几秒，不写默认 6
+var READOUTS = {readouts};          // 面板显示哪些量，须是 probe_keys 的子集
+function drawFrame(ps, u, svg) {{ }}  // ps = {{情形id: {{量名: 数值}}}}
+function drawReset(svg) {{ }}         // 清掉轨迹之类的累积状态
 
 **不许定义 probe / probeAll / updatePanel / render / T / N / CASES** ——
-那些是生成好的，你定义了会把它们覆盖掉，拼装时会当场失败。
+那些是生成好的，你定义了会把它们覆盖掉，拼装时当场失败。
 
-做法
-----
-1. 先读 CONTRACT.md 和 spec 的 `scene_requirements`。
-2. 画 figure.html，写 draw.js。
-3. 自己跑一遍：
+═════════ 一份完整的例子（照着写）═════════
 
-       {py} {build} {id} && {py} {verify} {id}
+figure.html：
+<figure data-scene="demo"><svg viewBox="0 0 560 280" role="img" aria-label="金属棒进磁场">
+  <line class="sk" x1="40" y1="100" x2="520" y2="100"/>
+  <line class="sk" x1="40" y1="180" x2="520" y2="180"/>
+  <line id="demo-rod" class="sr" x1="100" y1="95" x2="100" y2="185" stroke-width="4"/>
+  <text id="demo-lab" class="u" x="100" y="85" text-anchor="middle">a</text>
+  <line id="demo-v" class="sa" x1="110" y1="140" x2="150" y2="140" marker-end="url(#aa)"/>
+  <g id="demo-panel"></g>
+</svg>
+<figcaption>占位</figcaption></figure>
 
-   末行是 `VERDICT: PASS` 或 `FAIL`。**FAIL 就按报错改，改完再跑，直到 PASS。**
+draw.js：
+var PERIOD = 4.0;
+var READOUTS = ["v", "x"];
+function drawFrame(ps, u, svg) {{
+  var p = ps[CASES[0]];                       // 单情形取第一个
+  var sx = 100 + p.x * 390;                   // 物理量 → 屏幕坐标
+  var rod = svg.querySelector('#demo-rod');
+  rod.setAttribute('x1', sx); rod.setAttribute('x2', sx);
+  svg.querySelector('#demo-lab').setAttribute('x', sx);
+  var v = svg.querySelector('#demo-v');
+  v.setAttribute('x1', sx + 10); v.setAttribute('x2', sx + 10 + p.v * 40);
+}}
+function drawReset(svg) {{ drawFrame(probeAll(0), 0, svg); }}
 
-铁律
-----
-- **不许修改 {spec}、不许修改 harness/ 下任何文件。** sha256 会被校验。
-- 不许把断言绕过去。L3.5 会检查画面确实动过、元素确实在画布内。
-- 版面规则（文字不许压文字）见 CONTRACT.md §1.5，那部分仍然归你负责。
+═════════ 验收 ═════════
+
+改完跑**这一条命令**（拼装和门禁在一起，不要分开跑）：
+
+    {py} {check} {id}
+
+末行是 `VERDICT: PASS` 或 `FAIL`。FAIL 就按报错改，改完再跑，直到 PASS。
+
+**别去读别的场景的文件、别读 harness/ 或 pipeline/ 的源码** —— 上面已经是全部
+你需要的信息了，翻仓库只会浪费轮次。
+
+═════════ 题目规格 ═════════
+
+可用的物理量：{keys}
+
+spec 在 {spec}（**只读**）。里面 `scene_requirements` 那一节说了画面上要有什么，
+`probe_key_meaning` 说了每个量是什么意思 —— **只需要读这一个文件**。
+
+铁律：不许改 spec、不许改 harness/ 下任何文件，它们的 sha256 会被校验。
+不许让 probe 返回断言期望的常数来绕过检查。
 """
+
 
 BRIEF = """你要为一道物理题实现一个可验证的动画场景。
 
@@ -540,7 +572,7 @@ def build(sid, spec, rounds=6, model=MODEL, log=print, backend="relay", images=N
         brief = BRIEF_CODEGEN.format(
             id=sid, contract=os.path.join(ROOT, "harness", "CONTRACT.md"),
             spec=spec_path, verify=os.path.join(ROOT, "harness", "verify.py"),
-            build=os.path.join(ROOT, "harness", "build.py"), py=py,
+            check=os.path.join(ROOT, "harness", "check.py"), py=py,
             rect=json.dumps(sk["rect"]), readouts=json.dumps(sk["readouts"]),
             keys="、".join(spec.get("probe_keys") or []))
     else:

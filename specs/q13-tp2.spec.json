@@ -1,0 +1,249 @@
+{
+ "id": "q13-tp2",
+ "stem": "两根足够长的光滑导轨（上下段电阻不计）在M、N两点绝缘连接，M、N等高，间距L=1m，导轨平面与水平面夹角30°。导轨两端分别接电阻R=0.02Ω和电容C=1F，整个装置处于B=0.2T、垂直导轨平面的匀强磁场中。ab、cd两导体棒分别放在MN两侧并与导轨垂直，m1=0.8kg（ab，电阻0.08Ω），m2=0.4kg（cd，电阻不计）。ab由静止释放；同时cd从距MN为x0=4.32m处，在沿导轨向上、大小F=4.64N的恒力作用下由静止开始运动。两棒恰好在M、N处发生弹性碰撞，碰撞前瞬间撤去F。已知碰前瞬间ab速度为4.5m/s，g=10m/s²。求运动时间、碰前速度、R上焦耳热及碰后瞬间两棒速度。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "ab、cd由静止释放，同时相向运动至MN处发生第一次弹性碰撞，含碰后瞬间速度"
+  }
+ ],
+ "title": "斜面双导体棒电磁感应（ab接电阻、cd接电容）与弹性碰撞",
+ "units": "长度x1/x2/x0：m；速度v1/v2/v1_post/v2_post：m/s；加速度a1/a2：m/s²；时间t：s；电荷q：C；热量QR：J；力F：N；电阻R/r1：Ω；电容C：F；磁场B：T；角度θ=30°（计算中用sinθ=0.5）；u为无量纲归一化过程进度，范围[0,1]",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。M、N为绝缘连接，ab-R回路与cd-C回路电气上完全独立，互不耦合。",
+  "equations": [
+   "cd棒（接电容C，自身电阻为0）：充电电流I2=C·d(BLv2)/dt=CBLa2；感应安培力=B²L²Ca2（沿导轨向下，阻碍cd上滑）",
+   "cd的牛顿第二定律：F − m2·g·sinθ − B²L²C·a2 = m2·a2 ⇒ a2=(F−m2·g·sinθ)/(m2+B²L²C)，为常数，故cd做匀加速直线运动",
+   "cd运动学：x2(t)=½a2t²，v2(t)=a2t；碰撞时刻t1由x0=½a2t1²解出，t=u·t1",
+   "ab棒（接电阻R，自身电阻r1）：回路电流I1=BLv1/(R+r1)；感应安培力=B²L²v1/(R+r1)（沿导轨向上，阻碍ab下滑）",
+   "ab的牛顿第二定律（微分方程）：m1·dv1/dt = m1·g·sinθ − B²L²v1/(R+r1)，即 dv1/dt = g·sinθ − k·v1，其中 k=B²L²/[m1(R+r1)]；初始条件v1(0)=0，数值积分得到v1(t)、x1(t)=∫v1dt",
+   "回路电荷：q(t)=BLx1(t)/(R+r1)（等价于对I1积分）",
+   "电阻R的焦耳热功率：dQR/dt=I1(t)²·R，QR(0)=0，数值积分累加",
+   "碰撞（弹性碰撞，规定沿斜面向上为正）：碰前ab速度记为−v1(t1)（ab沿导轨向下运动），cd速度记为+v2(t1)；碰后 v1_post=[(m1−m2)(−v1(t1))+2m2v2(t1)]/(m1+m2)，v2_post=[(m2−m1)v2(t1)+2m1(−v1(t1))]/(m1+m2)"
+  ],
+  "definitions": [
+   "θ=30°：导轨与水平面夹角，sinθ=0.5",
+   "a2：cd棒的加速度（沿导轨向上为正），由F、重力分量、感应安培力的合力除以m2得到",
+   "t1：两棒从静止释放到到达MN发生碰撞所用的真实时间",
+   "v1(t)、x1(t)：ab棒下滑的速度大小、位移（ab沿其自身运动方向取正）",
+   "v2(t)、x2(t)：cd棒上滑的速度大小、位移（cd沿其自身运动方向取正）",
+   "a1(t)：ab棒的加速度大小",
+   "I1(t)=BLv1/(R+r1)：ab-R回路电流；q(t)=∫I1dt=BLx1/(R+r1)：该回路累计电荷量",
+   "QR(t)：从释放到时刻t，电阻R上累计产生的焦耳热",
+   "v1_post、v2_post：第一次碰撞后瞬间ab、cd的速度（规定沿斜面向上为正方向）"
+  ],
+  "given_facts": [
+   "F1 · cd做初速度为0的匀加速直线运动，加速度大小a2=6m/s²",
+   "F2 · 两棒从释放到第一次碰撞所用时间t1=1.2s",
+   "F3 · 碰前瞬间cd速度大小v2=7.2m/s，方向沿导轨向上",
+   "F4 · 碰前瞬间ab速度大小v1=4.5m/s（题目直接给出）",
+   "F5 · ab下滑过程中电阻R上产生的焦耳热QR=0.78J",
+   "F6 · 两棒碰撞为弹性碰撞：碰撞历时极短、外力冲量可忽略，沿导轨方向动量守恒且动能守恒",
+   "F7 · 第一次碰撞后瞬间，ab速度大小为3.3m/s（方向变为沿导轨向上），cd速度大小为8.4m/s（方向变为沿导轨向下）",
+   "F8 · ab-R回路电荷量q与ab位移x1满足q=BLx1/(R+r1)，是求解x1、QR的中间桥梁，q≈6C"
+  ],
+  "normalization": "取两棒从静止释放到第一次碰撞所需的真实时间t1为基准，u=t/t1，u∈[0,1]覆盖释放到碰撞前瞬间的完整运动过程；t1由cd的运动学关系反解得到，不得直接取1.2s代入。u=1时刻同时给出碰撞后瞬间（视碰撞历时为0）ab、cd的速度，这两个量与u无关，对任意u返回同一常数。",
+  "free_parameters": "cd的加速度a2、碰撞时刻t1、ab下滑位移x1(t)及其对应的v1(t)轨迹形状、回路电荷q，均未在题面直接给出数值，需实现方自行按上述方程解出（a2、t1为代数解；v1(t)、x1(t)需对微分方程做数值积分）。题目直接给出碰前ab速度v1=4.5m/s：对上述微分方程做数值积分，在t=t1处得到的v1会在4.5附近（约4.51，因原题四舍五入产生的~0.3%级差异），并非实现错误，已在invariants容差中留出空间。"
+ },
+ "constants": {
+  "B": 0.2,
+  "C": 1.0,
+  "F": 4.64,
+  "L": 1.0,
+  "R": 0.02,
+  "g": 10.0,
+  "m1": 0.8,
+  "m2": 0.4,
+  "r1": 0.08,
+  "x0": 4.32,
+  "sin_theta": 0.5,
+  "theta_deg": 30
+ },
+ "reference": "def probe(u, case):\n    B = 0.2\n    L = 1.0\n    R = 0.02\n    r1 = 0.08\n    C = 1.0\n    m1 = 0.8\n    m2 = 0.4\n    F = 4.64\n    x0 = 4.32\n    g = 10.0\n    sin_theta = 0.5\n\n    a2 = (F - m2 * g * sin_theta) / (m2 + B * B * L * L * C)\n    t1 = sqrt(2.0 * x0 / a2)\n\n    k = (B * B * L * L) / (m1 * (R + r1))\n    g_sin = g * sin_theta\n\n    def deriv(v1_):\n        dv1 = g_sin - k * v1_\n        dx1 = v1_\n        I1 = B * L * v1_ / (R + r1)\n        dQR = R * I1 * I1\n        return dv1, dx1, dQR\n\n    def integrate(t_target, steps=2000):\n        if t_target <= 0.0:\n            return 0.0, 0.0, 0.0\n        dt = t_target / steps\n        v1 = 0.0\n        x1 = 0.0\n        QR = 0.0\n        for _ in range(steps):\n            k1v, k1x, k1q = deriv(v1)\n            k2v, k2x, k2q = deriv(v1 + 0.5 * dt * k1v)\n            k3v, k3x, k3q = deriv(v1 + 0.5 * dt * k2v)\n            k4v, k4x, k4q = deriv(v1 + dt * k3v)\n            v1 = v1 + (dt / 6.0) * (k1v + 2.0 * k2v + 2.0 * k3v + k4v)\n            x1 = x1 + (dt / 6.0) * (k1x + 2.0 * k2x + 2.0 * k3x + k4x)\n            QR = QR + (dt / 6.0) * (k1q + 2.0 * k2q + 2.0 * k3q + k4q)\n        return v1, x1, QR\n\n    t = u * t1\n    v1, x1, QR = integrate(t)\n    a1 = g_sin - k * v1\n    q = B * L * x1 / (R + r1)\n\n    v2 = a2 * t\n    x2 = 0.5 * a2 * t * t\n\n    v1_t1, x1_t1, QR_t1 = integrate(t1)\n    v2_t1 = a2 * t1\n\n    v1_post = ((m1 - m2) * (-v1_t1) + 2.0 * m2 * v2_t1) / (m1 + m2)\n    v2_post = ((m2 - m1) * v2_t1 + 2.0 * m1 * (-v1_t1)) / (m1 + m2)\n\n    return {\n        \"u\": u,\n        \"t\": t,\n        \"x1\": x1,\n        \"v1\": v1,\n        \"a1\": a1,\n        \"x2\": x2,\n        \"v2\": v2,\n        \"a2\": a2,\n        \"q\": q,\n        \"QR\": QR,\n        \"v1_post\": v1_post,\n        \"v2_post\": v2_post,\n    }",
+ "invariants": [
+  {
+   "id": "c1-a2-value",
+   "why": "F1 · cd做加速度a2=6m/s²的匀加速直线运动，此断言同时约束数值与恒定性",
+   "case": "c1",
+   "expr": "max(abs(a2 - 6.0)) <= 0.06",
+   "report": "max(abs(a2-6.0))"
+  },
+  {
+   "id": "c1-t1",
+   "why": "F2 · 碰撞时刻t1=1.2s，用于否定错误选项A（1.44s）",
+   "case": "c1",
+   "expr": "abs(t[-1] - 1.2) <= 0.02",
+   "report": "t[-1]"
+  },
+  {
+   "id": "c1-v2-end",
+   "why": "F3 · 碰前瞬间cd速度大小7.2m/s",
+   "case": "c1",
+   "expr": "abs(v2[-1] - 7.2) <= 0.15",
+   "report": "v2[-1]"
+  },
+  {
+   "id": "c1-v1-end",
+   "why": "F4 · 碰前瞬间ab速度大小4.5m/s（题目直接给出）",
+   "case": "c1",
+   "expr": "abs(v1[-1] - 4.5) <= 0.14",
+   "report": "v1[-1]"
+  },
+  {
+   "id": "c1-QR-end",
+   "why": "F5 · ab下滑过程R上焦耳热0.78J，直接对应选项B",
+   "case": "c1",
+   "expr": "abs(QR[-1] - 0.78) <= 0.05",
+   "report": "QR[-1]"
+  },
+  {
+   "id": "c1-q-end",
+   "why": "F8 · 回路电荷量q≈6C，是x1、QR推导链条的中间检验点",
+   "case": "c1",
+   "expr": "abs(q[-1] - 6.0) <= 0.2",
+   "report": "q[-1]"
+  },
+  {
+   "id": "c1-v1post-end",
+   "why": "F7 · 碰后ab速度大小3.3m/s，用于否定错误选项C（6.3m/s）",
+   "case": "c1",
+   "expr": "abs(v1_post[-1] - 3.3) <= 0.1",
+   "report": "v1_post[-1]"
+  },
+  {
+   "id": "c1-v2post-end",
+   "why": "F7 · 碰后cd速度大小8.4m/s、方向变为沿导轨向下，直接对应选项D",
+   "case": "c1",
+   "expr": "abs(v2_post[-1] + 8.4) <= 0.15",
+   "report": "v2_post[-1]"
+  },
+  {
+   "id": "c1-x1-mono",
+   "why": "F1/F4 · ab全程单向下滑，位移应单调不减，覆盖整个碰前过程",
+   "case": "c1",
+   "expr": "min(diff(x1)) >= -1e-6",
+   "report": "min(diff(x1))"
+  },
+  {
+   "id": "c1-x2-mono",
+   "why": "F1 · cd全程单向上滑，位移应单调不减，覆盖整个碰前过程",
+   "case": "c1",
+   "expr": "min(diff(x2)) >= -1e-6",
+   "report": "min(diff(x2))"
+  },
+  {
+   "id": "c1-QR-mono",
+   "why": "F5 · 焦耳热为累积耗散量，应单调不减",
+   "case": "c1",
+   "expr": "min(diff(QR)) >= -1e-6",
+   "report": "min(diff(QR))"
+  },
+  {
+   "id": "c1-v1-a1-consistent",
+   "why": "F4 · a1必须是v1对t的导数，防止probe内部v1、a1各算各的而互不相干",
+   "case": "c1",
+   "expr": "mean(abs(diff(v1)/diff(t) - a1[:-1])) <= 0.15",
+   "report": "mean(abs(diff(v1)/diff(t)-a1[:-1]))"
+  },
+  {
+   "id": "c1-v2-a2-consistent",
+   "why": "F1 · a2必须是v2对t的导数，防止匀加速数值与速度曲线不自洽",
+   "case": "c1",
+   "expr": "mean(abs(diff(v2)/diff(t) - a2[:-1])) <= 0.1",
+   "report": "mean(abs(diff(v2)/diff(t)-a2[:-1]))"
+  },
+  {
+   "id": "c1-x1-v1-consistent",
+   "why": "F4 · v1必须是x1对t的导数",
+   "case": "c1",
+   "expr": "mean(abs(diff(x1)/diff(t) - v1[:-1])) <= 0.15",
+   "report": "mean(abs(diff(x1)/diff(t)-v1[:-1]))"
+  },
+  {
+   "id": "c1-x2-v2-consistent",
+   "why": "F1 · v2必须是x2对t的导数",
+   "case": "c1",
+   "expr": "mean(abs(diff(x2)/diff(t) - v2[:-1])) <= 0.1",
+   "report": "mean(abs(diff(x2)/diff(t)-v2[:-1]))"
+  },
+  {
+   "id": "c1-q-v1-consistent",
+   "why": "F8 · dq/dt=BLv1/(R+r1)=2v1，验证电荷积累速率与ab瞬时速度自洽",
+   "case": "c1",
+   "expr": "mean(abs(diff(q)/diff(t) - 2*v1[:-1])) <= 0.3",
+   "report": "mean(abs(diff(q)/diff(t)-2*v1[:-1]))"
+  },
+  {
+   "id": "c1-momentum-conserved",
+   "why": "F6 · 弹性碰撞沿导轨方向动量守恒",
+   "case": "c1",
+   "expr": "abs((0.8*v1_post[-1] + 0.4*v2_post[-1]) - (0.8*(-v1[-1]) + 0.4*v2[-1])) <= 0.05",
+   "report": "碰后总动量 vs 碰前总动量"
+  },
+  {
+   "id": "c1-energy-conserved",
+   "why": "F6 · 弹性碰撞动能守恒，与动量守恒共同排除非弹性/未真正碰撞的实现",
+   "case": "c1",
+   "expr": "abs((0.4*v1_post[-1]*v1_post[-1] + 0.2*v2_post[-1]*v2_post[-1]) - (0.4*v1[-1]*v1[-1] + 0.2*v2[-1]*v2[-1])) <= 0.4",
+   "report": "碰后总动能 vs 碰前总动能"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "t",
+  "x1",
+  "v1",
+  "a1",
+  "x2",
+  "v2",
+  "a2",
+  "q",
+  "QR",
+  "v1_post",
+  "v2_post"
+ ],
+ "disclosures": [
+  {
+   "why": "对应F2，与错误选项A（1.44s）直接对照",
+   "must_contain": "两棒运动时间t1≈1.2s"
+  },
+  {
+   "why": "对应F1、F3，是判断A项的关键中间量",
+   "must_contain": "cd加速度a2=6m/s²、碰前cd速度v2=7.2m/s"
+  },
+  {
+   "why": "对应F5，直接对应选项B",
+   "must_contain": "R上焦耳热QR≈0.78J"
+  },
+  {
+   "why": "对应F7，直接对应选项C（应为假）与D（应为真）",
+   "must_contain": "碰撞后瞬间ab速度≈3.3m/s、cd速度≈8.4m/s"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "q": "ab-R回路自释放以来累计流过的电荷量，单位C",
+  "t": "自释放时刻起的真实时间，单位s，t=u·t1",
+  "u": "归一化过程进度，等于传入的u，对应t=u·t1",
+  "QR": "电阻R自释放以来累计产生的焦耳热，单位J",
+  "a1": "ab棒下滑的加速度大小，单位m/s²",
+  "a2": "cd棒的加速度大小，单位m/s²（恒定值，理论上=6）",
+  "v1": "ab棒下滑的速度大小，单位m/s",
+  "v2": "cd棒上滑的速度大小，单位m/s",
+  "x1": "ab棒下滑的位移，单位m",
+  "x2": "cd棒上滑的位移，单位m",
+  "v1_post": "第一次碰撞后瞬间ab棒的速度（沿导轨向上为正），单位m/s，与u无关的常数",
+  "v2_post": "第一次碰撞后瞬间cd棒的速度（沿导轨向上为正，实际应为负值），单位m/s，与u无关的常数"
+ },
+ "process_endpoints": "u=0：两棒由静止释放的瞬间（t=0，x1=x2=q=QR=0，v1=v2=0）。u=1：两棒到达MN、即将发生第一次碰撞的瞬间（t=t1≈1.2s，v1≈4.5m/s，v2=7.2m/s）；此时probe同时给出碰撞后（历时视为0）瞬间ab、cd的速度v1_post、v2_post。",
+ "scene_requirements": [
+  "倾角30°的斜面轨道，标出M、N两点（等高、间距L=1m，用醒目标记表示连接处）",
+  "ab棒位于MN上方一侧（该侧远端接电阻R），cd棒位于MN下方一侧（该侧远端接电容C），两棒均垂直导轨放置",
+  "标出垂直斜面向上的匀强磁场B",
+  "cd棒上画出沿导轨指向MN的力F箭头，并在碰撞前瞬间标注'F已撤去'",
+  "ab、cd随时间下滑/上滑的位置连续动画，两棒同时从静止出发，相向运动直至在MN处相遇",
+  "实时显示ab的速度v1、加速度a1，cd的速度v2、加速度a2的数值",
+  "R上的焦耳热QR随时间累积增长的数值或进度条显示",
+  "碰撞瞬间的高亮/闪光效果，碰撞后两棒运动方向反转（ab转为沿导轨向上、cd转为沿导轨向下），并显示碰后瞬时速度v1_post、v2_post的数值"
+ ]
+}

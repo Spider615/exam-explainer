@@ -1,0 +1,81 @@
+<figure data-scene="q13-tp"><svg viewBox="0 0 560 430" role="img" aria-label="倾角30°斜面双导轨：ab接电阻R由静止下滑、cd接电容C受恒力由静止上滑，二者相向运动至M、N处发生弹性碰撞，实时显示位置、速度、加速度、R焦耳热与碰后瞬时速度">
+  <g id="q13-tp-panel">
+<rect class="sh" x="415.7" y="10.0" width="132.3" height="70.4" rx="2" fill="var(--panel)"/>
+  <text class="u" x="421.7" y="26.9">自释放时刻起</text>
+  <text class="n" id="q13-tp-ro-t" x="542.0" y="26.9" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="41.5">ab棒下滑的</text>
+  <text class="n" id="q13-tp-ro-v1" x="542.0" y="41.5" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="56.1">cd棒上滑的</text>
+  <text class="n" id="q13-tp-ro-v2" x="542.0" y="56.1" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="70.8">ab棒下滑的</text>
+  <text class="n" id="q13-tp-ro-x1" x="542.0" y="70.8" text-anchor="end">–</text>
+</g>
+
+  <!-- ============ 顶部说明区（x<400，避开面板矩形） ============ -->
+  <text class="u" x="16" y="24">斜面双导体棒电磁感应与弹性碰撞</text>
+  <text id="q13-tp-phase" class="u a" x="16" y="46">阶段：相向运动中</text>
+  <text class="u" x="16" y="66">QR焦耳热</text>
+  <rect x="92" y="59" width="150" height="8" class="sh"></rect>
+  <rect id="q13-tp-QRbar" x="92" y="59" width="0" height="8" class="fa"></rect>
+  <text id="q13-tp-QRtext" class="n" x="250" y="66">QR=0.000J</text>
+
+  <!-- ============ 地面与30°夹角 ============ -->
+  <line class="sh" x1="30" y1="380" x2="360" y2="380"></line>
+  <path class="sh" d="M 102.00,380.00 A 22,22 0 0 0 99.05,369.00"></path>
+  <text class="u" x="64" y="376">30°</text>
+
+  <!-- ============ 双导轨（上下段电阻不计） ============ -->
+  <line class="sk" x1="102.99" y1="381.74" x2="340.53" y2="244.59"></line>
+  <line class="sk" x1="89.99" y1="359.22" x2="327.53" y2="222.08"></line>
+  <line class="sk" x1="102.99" y1="381.74" x2="89.99" y2="359.22"></line>
+  <line class="sk" x1="340.53" y1="244.59" x2="327.53" y2="222.08"></line>
+  <text class="u a" x="30" y="372">C=1F</text>
+  <text class="u r" x="300" y="208">R=0.02Ω</text>
+
+  <!-- ============ 磁场B（垂直斜面向外） ============ -->
+  <circle class="fa" cx="247.97" cy="274.94" r="1.8"></circle>
+  <circle class="fa" cx="254.97" cy="287.06" r="1.8"></circle>
+  <circle class="fa" cx="254.90" cy="270.94" r="1.8"></circle>
+  <circle class="fa" cx="261.90" cy="283.06" r="1.8"></circle>
+  <circle class="fa" cx="261.83" cy="266.94" r="1.8"></circle>
+  <circle class="fa" cx="268.83" cy="279.06" r="1.8"></circle>
+  <circle class="fa" cx="268.76" cy="262.94" r="1.8"></circle>
+  <circle class="fa" cx="275.76" cy="275.06" r="1.8"></circle>
+  <text class="u a" x="214" y="258">B=0.2T</text>
+
+  <!-- ============ M、N 两点绝缘连接 ============ -->
+  <line class="sc" x1="233.72" y1="306.26" x2="220.72" y2="283.74"></line>
+  <circle class="fk" cx="233.72" cy="306.26" r="3"></circle>
+  <circle class="fk" cx="220.72" cy="283.74" r="3"></circle>
+  <text class="u" x="238" y="312">M</text>
+  <text class="u" x="196" y="280">N</text>
+
+  <!-- ============ 动态：cd棒、ab棒 ============ -->
+  <line id="q13-tp-cdRod" class="sa" x1="128.97" y1="366.74" x2="115.97" y2="344.22"></line>
+  <line id="q13-tp-abRod" class="sr" x1="305.89" y1="264.59" x2="292.89" y2="242.08"></line>
+
+  <!-- ============ ab / cd 身份标签 + 加速度读数（固定在各自释放点，离MN最远，用引出线连到棒的当前位置） ============ -->
+  <line id="q13-tp-abLead" class="sh" x1="316.39" y1="282.78" x2="299.39" y2="253.34"></line>
+  <text class="u r" x="316.39" y="282.78">ab（m1=0.8kg，接R）</text>
+  <text id="q13-tp-abA1" class="n r" x="316.39" y="296.78">a1=5.00m/s²</text>
+
+  <line id="q13-tp-cdLead" class="sh" x1="105.47" y1="326.04" x2="122.47" y2="355.48"></line>
+  <text class="u a" x="105.47" y="326.04">cd（m2=0.4kg，接C）</text>
+  <text id="q13-tp-cdA2" class="n a" x="105.47" y="340.04">a2=6.00m/s²</text>
+
+  <!-- ============ 动态：F力箭头（碰前作用于cd，随其靠近MN缩短） ============ -->
+  <line id="q13-tp-Farrow" class="sa" x1="122.47" y1="355.48" x2="134.60" y2="348.48" marker-end="url(#aa)"></line>
+  <text id="q13-tp-Fremoved" class="u a" x="20" y="404" opacity="0">碰撞前瞬间：F已撤去</text>
+
+  <!-- ============ 动态：碰撞闪光 ============ -->
+  <circle id="q13-tp-flash" class="fr" cx="227.22" cy="295.00" r="0" opacity="0"></circle>
+
+  <!-- ============ 动态：碰后方向反转箭头 ============ -->
+  <line id="q13-tp-abPost" class="sr" x1="233.72" y1="306.26" x2="233.72" y2="306.26" opacity="0" marker-end="url(#ar)"></line>
+  <line id="q13-tp-cdPost" class="sa" x1="220.72" y1="283.74" x2="220.72" y2="283.74" opacity="0" marker-end="url(#aa)"></line>
+
+  <!-- ============ 动态：碰后瞬时速度读数（放在说明区空白行，避开主图文字） ============ -->
+  <text id="q13-tp-v1post" class="n r" x="16" y="90" opacity="0">v1_post=0.00m/s</text>
+  <text id="q13-tp-v2post" class="n a" x="140" y="90" opacity="0">v2_post=0.00m/s</text>
+</svg>
+<figcaption>斜面双导体棒电磁感应（ab接电阻、cd接电容）与弹性碰撞。两棒运动时间t1≈1.2s。cd加速度a2=6m/s²、碰前cd速度v2=7.2m/s。R上焦耳热QR≈0.78J。碰撞后瞬间ab速度≈3.3m/s、cd速度≈8.4m/s。</figcaption></figure>
