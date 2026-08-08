@@ -1,0 +1,137 @@
+{
+ "id": "q4-ark2",
+ "stem": "水平面内光滑平行金属导轨电阻可忽略，OO'为垂直导轨的匀强磁场左边界，磁场垂直水平面向下；金属棒b垂直导轨固定在磁场区域内，金属棒a以初速度向右进入磁场，运动中始终与导轨垂直接触、不与b相碰，研究a的速度v、克服安培力做功功率P随位移x的变化规律。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "金属棒a从进入磁场到速度减为0的完整运动过程"
+  }
+ ],
+ "title": "金属棒进入匀强磁场的v-x、P-x关系验证",
+ "units": "无量纲单位，v以v₀为基准，x以x_max为基准，P以P₀为基准",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。",
+  "equations": [
+   "感应电动势E=BLv",
+   "回路电流I=BLv/R",
+   "安培力F=B²L²v/R",
+   "动量定理推导得v = v₀ - (B²L²/(mR))x",
+   "功率P=Fv=B²L²v²/R",
+   "加速度a=F/m=-B²L²v/(mR)"
+  ],
+  "definitions": [
+   "x：a进入磁场后的位移，向右为正",
+   "v：a的瞬时速度",
+   "a：a的瞬时加速度",
+   "F：a受到的安培力，方向与运动方向相反",
+   "P：a克服安培力做功的功率",
+   "B：磁感应强度",
+   "L：导轨间距",
+   "R：回路总电阻",
+   "m：金属棒a的质量",
+   "v₀：a进入磁场的初速度"
+  ],
+  "given_facts": [
+   "1. v与x呈线性负相关，v-x图像为倾斜下降直线",
+   "2. P与v的平方成正比，P与x为二次函数关系",
+   "3. x=0时v=v₀，P=B²L²v₀²/R",
+   "4. v=0时位移达到最大值x_max=mRv₀/(B²L²)，此时P=0",
+   "5. P-x图像斜率绝对值随x增大而减小，x=x_max处斜率为0"
+  ],
+  "normalization": "取初速度v₀=1（速度单位），最大位移x_max=mRv₀/(B²L²)=1（位移单位），初始功率P₀=B²L²v₀²/R=1（功率单位），所有物理量无量纲化处理",
+  "free_parameters": "B、L、R、m、v₀，均为正常量，可自行赋值"
+ },
+ "constants": {
+  "k": 1.0,
+  "v0": 1.0
+ },
+ "reference": "def probe(u, case):\n    x = u\n    v = 1.0 - u\n    P = v * v\n    a = -v\n    return {\"u\": u, \"x\": x, \"v\": v, \"P\": P, \"a\": a}",
+ "invariants": [
+  {
+   "id": "c1-v-end",
+   "why": "对应given_facts第4条，过程终点v=0",
+   "case": "c1",
+   "expr": "abs(v[-1] - 0.0) <= 0.02",
+   "report": "v[-1]"
+  },
+  {
+   "id": "c1-x-end",
+   "why": "对应given_facts第4条，过程终点x=x_max=1（无量纲）",
+   "case": "c1",
+   "expr": "abs(x[-1] - 1.0) <= 0.02",
+   "report": "x[-1]"
+  },
+  {
+   "id": "c1-P-end",
+   "why": "对应given_facts第4条，过程终点P=0",
+   "case": "c1",
+   "expr": "abs(P[-1] - 0.0) <= 0.02",
+   "report": "P[-1]"
+  },
+  {
+   "id": "c1-v-linear",
+   "why": "对应given_facts第1条，v与x线性负相关，无量纲下斜率为-1",
+   "case": "c1",
+   "expr": "max(abs(diff(v) + diff(x))) <= 0.02",
+   "report": "max(abs(diff(v)+diff(x)))"
+  },
+  {
+   "id": "c1-P-v-square",
+   "why": "对应given_facts第2条，P与v平方成正比",
+   "case": "c1",
+   "expr": "max(abs(P - v**2)) <= 0.02",
+   "report": "max(abs(P - v**2))"
+  },
+  {
+   "id": "c1-P-slope-decrease",
+   "why": "对应given_facts第5条，P-x图像斜率绝对值随x增大而减小",
+   "case": "c1",
+   "expr": "max(diff(abs(diff(P)/diff(x)))) <= 0.02",
+   "report": "max(diff(abs(diff(P)/diff(x))))"
+  },
+  {
+   "id": "c1-a-v-consistent",
+   "why": "自洽验证：安培力与速度成正比，加速度与速度成正比反向，无量纲下a=-v",
+   "case": "c1",
+   "expr": "max(abs(a + v)) <= 0.03",
+   "report": "max(abs(a + v))"
+  },
+  {
+   "id": "c1-P-a-v-consistent",
+   "why": "自洽验证：克服安培力功率等于安培力大小乘以速度，即P=-a*v（a为负）",
+   "case": "c1",
+   "expr": "max(abs(P + a*v)) <= 0.03",
+   "report": "max(abs(P + a*v))"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "x",
+  "v",
+  "P",
+  "a"
+ ],
+ "disclosures": [
+  {
+   "why": "方便对照v-x、P-x的函数关系是否符合题目给定结论",
+   "must_contain": "无量纲化后的v、x、P实时数值"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "P": "a克服安培力做功的功率",
+  "a": "a的瞬时加速度",
+  "u": "归一化进度，等于传入的u",
+  "v": "a的瞬时速度",
+  "x": "a进入磁场后的位移"
+ },
+ "process_endpoints": "u=0对应a刚到达OO'边界、位移x=0、速度为初速度v₀；u=1对应a速度刚好减为0、位移达到最大值x_max",
+ "scene_requirements": [
+  "平行导轨M、N",
+  "磁场左边界OO'标记",
+  "叉号表示的垂直向下匀强磁场区域",
+  "固定的金属棒b",
+  "运动的金属棒a",
+  "沿导轨向右的x轴标记"
+ ]
+}

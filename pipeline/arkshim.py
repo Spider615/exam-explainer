@@ -51,6 +51,8 @@ for _l in (open(os.path.join(ROOT, ".env"), encoding="utf-8")
 ARK_BASE = os.environ.get("EXAM_SCENE_ARK_BASE",
                           "https://ark.cn-beijing.volces.com/api/v3")
 ARK_KEY = os.environ.get("EXAM_SCENE_ARK_KEY") or os.environ.get("ARK_API_KEY", "")
+# disabled / auto / enabled，空表示不传这个字段（保持模型默认）
+THINKING = os.environ.get("EXAM_ARK_THINKING", "").strip()
 
 
 # ──────────────────────────────────────────────── 请求：Anthropic → OpenAI
@@ -110,6 +112,13 @@ def to_openai(d):
             msgs.append({"role": role, "content": body})
 
     out = {"model": d.get("model"), "messages": msgs}
+    # 思考预算。DeepSeek-V4-Flash 是推理模型，实测同一道物理题：
+    #   开思考  22.4 秒，输出 1774 token，其中 1769 个是 reasoning
+    #   关思考   3.6 秒，输出  286 token，答案照样对（推导写进可见输出）
+    # 生成速率两者都是 80 tok/s —— 慢不是模型慢，是它生成了 6 倍的 token。
+    # 默认不动（跟以前一样），要关得显式设 EXAM_ARK_THINKING=disabled
+    if THINKING:
+        out["thinking"] = {"type": THINKING}
     if d.get("max_tokens"):
         out["max_tokens"] = d["max_tokens"]
     if d.get("temperature") is not None:

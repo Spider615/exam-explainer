@@ -1,0 +1,73 @@
+<figure data-scene="q13-ark2"><svg viewBox="0 0 560 360" role="img" aria-label="斜面双导体棒电磁感应与弹性碰撞场景">
+  <!-- 倾角30°斜面导轨（上、下两轨连续，MN 处绝缘连接） -->
+  <line class="sk" x1="454.6" y1="127.7" x2="168.8" y2="292.7"/>
+  <line class="sk" x1="448.6" y1="117.3" x2="162.8" y2="282.3"/>
+
+  <!-- MN 连接处：两轨端点 M、N 等高，间距 L=1m，虚线标出 -->
+  <line id="q13-ark2-mn" class="sc" x1="303.0" y1="215.2" x2="297.0" y2="204.8"/>
+  <text class="u" x="313" y="224">M</text>
+  <text class="u" x="281" y="197">N</text>
+
+  <!-- ab 侧远端接电阻 R -->
+  <rect class="fr" x="436" y="122" width="16" height="8"/>
+  <line class="sk" x1="452" y1="126" x2="454.6" y2="127.7"/>
+  <text class="u" x="438" y="146">R</text>
+
+  <!-- cd 侧远端接电容 C（引线自轨道 cd 端引出） -->
+  <line class="sh" x1="162.8" y1="282.3" x2="120" y2="282"/>
+  <line class="sk" x1="120" y1="274" x2="120" y2="294"/>
+  <line class="sk" x1="128" y1="274" x2="128" y2="294"/>
+  <text class="u" x="108" y="310">C</text>
+
+  <!-- 垂直导轨平面的匀强磁场 B（⊗ 表示垂直纸面向里） -->
+  <circle class="sa" cx="235" cy="160" r="9" fill="none"/>
+  <line class="sa" x1="229.2" y1="154.2" x2="240.8" y2="165.8"/>
+  <line class="sa" x1="240.8" y1="154.2" x2="229.2" y2="165.8"/>
+  <text class="u" x="249" y="164">B ⊥ 导轨</text>
+
+  <!-- 碰撞闪光 -->
+  <circle id="q13-ark2-flash" class="fr" cx="300" cy="210" r="22" opacity="0"/>
+
+  <!-- ab 棒（红色）与标签 -->
+  <line id="q13-ark2-ab" class="sr" stroke-width="5" x1="0" y1="0" x2="0" y2="0"/>
+  <text id="q13-ark2-ab-lab" class="u" x="0" y="0" text-anchor="middle">ab</text>
+  <line id="q13-ark2-ab-v" class="sa" stroke-width="3" x1="0" y1="0" x2="0" y2="0" marker-end="url(#aa)"/>
+
+  <!-- cd 棒（蓝色）与标签 -->
+  <line id="q13-ark2-cd" class="sa" stroke-width="5" x1="0" y1="0" x2="0" y2="0"/>
+  <text id="q13-ark2-cd-lab" class="u" x="0" y="0" text-anchor="middle">cd</text>
+  <line id="q13-ark2-cd-v" class="sr" stroke-width="3" x1="0" y1="0" x2="0" y2="0" marker-end="url(#ar)"/>
+
+  <!-- cd 上的恒力 F（指向 MN/上坡），碰前撤去 -->
+  <line id="q13-ark2-f" class="sr" stroke-width="3" x1="0" y1="0" x2="0" y2="0" marker-end="url(#ar)"/>
+  <text id="q13-ark2-f-lab" class="u" x="0" y="0">F</text>
+  <text id="q13-ark2-fgone" class="u" x="20" y="82" opacity="0">F 已撤去</text>
+
+  <!-- 实时加速度 -->
+  <text class="u" x="150" y="95">a1 = </text>
+  <text id="q13-ark2-a1" class="n" x="185" y="95">0.0</text>
+  <text class="u" x="150" y="115">a2 = </text>
+  <text id="q13-ark2-a2" class="n" x="185" y="115">0.0</text>
+
+  <!-- R 上焦耳热 QR 进度条 -->
+  <text class="u" x="60" y="345">QR</text>
+  <rect class="sh" x="95" y="336" width="240" height="10"/>
+  <rect id="q13-ark2-qrfill" class="fr" x="95" y="336" width="0" height="10"/>
+  <text id="q13-ark2-qrval" class="n" x="345" y="345">0.00 J</text>
+
+  <!-- 碰撞后瞬时速度 -->
+  <text id="q13-ark2-collide" class="u" x="20" y="58" opacity="0">碰撞</text>
+
+  <g id="q13-ark2-panel">
+<rect class="sh" x="415.7" y="10.0" width="132.3" height="70.4" rx="2" fill="var(--panel)"/>
+  <text class="u" x="421.7" y="26.9">自释放时刻起</text>
+  <text class="n" id="q13-ark2-ro-t" x="542.0" y="26.9" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="41.5">ab棒下滑的</text>
+  <text class="n" id="q13-ark2-ro-v1" x="542.0" y="41.5" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="56.1">cd棒上滑的</text>
+  <text class="n" id="q13-ark2-ro-v2" x="542.0" y="56.1" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="70.8">ab棒下滑的</text>
+  <text class="n" id="q13-ark2-ro-x1" x="542.0" y="70.8" text-anchor="end">–</text>
+</g>
+</svg>
+<figcaption>斜面双导体棒电磁感应（ab接电阻、cd接电容）与弹性碰撞。两棒运动时间t1≈1.2s。cd加速度a2=6m/s²、碰前cd速度v2=7.2m/s。R上焦耳热QR≈0.78J。碰撞后瞬间ab速度≈3.3m/s、cd速度≈8.4m/s。</figcaption></figure>

@@ -1,0 +1,55 @@
+<figure data-scene="q4-ark2"><svg viewBox="0 0 560 280" role="img" aria-label="金属棒a进入匀强磁场减速至静止">
+  <!-- 平行导轨 M、N -->
+  <line class="sk" x1="40" y1="100" x2="520" y2="100"/>
+  <line class="sk" x1="40" y1="190" x2="520" y2="190"/>
+  <text class="u" x="52" y="92" text-anchor="middle">M</text>
+  <text class="u" x="52" y="205" text-anchor="middle">N</text>
+
+  <!-- 磁场左边界 OO' -->
+  <line id="q4-ark2-boundary" class="sc" x1="180" y1="92" x2="180" y2="198"/>
+  <text id="q4-ark2-boundary-lab" class="u" x="180" y="84" text-anchor="middle">OO'</text>
+
+  <!-- 叉号：垂直向下的匀强磁场区域 -->
+  <g id="q4-ark2-field">
+    <g class="sc" stroke-width="1.4">
+      <line x1="222" y1="116" x2="236" y2="130"/><line x1="236" y1="116" x2="222" y2="130"/>
+      <line x1="282" y1="116" x2="296" y2="130"/><line x1="296" y1="116" x2="282" y2="130"/>
+      <line x1="342" y1="116" x2="356" y2="130"/><line x1="356" y1="116" x2="342" y2="130"/>
+      <line x1="402" y1="116" x2="416" y2="130"/><line x1="416" y1="116" x2="402" y2="130"/>
+      <line x1="462" y1="116" x2="476" y2="130"/><line x1="476" y1="116" x2="462" y2="130"/>
+      <line x1="222" y1="160" x2="236" y2="174"/><line x1="236" y1="160" x2="222" y2="174"/>
+      <line x1="282" y1="160" x2="296" y2="174"/><line x1="296" y1="160" x2="282" y2="174"/>
+      <line x1="342" y1="160" x2="356" y2="174"/><line x1="356" y1="160" x2="342" y2="174"/>
+      <line x1="402" y1="160" x2="416" y2="174"/><line x1="416" y1="160" x2="402" y2="174"/>
+      <line x1="462" y1="160" x2="476" y2="174"/><line x1="476" y1="160" x2="462" y2="174"/>
+    </g>
+  </g>
+
+  <!-- 固定的金属棒 b -->
+  <rect id="q4-ark2-rod-b" class="fk" x="396" y="95" width="8" height="100"/>
+  <text id="q4-ark2-rod-b-lab" class="u" x="400" y="88" text-anchor="middle">b</text>
+
+  <!-- 运动的金属棒 a -->
+  <rect id="q4-ark2-rod-a" class="sr" x="180" y="95" width="8" height="100"/>
+  <text id="q4-ark2-rod-a-lab" class="u" x="184" y="214" text-anchor="middle">a</text>
+
+  <!-- 速度箭头（随 v 缩放） -->
+  <line id="q4-ark2-v" class="sa" x1="196" y1="145" x2="236" y2="145" marker-end="url(#aa)"/>
+
+  <!-- 沿导轨向右的 x 轴 -->
+  <line id="q4-ark2-xaxis" class="sk" x1="60" y1="228" x2="500" y2="228" marker-end="url(#ak)"/>
+  <text class="u" x="500" y="224" text-anchor="end">x</text>
+
+  <g id="q4-ark2-panel">
+<rect class="sh" x="420.0" y="10.0" width="128.0" height="70.4" rx="2" fill="var(--panel)"/>
+  <text class="u" x="426.0" y="26.9">a的瞬时速度</text>
+  <text class="n" id="q4-ark2-ro-v" x="542.0" y="26.9" text-anchor="end">–</text>
+  <text class="u" x="426.0" y="41.5">a克服安培力</text>
+  <text class="n" id="q4-ark2-ro-P" x="542.0" y="41.5" text-anchor="end">–</text>
+  <text class="u" x="426.0" y="56.1">a进入磁场后</text>
+  <text class="n" id="q4-ark2-ro-x" x="542.0" y="56.1" text-anchor="end">–</text>
+  <text class="u" x="426.0" y="70.8">a的瞬时加速</text>
+  <text class="n" id="q4-ark2-ro-a" x="542.0" y="70.8" text-anchor="end">–</text>
+</g>
+</svg>
+<figcaption>金属棒进入匀强磁场的v-x、P-x关系验证。无量纲化后的v、x、P实时数值。</figcaption></figure>
