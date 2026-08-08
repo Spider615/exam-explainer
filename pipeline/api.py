@@ -528,6 +528,62 @@ def finish_paper(jid, name):
     job_log(jid, "✓ 全部完成 → %s" % out)
 
 
+# ── 继续执行 ────────────────────────────────────────────────────────────
+#
+# 能续的起点。①摄入/②切分/②b 公式识别 **接不上** —— 它们要原始 PDF，而上传的
+# 原件在整条链结束时就删了。不过卷子只要进了库，这三步按定义已经过去了；真挂在
+# 这三步的话卷子根本不在库里，页面上也就没有这个按钮。
+RESUME_FROM = "refans"
+# 续跑要走的三段，顺序必须和整条链一致 —— 两条入口跑出来的东西得一样
+RESUME_STEPS = ["refans", "solve", "finish"]
+
+
+def resume_gate(name, busy, done, exists=None):
+    """
+    开跑前的闸门。放行返回 None，否则抛 HTTPException。
+
+    抽出来是为了能单测：这几条判断挡的都是「两个进程做同一件事」，
+    而它们各自的触发条件在集成测试里很难凑齐。
+    """
+    if exists is None:
+        exists = store.progress(name) is not None
+    if not exists:
+        raise HTTPException(404, "没有这份试卷")
+    if busy:
+        raise HTTPException(409, "这份卷子正在跑，等它跑完")
+    if done:
+        raise HTTPException(409, "这份卷子已经完成了，没有要接着做的步骤")
+    return None
+
+
+def resume_paper(jid, name):
+    """
+    从停下的地方接着跑。
+
+    **不是重跑，是接着跑。** 每一步都跳过已经做完的活：
+      ②d 纯代码几十毫秒，重跑无所谓
+      ③  按 `solution_fresh` 跳过题面没变的题
+      ③b/③c/④c/④ 各自跳过已有产出的题
+      ⑤  跳过已经有通过门禁的动画的题（见 `scene.plan`）
+    所以在一份几乎跑完的卷子上，这个按钮应该几分钟就结束，而不是重来一遍 ——
+    重做整卷 ⑤ 是几个小时和一大笔额度。
+
+    为什么需要它：`JOBS` 是进程内的 dict，驱动整条链的是一个线程。后端一重启
+    那个线程就没了，而 `run_step` 起的子进程用了 `start_new_session`，反而活着
+    把手上那一步跑完写进库，然后没有人接着启动下一步 —— 页面上停在
+    「④b 自检 已停止 5/6」。断掉的是驱动链条，不是数据。
+    """
+    try:
+        job_log(jid, "▸ 继续执行：从库里的进度接着跑，已经做完的会跳过")
+        run_step(jid, "②d 标准答案", step_path("refans.py") + [name], timeout=120)
+        solve_paper(jid, name)
+        finish_paper(jid, name)
+    except Exception as e:
+        with LOCK:
+            JOBS[jid].update(state="error", err=str(e))
+        job_log(jid, "✗ " + str(e))
+
+
 def run_pipeline(jid, pdf_path, name, owner_id=None):
     """
     网页上传走的整条链：
@@ -1217,6 +1273,34 @@ def run_rescene(jid, name, n):
             if swapped else
             ("✗ 第%d题没做出新动画。旧动画 %s 保持不变" % (n, before)))
 
+
+
+@app.post("/api/papers/{name}/resume")
+def resume(name: str, user=Depends(current_user)):
+    """
+    继续执行：从卷子停下的地方接着往下跑。
+
+    最常见的停法是**后端重启**：驱动整条链的线程随进程没了，而子进程
+    （`start_new_session`）反而活着把手上那步写完 —— 库里的数据是好的，
+    只是没人接着往下走。所以这里不重跑，只是把驱动接回去。
+
+    闸门按从便宜到贵排，和 `rescene` 一个规矩：先查进程内的 JOBS，再去扫 ps。
+    """
+    name = check_name(name)
+    mine(name, user)
+    pg = store.progress(name)
+    code, label, _short, _cur, _total = stage_of(pg) if pg else (None,) * 5
+    busy = bool(pg and (pg["busy"] or pipeline_running(name, running_cmds())
+                        or active_job_for(name)))
+    resume_gate(name, busy=busy, done=(code == "done"), exists=pg is not None)
+
+    jid = uuid.uuid4().hex[:12]
+    with LOCK:
+        JOBS[jid] = {"state": "running", "step": "排队中", "kind": "resume",
+                     "name": name, "owner_id": user["id"],
+                     "log": ["继续执行「%s」，停在 %s" % (name, label)]}
+    threading.Thread(target=resume_paper, args=(jid, name), daemon=True).start()
+    return {"job": jid, "name": name, "from": label}
 
 
 @app.post("/api/papers/{name}/questions/{n}/rescene")

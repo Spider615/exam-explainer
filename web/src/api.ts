@@ -76,6 +76,20 @@ export const rescene = (name: string, n: number) =>
   post(`/api/papers/${encodeURIComponent(name)}/questions/${n}/rescene`)
     .then(j<{ job: string; question: number }>)
 
+/**
+ * 继续执行：从卷子停下的地方接着往下跑。
+ *
+ * **不是重跑。** 每一步都跳过已经做完的活，所以在一份几乎跑完的卷子上应该
+ * 很快就结束。最常见的停法是后端重启 —— 驱动整条链的线程随进程没了，
+ * 库里的数据是好的，只是没人接着往下走。
+ *
+ * 409 的两种情况：正在跑、已经完成。都不是错误，是「不用点」——
+ * 调用方要把 detail 原样显示出来。
+ */
+export const resumePaper = (name: string) =>
+  post(`/api/papers/${encodeURIComponent(name)}/resume`)
+    .then(j<{ job: string; name: string; from: string }>)
+
 /** 删除结果。names 可能有已经不存在的（列表过期），后端如实分开回报 */
 export interface DeleteResult { deleted: string[]; missing: string[]; objects: number }
 

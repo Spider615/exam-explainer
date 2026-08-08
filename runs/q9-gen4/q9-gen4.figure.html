@@ -1,0 +1,79 @@
+<figure data-scene="q9-gen4"><svg viewBox="0 0 560 420" role="img" aria-label="简谐横波波形与P点振动分析">
+  <defs>
+    <marker id="q9-gen4-aa" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="sa" d="M0,1 L8,5 L0,9 Z"/>
+    </marker>
+    <marker id="q9-gen4-ar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="sr" d="M0,1 L8,5 L0,9 Z"/>
+    </marker>
+  </defs>
+
+  <!-- 标题与图例 -->
+  <text class="u" x="70" y="34" text-anchor="middle" font-size="18">简谐横波波形 与 P点振动</text>
+  <line class="sa" x1="70" y1="56" x2="96" y2="56" stroke-width="3" marker-end="url(#q9-gen4-aa)"/>
+  <text class="u" x="102" y="60">速度 vP</text>
+  <line class="sr" x1="200" y1="56" x2="226" y2="56" stroke-width="3" marker-end="url(#q9-gen4-ar)"/>
+  <text class="u" x="232" y="60">加速度 aP</text>
+  <circle class="fr" cx="340" cy="54" r="5"/>
+  <text class="u" x="350" y="60">P 质点</text>
+
+  <!-- 波形图：y = A·cos(2πx/λ)，t=0 -->
+  <polyline id="q9-gen4-wave" class="sk" fill="none" stroke-width="2.5"
+    points="60.0,240.0 64.6,240.3 69.2,241.2 73.9,242.6 78.5,244.6 83.1,247.1 87.8,250.1 92.4,253.6 97.0,257.6 101.6,261.9 106.2,266.7 110.9,271.7 115.5,277.0 120.1,282.6 124.8,288.3 129.4,294.1 134.0,300.0 138.6,305.9 143.2,311.7 147.9,317.4 152.5,323.0 157.1,328.3 161.8,333.3 166.4,338.1 171.0,342.4 175.6,346.4 180.2,349.9 184.9,352.9 189.5,355.4 194.1,357.4 198.8,358.8 203.4,359.7 208.0,360.0 212.6,359.7 217.2,358.8 221.9,357.4 226.5,355.4 231.1,352.9 235.8,349.9 240.4,346.4 245.0,342.4 249.6,338.1 254.2,333.3 258.9,328.3 263.5,323.0 268.1,317.4 272.8,311.7 277.4,305.9 282.0,300.0 286.6,294.1 291.2,288.3 295.9,282.6 300.5,277.0 305.1,271.7 309.8,266.7 314.4,261.9 319.0,257.6 323.6,253.6 328.2,250.1 332.9,247.1 337.5,244.6 342.1,242.6 346.8,241.2 351.4,240.3 356.0,240.0 360.6,240.3 365.2,241.2 369.9,242.6 374.5,244.6 379.1,247.1 383.8,250.1 388.4,253.6 393.0,257.6 397.6,261.9 402.2,266.7 406.9,271.7 411.5,277.0 416.1,282.6 420.8,288.3 425.4,294.1 430.0,300.0"/>
+
+  <!-- 波峰/波谷虚线 -->
+  <line class="sh sc" x1="60" y1="240" x2="430" y2="240"/>
+  <text class="u" x="48" y="244" text-anchor="end">y=A</text>
+  <line class="sh sc" x1="60" y1="360" x2="430" y2="360"/>
+  <text class="u" x="48" y="356" text-anchor="end">y=-A</text>
+
+  <!-- y=0 基线 / x 轴 -->
+  <line class="sh" x1="60" y1="300" x2="430" y2="300"/>
+  <polyline class="sh" points="430,300 424,296 424,304" fill="none"/>
+
+  <!-- x 刻度 -->
+  <text class="n" x="60"  y="314" text-anchor="middle">0</text>
+  <text class="n" x="134" y="314" text-anchor="middle">4</text>
+  <text class="n" x="208" y="314" text-anchor="middle">8</text>
+  <text class="n" x="282" y="314" text-anchor="middle">12</text>
+  <text class="n" x="356" y="314" text-anchor="middle">16</text>
+  <text class="n" x="430" y="314" text-anchor="middle">20</text>
+  <text class="u" x="440" y="314" text-anchor="start">x(m)</text>
+
+  <!-- x=12m 过零点标注 -->
+  <line class="sh sc" x1="282" y1="300" x2="282" y2="330"/>
+  <text class="u" x="282" y="344" text-anchor="middle">过零点 x=12m</text>
+
+  <!-- P 点竖向虚线（x=6m） -->
+  <line class="sh sc" x1="171" y1="300" x2="171" y2="330"/>
+
+  <!-- P 点振动轨迹（累积） -->
+  <polyline id="q9-gen4-trail" class="sc" fill="none" stroke-width="2" points=""/>
+
+  <!-- P 点质点 -->
+  <circle id="q9-gen4-P" class="fr" cx="171" cy="342.4" r="5"/>
+  <text id="q9-gen4-Plab" class="u" x="171" y="372" text-anchor="middle">P (x=6m)</text>
+
+  <!-- P 点速度 / 加速度矢量 -->
+  <line id="q9-gen4-v" class="sa" x1="184" y1="342.4" x2="184" y2="302.4" stroke-width="3" marker-end="url(#q9-gen4-aa)"/>
+  <line id="q9-gen4-a" class="sr" x1="158" y1="342.4" x2="158" y2="317.4" stroke-width="3" marker-end="url(#q9-gen4-ar)"/>
+
+  <!-- 路程累积条 -->
+  <line class="sh" x1="70" y1="392" x2="430" y2="392" stroke-width="8" stroke-linecap="round"/>
+  <line id="q9-gen4-path" class="fr" x1="70" y1="392" x2="70" y2="392" stroke-width="8" stroke-linecap="round"/>
+  <text class="u" x="70" y="414" text-anchor="middle">路程 s 累积</text>
+
+  <!-- 读数面板（代码注入，勿画内容进禁区） -->
+  <g id="q9-gen4-panel">
+<rect class="sh" x="431.0" y="10.0" width="117.0" height="70.4" rx="2" fill="var(--panel)"/>
+  <text class="u" x="437.0" y="26.9">P点加速度</text>
+  <text class="n" id="q9-gen4-ro-aP" x="542.0" y="26.9" text-anchor="end">–</text>
+  <text class="u" x="437.0" y="41.5">P点从t</text>
+  <text class="n" id="q9-gen4-ro-s_path" x="542.0" y="41.5" text-anchor="end">–</text>
+  <text class="u" x="437.0" y="56.1">P点位移</text>
+  <text class="n" id="q9-gen4-ro-yP" x="542.0" y="56.1" text-anchor="end">–</text>
+  <text class="u" x="437.0" y="70.8">实际时间</text>
+  <text class="n" id="q9-gen4-ro-t" x="542.0" y="70.8" text-anchor="end">–</text>
+</g>
+</svg>
+<figcaption>简谐横波波形与质点P的振动分析。波长λ=16m、周期T=8s、振幅A=0.1m。P点初相位假设（φ0=3π/4）及其来源说明。</figcaption></figure>

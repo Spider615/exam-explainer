@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getPaper, getProgress, sceneScriptUrl } from '../api'
+import { getPaper, getProgress, resumePaper, sceneScriptUrl } from '../api'
 import QuestionCard from './QuestionCard'
 import type { Paper, Progress, Question } from '../types'
 
@@ -155,6 +155,8 @@ export default function PaperView({ name }: { name: string }) {
   const [scenesReady, setScenesReady] = useState(false)
   const [pg, setPg] = useState<Progress | null>(null)
   const [playing, setPlaying] = useState(true)
+  const [resuming, setResuming] = useState(false)
+  const [resumeNote, setResumeNote] = useState<string | null>(null)
 
   const load = useCallback(() => {
     getPaper(name).then(setPaper).catch((e) => setErr(String(e)))
@@ -196,6 +198,28 @@ export default function PaperView({ name }: { name: string }) {
     timer = window.setTimeout(tick, 300)
     return () => { alive = false; window.clearTimeout(timer) }
   }, [name, load, pg?.busy])
+
+  /**
+   * 继续执行。
+   *
+   * 后端 409 的两种情况（正在跑、已经完成）都不是错误，是「不用点」——
+   * 所以把 detail 原样显示出来，别糊成一句「失败」。
+   *
+   * 点完立刻把 busy 打开：轮询要 3 秒才回来，这三秒里按钮还在、状态还写着
+   * 「已停止」，人会以为没点上而再点一次。
+   */
+  const onResume = useCallback(async () => {
+    setResuming(true); setResumeNote(null)
+    try {
+      const r = await resumePaper(name)
+      setResumeNote(`已从「${r.from}」接着跑。已经做完的步骤会跳过。`)
+      setPg((p) => (p ? { ...p, busy: true } : p))
+    } catch (e) {
+      setResumeNote(String(e instanceof Error ? e.message : e))
+    } finally {
+      setResuming(false)
+    }
+  }, [name])
 
   // 场景脚本必须在 QuestionCard 渲染之前就位，否则工厂还没注册。
   // 每次换卷子都重新加载：不同卷子绑定的场景不同。
@@ -290,11 +314,22 @@ export default function PaperView({ name }: { name: string }) {
             {pct !== null && (
               <span className="prog-num">{pg.stageCur}/{pg.stageTotal}</span>
             )}
+            {/* 停下来的卷子给一个「继续执行」。最常见的停法是后端重启：驱动
+                整条链的线程随进程没了，库里的数据是好的，只是没人接着往下走。
+                跑完的卷子不给 —— 那时点它只会白等一圈。 */}
+            {!pg.busy && !pg.done && (
+              <button className="btn" disabled={resuming}
+                      style={pct !== null ? { marginLeft: 8 } : { marginLeft: 'auto' }}
+                      onClick={onResume}>
+                {resuming ? '正在启动…' : '继续执行'}
+              </button>
+            )}
           </div>
           {pct !== null && (
             <div className="prog-bar"><i style={{ width: `${pct}%` }} /></div>
           )}
           {pg.failed && <code className="prog-last">{pg.failed}</code>}
+          {resumeNote && <code className="prog-last">{resumeNote}</code>}
           {/* 每个分母都用那一步自己的口径：④ 只做 ④c 选中的题，⑤ 只做自检通过的题。
               拿题数当分母的话，一份跑完的卷子会显示成「断言 6/16」，像是没做完 */}
           <div className="prog-sub">
