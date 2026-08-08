@@ -33,7 +33,7 @@ mathvlm.py —— 阶段②b：用视觉模型把含公式的选项还原成 LaT
 原图始终保留 —— 既是兜底，也是「对照原卷」的依据。
 模型也会错，但错了必须能被看见。
 """
-import argparse, base64, hashlib, json, os, re, subprocess, sys
+import argparse, base64, hashlib, json, os, re, subprocess, sys, urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import segment      # 「什么算正文」这条判据两边必须一致，不能各写一份
@@ -46,6 +46,49 @@ CLI = next((p for p in ("/opt/homebrew/bin/claude",
 MODEL = os.environ.get("EXAM_VLM_MODEL", "claude-sonnet-5")
 DPI = 300
 SCALE = 0.5          # 存图时降到 150dpi：模型看得清，token 省一半
+
+# ── 两条传输路，改 .env 里的 EXAM_VLM_BACKEND 就能切 ──────────────────────
+#
+#   subscription  claude CLI（订阅或经 clishim 走中转）。图靠 Read 工具读
+#   doubao        火山方舟直连，图 base64 内联进 payload
+#
+# **为什么豆包不能借 arkshim 走 CLI**：`arkshim.blocks_to_openai` 处理
+# `tool_result` 时只把 `text` 块串起来，图片块没有 `text` 键，会被静默丢成空串。
+# 而 CLI 读图靠的正是 Read 的 tool_result —— 图在垫片里消失，模型收到一句
+# 「请读这张图」加空内容，然后一本正经地编出选项。不报错、结果看着还像对的。
+# 所以这条路不经过 CLI，直接把图内联，一次调用，没有工具循环。
+BACKENDS = ("subscription", "doubao")
+BACKEND = os.environ.get("EXAM_VLM_BACKEND", "subscription")
+
+ARK_BASE = os.environ.get("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+ARK_MODEL = os.environ.get("ARK_VISION_MODEL", "doubao-seed-evolving")
+ARK_KEY = os.environ.get("ARK_API_KEY", "")
+
+
+def resolve_backend(name):
+    name = name or BACKEND
+    if name not in BACKENDS:
+        raise SystemExit("EXAM_VLM_BACKEND 只能是 %s，收到 %r"
+                         % ("/".join(BACKENDS), name))
+    return name
+
+
+def vision_payload(prompt, img_path):
+    """图直接进 payload。跟 `solve.vision_payload` 同一个形状，只是这里只有一张。"""
+    raw = open(img_path, "rb").read()
+    return [{"role": "user", "content": [
+        {"type": "text", "text": prompt},
+        {"type": "image_url", "image_url": {
+            "url": "data:image/png;base64," + base64.b64encode(raw).decode()}}]}]
+
+
+def post_doubao(payload, timeout):
+    r = urllib.request.Request(ARK_BASE + "/chat/completions",
+                               json.dumps(payload, ensure_ascii=False).encode(),
+                               {"Authorization": "Bearer " + ARK_KEY,
+                                "Content-Type": "application/json"})
+    d = json.loads(urllib.request.urlopen(r, timeout=timeout).read())
+    return d["choices"][0]["message"].get("content") or ""
 
 
 FRAG_PROMPT = """这是一道中文物理题里的一小段文字（版面片段，可能不是完整句子）。
@@ -228,7 +271,7 @@ def loads_lenient(txt):
     return _unctrl(d)
 
 
-def ask_raw(img_path, prompt, want="object", timeout=240):
+def ask_raw(img_path, prompt, want="object", timeout=240, backend=None):
     """
     调视觉模型读一张图，返回解析后的 JSON。
 
@@ -237,18 +280,28 @@ def ask_raw(img_path, prompt, want="object", timeout=240):
 
     **不要送放大过的图。** 实测同一页 1080×1441 只要 57 秒，放大到 1620×2208
     之后 600 秒都回不来。要看清细节就裁小一块，别整张放大。
+
+    两条后端只在「怎么把图送出去」这一段分叉，取 JSON 和那套容错是共用的 ——
+    `loads_lenient` 那条尤其不能各写一份：JSON 会静默吃掉 LaTeX 反斜杠。
     """
-    if not CLI:
-        raise RuntimeError("找不到 claude 可执行文件；视觉通道不可用")
-    r = subprocess.run([CLI, "-p", "--model", MODEL],
-                       input=prompt + "\n图片：" + os.path.abspath(img_path),
-                       capture_output=True, text=True, timeout=timeout,
-                       env=dict(os.environ, **clishim.ensure()))
-    if r.returncode != 0:
-        raise RuntimeError("模型调用失败：%s" % (r.stderr or "")[-200:])
-    m = re.search(r"\[.*\]" if want == "array" else r"\{.*\}", r.stdout, re.S)
+    if resolve_backend(backend) == "doubao":
+        if not ARK_KEY:
+            raise RuntimeError("EXAM_VLM_BACKEND=doubao 但没有 ARK_API_KEY")
+        txt = post_doubao({"model": ARK_MODEL, "temperature": 0,
+                           "messages": vision_payload(prompt, img_path)}, timeout)
+    else:
+        if not CLI:
+            raise RuntimeError("找不到 claude 可执行文件；视觉通道不可用")
+        r = subprocess.run([CLI, "-p", "--model", MODEL],
+                           input=prompt + "\n图片：" + os.path.abspath(img_path),
+                           capture_output=True, text=True, timeout=timeout,
+                           env=dict(os.environ, **clishim.ensure()))
+        if r.returncode != 0:
+            raise RuntimeError("模型调用失败：%s" % (r.stderr or "")[-200:])
+        txt = r.stdout
+    m = re.search(r"\[.*\]" if want == "array" else r"\{.*\}", txt, re.S)
     if not m:
-        raise RuntimeError("模型没有返回 JSON：%s" % r.stdout[:200])
+        raise RuntimeError("模型没有返回 JSON：%s" % txt[:200])
     return loads_lenient(m.group(0))
 
 
@@ -532,7 +585,10 @@ def main():
 
     json.dump(qs, open(os.path.join(a.workdir, "questions.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
-    print("── 公式识别 %s" % a.workdir)
+    bk = resolve_backend(None)
+    print("── 公式识别 %s（%s %s）"
+          % (a.workdir, {"subscription": "claude CLI", "doubao": "火山方舟直连"}[bk],
+             ARK_MODEL if bk == "doubao" else MODEL))
     print("   处理 %d 题（缓存 %d / 新识别 %d），跳过 %d，失败 %d"
           % (done, hit, miss, skip, fail))
 
