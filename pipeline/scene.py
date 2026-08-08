@@ -33,6 +33,7 @@ from concurrent.futures import ThreadPoolExecutor
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import store
+import scenegen        # 物理与读数面板由它从 spec 生成，agent 不再写
 import cliask       # claude 可执行文件的定位、以及子进程要带的代理，只写一份
 import clishim      # 让 CLI 走中转的 key 而不是订阅
 import arkshim      # 让 CLI 被豆包驱动（Anthropic↔OpenAI 协议翻译）
@@ -124,6 +125,56 @@ def resolve_backend(name):
 
 
 MODEL = os.environ.get("EXAM_SCENE_MODEL") or DEFAULT_MODEL[resolve_backend(BACKEND)]
+
+BRIEF_CODEGEN = """你要为一道物理题画一个动画场景。
+
+**物理不用你算。** spec 里的 `reference` 已经被预计算成数值表，`probe(u, caseId)`、
+读数面板、figcaption 全部由代码生成好了。你只画图。
+
+工作目录就是当前目录。**只允许写这两个文件**：
+
+    {id}.figure.html
+    {id}.draw.js
+
+规范见 {contract}（必读）。题目规格见 {spec}（**只读**）。
+
+{id}.figure.html
+----------------
+画物理场景本身：斜面、导轨、粒子、箭头、坐标轴……
+**必须留一个空的 `<g id="__panel__"></g>`** —— 读数面板由代码注入到那里。
+**{rect} 这块矩形是禁区**，别把任何东西画进去。
+figcaption 也由代码生成，你写什么都会被覆盖。
+
+{id}.draw.js
+------------
+只写这四样，**别的一律不许定义**：
+
+    var PERIOD = 4.0;                    // 一次完整过程播几秒。不写默认 6
+    var READOUTS = {readouts};           // 面板显示哪些量（可改，须是 probe_keys 的子集）
+    function drawFrame(ps, u, svg) {{ }} // ps 是 {{情形id: {{量名: 数值}}}}
+    function drawReset(svg) {{ }}        // 清掉轨迹之类的累积状态
+
+可用的量：{keys}
+
+**不许定义 probe / probeAll / updatePanel / render / T / N / CASES** ——
+那些是生成好的，你定义了会把它们覆盖掉，拼装时会当场失败。
+
+做法
+----
+1. 先读 CONTRACT.md 和 spec 的 `scene_requirements`。
+2. 画 figure.html，写 draw.js。
+3. 自己跑一遍：
+
+       {py} {build} {id} && {py} {verify} {id}
+
+   末行是 `VERDICT: PASS` 或 `FAIL`。**FAIL 就按报错改，改完再跑，直到 PASS。**
+
+铁律
+----
+- **不许修改 {spec}、不许修改 harness/ 下任何文件。** sha256 会被校验。
+- 不许把断言绕过去。L3.5 会检查画面确实动过、元素确实在画布内。
+- 版面规则（文字不许压文字）见 CONTRACT.md §1.5，那部分仍然归你负责。
+"""
 
 BRIEF = """你要为一道物理题实现一个可验证的动画场景。
 
@@ -271,7 +322,7 @@ def ark_call(msgs, model, timeout, prev_id=None):
     return txt, (d.get("usage") or {}), d.get("id")
 
 
-def ark_write(txt, workdir, sid):
+def ark_write(txt, workdir, sid, codegen=False):
     """
     把模型输出的 `===FILE …===` 段落落盘，返回写了哪些文件。
 
@@ -279,7 +330,8 @@ def ark_write(txt, workdir, sid):
     写盘的是我们 —— 所以「不许改 spec 和 harness」在这里不是靠嘱咐，
     也不是靠事后查哈希，而是**结构上就做不到**。这是它相对沙箱的一个真优势。
     """
-    allow = {sid + ".figure.html", sid + ".js"}
+    allow = ({sid + ".figure.html", sid + ".draw.js"} if codegen
+             else {sid + ".figure.html", sid + ".js"})
     wrote = []
     for name, body in re.findall(r"===FILE\s+(\S+?)===\n(.*?)(?=\n===FILE|\Z)", txt, re.S):
         name = os.path.basename(name.strip())
@@ -292,7 +344,7 @@ def ark_write(txt, workdir, sid):
     return wrote
 
 
-def ark_build(sid, spec, workdir, rounds, model, images, log):
+def ark_build(sid, spec, workdir, rounds, model, images, log, codegen=False):
     """
     方舟直连的实现循环。和沙箱那条路**判据完全一样**：绿灯只由 verify.py 的末行决定。
 
@@ -321,7 +373,7 @@ def ark_build(sid, spec, workdir, rounds, model, images, log):
         try:
             txt, usage, prev_id = ark_call(msgs, model, ROUND_TIMEOUT, prev_id)
         except Exception as e:
-            return False, "方舟调用失败：%s" % str(e)[:200], rd, sid
+            return False, "方舟调用失败：%s" % str(e)[:200], rd, sid, "codegen" if codegen else "agent"
         log("     %.0f 秒 · 输出 %s tok（推理 %s）"
             % (time.time() - t0, usage.get("output_tokens"),
                (usage.get("output_tokens_details") or {}).get("reasoning_tokens")))
@@ -330,19 +382,20 @@ def ark_build(sid, spec, workdir, rounds, model, images, log):
             # 续话靠 previous_response_id，所以只发新的这一句，不重发历史
             return [{"role": "user", "content": [{"type": "input_text", "text": text}]}]
 
-        wrote = ark_write(txt, workdir, sid)
+        wrote = ark_write(txt, workdir, sid, codegen)
         if len(wrote) < 2:
             log("     只写出 %s，本轮作废" % (wrote or "零个文件"))
             msgs = again("你没有按 ===FILE …=== 格式给全两个文件。重新完整输出两个文件。")
             continue
 
-        ok, out = verify(sid, workdir)
+        ok, out = verify(sid, workdir, codegen)
+        gen = "codegen" if codegen else "agent"
         if ok:
-            return True, out, rd, sid
+            return True, out, rd, sid, gen
         nfail, digest = fail_digest(out)
         log("     门禁 FAIL，%d 条不通过%s" % (nfail, ("：" + digest) if digest else ""))
         msgs = again(ARK_RETRY.format(report=out[-6000:]))
-    return False, out or "没有产出", rounds, sid
+    return False, out or "没有产出", rounds, sid, "codegen" if codegen else "agent"
 
 
 # 认证/计费失败的特征。撞上这些就不该再重试 —— 实测 302 余额耗尽那次，
@@ -378,11 +431,23 @@ def guard_snapshot():
     return out
 
 
-def verify(sid, workdir):
-    """跑门禁，返回 (是否通过, 输出)。这是唯一的判据。"""
+def verify(sid, workdir, codegen=False):
+    """
+    跑门禁，返回 (是否通过, 输出)。这是唯一的判据。
+
+    代码生成那条路**先自己跑一遍 build**，不采信 agent 有没有跑过 ——
+    它可能忘了、可能跑在别的目录、也可能改完 draw.js 就直接来问结果。
+    ⑥ 验的必须是拼装后的产物。
+    """
     py = os.path.join(ROOT, ".venv", "bin", "python")
-    r = subprocess.run([py if os.path.exists(py) else sys.executable,
-                        os.path.join(ROOT, "harness", "verify.py"), sid],
+    py = py if os.path.exists(py) else sys.executable
+    if codegen:
+        r0 = subprocess.run([py, os.path.join(ROOT, "harness", "build.py"), sid],
+                            cwd=workdir, capture_output=True, text=True, timeout=300)
+        if r0.returncode != 0:
+            return False, ((r0.stdout or "") + (r0.stderr or "")
+                           + "\n（拼装没过，门禁没跑）\nVERDICT: FAIL")
+    r = subprocess.run([py, os.path.join(ROOT, "harness", "verify.py"), sid],
                        cwd=workdir, capture_output=True, text=True, timeout=900)
     out = (r.stdout or "") + (r.stderr or "")
     return out.rstrip().endswith("VERDICT: PASS"), out
@@ -448,15 +513,40 @@ def build(sid, spec, rounds=6, model=MODEL, log=print, backend="relay", images=N
 
         before = guard_snapshot()
 
+    # 走不走代码生成，**在这里一次判死**。没有 reference 的 spec 退回原来的
+    # agent 流程 —— 硬跑的话它会在拼装那一步失败，白烧一轮
+    codegen, why = scenegen.can_codegen(spec)
+    if codegen and backend == "ark":
+        # 方舟那条路的提示词是把 CONTRACT.md 整个塞进消息里的，还在让模型写
+        # `<id>.js`。开了代码生成的话它产出的文件名会被 allow-list 丢掉，
+        # 白烧一轮。等那条路的提示词也改了再放开
+        codegen, why = False, "方舟后端的提示词还没跟着改，先走 agent 流程"
+    py = os.path.join(ROOT, ".venv", "bin", "python")
+    py = py if os.path.exists(py) else "python3"
+    if codegen:
+        sk = scenegen.skeleton(spec)
+        open(os.path.join(workdir, sid + ".skel.js"), "w", encoding="utf-8").write(sk["js"])
+        log("     代码生成：物理表 %.0f KB，读数 %s"
+            % (len(sk["js"]) / 1024.0, "、".join(sk["readouts"])))
+    else:
+        log("     退回 agent 流程：%s" % why)
+
     # 方舟那条路模型碰不到文件系统，写盘的是我们，篡改在结构上就不可能发生 ——
     # 所以它不用走下面那套「跑完比对哈希」的流程
     if backend == "ark":
-        return ark_build(sid, spec, workdir, rounds, model, images, log)
+        return ark_build(sid, spec, workdir, rounds, model, images, log, codegen)
 
-    py = os.path.join(ROOT, ".venv", "bin", "python")
-    brief = BRIEF.format(id=sid, contract=os.path.join(ROOT, "harness", "CONTRACT.md"),
-                         spec=spec_path, verify=os.path.join(ROOT, "harness", "verify.py"),
-                         py=py if os.path.exists(py) else "python3")
+    if codegen:
+        brief = BRIEF_CODEGEN.format(
+            id=sid, contract=os.path.join(ROOT, "harness", "CONTRACT.md"),
+            spec=spec_path, verify=os.path.join(ROOT, "harness", "verify.py"),
+            build=os.path.join(ROOT, "harness", "build.py"), py=py,
+            rect=json.dumps(sk["rect"]), readouts=json.dumps(sk["readouts"]),
+            keys="、".join(spec.get("probe_keys") or []))
+    else:
+        brief = BRIEF.format(id=sid, contract=os.path.join(ROOT, "harness", "CONTRACT.md"),
+                             spec=spec_path,
+                             verify=os.path.join(ROOT, "harness", "verify.py"), py=py)
 
     msg = brief
     for rd in range(1, rounds + 1):
@@ -465,8 +555,10 @@ def build(sid, spec, rounds=6, model=MODEL, log=print, backend="relay", images=N
             out_txt = run_agent(msg, workdir, model, ROUND_TIMEOUT, backend)
         except subprocess.TimeoutExpired:
             log("     第 %d 轮超时 %d 分钟，已终止整个进程组" % (rd, ROUND_TIMEOUT // 60))
-            if not os.path.exists(os.path.join(workdir, sid + ".js")):
-                return False, "沙箱跑了 %d 分钟没写出任何文件，判为卡死" % (ROUND_TIMEOUT // 60), rd, sid
+            made = sid + (".draw.js" if codegen else ".js")
+            if not os.path.exists(os.path.join(workdir, made)):
+                return (False, "沙箱跑了 %d 分钟没写出任何文件，判为卡死"
+                        % (ROUND_TIMEOUT // 60), rd, sid, "codegen" if codegen else "agent")
             out_txt = ""
         tail = (out_txt or "").strip().splitlines()[-1:] or [""]
         log("     agent: %s" % tail[0][:120])
@@ -476,22 +568,23 @@ def build(sid, spec, rounds=6, model=MODEL, log=print, backend="relay", images=N
         if why:
             return (False, "后端认证/计费失败（%s）—— 不是实现的问题。"
                            "换 EXAM_SCENE_BACKEND（subscription / ark）或给中转充值" % why,
-                    rd, sid)
+                    rd, sid, "codegen" if codegen else "agent")
 
         # 篡改检查先于结果判定：改过 spec 或门禁的话，这一轮的绿灯不作数
         after = guard_snapshot()
         tampered = [k for k in before if before[k] != after.get(k)]
         if tampered:
-            return False, "沙箱改动了只读文件 %s —— 这一轮作废" % tampered, rd, sid
+            return (False, "沙箱改动了只读文件 %s —— 这一轮作废" % tampered, rd, sid, "codegen" if codegen else "agent")
 
-        ok, out = verify(sid, workdir)
+        ok, out = verify(sid, workdir, codegen)
+        gen = "codegen" if codegen else "agent"
         if ok:
-            return True, out, rd, sid
+            return True, out, rd, sid, gen
         nfail, digest = fail_digest(out)
         log("     门禁 FAIL，%d 条不通过%s" % (nfail, ("：" + digest) if digest else ""))
         msg = ("上一轮门禁没过。**不要修改 spec 或 harness，改你自己的实现。**\n"
                "完整报告如下，按里面的层级和 id 逐条修：\n\n" + out[-6000:])
-    return False, out, rounds, sid
+    return False, out, rounds, sid, ("codegen" if codegen else "agent")
 
 
 def main():
@@ -588,8 +681,8 @@ def main():
         # 没图就只能靠题干文字猜杆是朝上还是朝下 —— 那是会画反的
         imgs = [os.path.join(ROOT, "work", name, f) for f in (q.get("figures") or [])]
         try:
-            passed, out, rd, sid = build(sid, row["spec"], a.rounds, model,
-                                         log=emit, backend=backend, images=imgs)
+            passed, out, rd, sid, gen = build(sid, row["spec"], a.rounds, model,
+                                              log=emit, backend=backend, images=imgs)
         except Exception as e:
             # 崩了也要留一行「试过」。不留的话进度里的 sceneTried 永远追不上
             # ready，⑤ 那一步会永远显示在跑 —— 卷子早停了也一样
@@ -598,7 +691,7 @@ def main():
                 fail += 1
                 print("   ✗ 第%2d题 %s" % (q["n"], str(e)[:160]), flush=True)
             return
-        store.put_scene(q["id"], sid, rd, passed)
+        store.put_scene(q["id"], sid, rd, passed, gen=gen)
         with lock:
             if passed:
                 ok += 1

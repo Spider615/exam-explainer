@@ -1,11 +1,46 @@
-# 场景契约 v2（含 probe 物理探针）
+# 场景契约 v3（物理与读数面板由代码生成）
 
-你要产出**两个文件**，放在你的工作目录下：
+**两条路，看你收到的说明书是哪一份。**
+
+## A. 代码生成（spec 有 `reference` 时走这条）
+
+你产出**两个文件**：
 
 ```
-<id>.figure.html    只含一个 <figure>…</figure>
+<id>.figure.html    只含一个 <figure>…</figure>，且**必须留一个空的 <g id="__panel__"></g>**
+<id>.draw.js        只准定义 PERIOD / READOUTS / drawFrame / drawReset 四样
+```
+
+`probe(u, caseId)`、读数面板、`figcaption` **全部由 `pipeline/scenegen.py` 从 spec
+预计算生成**，你不写、也写不了 —— 在 `draw.js` 里定义 `probe` / `probeAll` /
+`updatePanel` / `render` / `T` / `N` / `CASES` 会被 `build.py` 当场挡下。
+
+理由：spec 的 `reference` 已经被 ④b 用 `invariants` 验过。让你用 JS 再实现一遍，
+只会引入错误 —— 实测门禁失败 47 次里 34 次是这么来的。
+
+```js
+var PERIOD = 4.0;                      // 一次完整过程播几秒。不写默认 6
+var READOUTS = ["v", "x"];             // 面板显示哪些量，须是 probe_keys 的子集
+function drawFrame(ps, u, svg) { }     // ps = {情形id: {量名: 数值}}
+function drawReset(svg) { }            // 清掉轨迹之类的累积状态
+```
+
+- **`ps` 按情形分组**。spec 里有几个 `cases` 就有几个键；单情形取第一个即可。
+- `drawFrame` 与 `drawReset` **同处一个作用域**，轨迹数组之类的闭包状态两边都能访问。
+- 说明书里会给出**读数面板占的矩形**，那块是禁区，别画进去。
+
+## B. 老路（spec 没有 `reference` 时）
+
+你产出：
+
+```
+<id>.figure.html
 <id>.js             只含一个 window.Scenes["<id>"] = function(fig){…}
 ```
+
+`probe` 由你自己实现，见 §3。
+
+---
 
 `<id>` 由 spec 的 `id` 字段给出。
 
@@ -188,8 +223,15 @@ probe: function (u, caseId) {
 在工作目录运行：
 
 ```
+# A 代码生成那条路：先拼装再验。拼装会把面板与 figcaption 注入 figure，
+# 并把骨架和你的 draw.js 合成最终的 <id>.js
+python3 ../../harness/build.py <id> && python3 ../../harness/verify.py <id>
+
+# B 老路
 python3 ../../harness/verify.py <id>
 ```
+
+**⑥ 验的是拼装后的产物。** 面板那些 id 只在拼装之后才存在，先验后拼一定报错。
 
 它会依次跑：**静态门禁 → 无头浏览器加载 → 渲染覆盖 → 版面 → 逐 case 采样 probe → 逐条断言**，
 输出机器可读的报告，最后一行是 `VERDICT: PASS` 或 `VERDICT: FAIL`。

@@ -1047,7 +1047,7 @@ def picked(name):
         return {r[0] for r in cur.fetchall()}
 
 
-def put_scene(qid, sid, rounds, passed):
+def put_scene(qid, sid, rounds, passed, gen="agent"):
     """
     ⑤ 的产出。**失败不许覆盖成功** —— 这是 WHERE 那一行的全部意义。
 
@@ -1064,18 +1064,21 @@ def put_scene(qid, sid, rounds, passed):
     这跟下面 put_scene_attempt 的 DO NOTHING 是同一个直觉，只是那条管的是
     「⑤ 抛异常」，这条管的是「跑满轮数仍未通过」—— 两条路都能抹掉好结果。
 
+    `gen` 记这个场景是哪套流程产的（agent / codegen）。两套并存期间出了问题
+    要分得清是谁的锅 —— 默认 'agent'，不传时老行为一个字不变。
+
     **被换下来的那个不记在库里。** 试过记一列 `prev_scene_id` 做「换回上一个」，
     但它只存一级、连跑两次就被覆盖，而真正兜底的是 `runs/<id>/` 里的文件和
     git —— 那两样删不掉。为一个够不着的退路留一列和一堆代码不划算。
     """
     with connect() as c:
-        c.execute("""INSERT INTO scenes (question_id, scene_id, rounds, passed)
-                     VALUES (%s,%s,%s,%s)
+        c.execute("""INSERT INTO scenes (question_id, scene_id, rounds, passed, gen)
+                     VALUES (%s,%s,%s,%s,%s)
                      ON CONFLICT (question_id) DO UPDATE SET
                        scene_id=EXCLUDED.scene_id, rounds=EXCLUDED.rounds,
-                       passed=EXCLUDED.passed, created_at=now()
+                       passed=EXCLUDED.passed, gen=EXCLUDED.gen, created_at=now()
                      WHERE EXCLUDED.passed OR NOT scenes.passed""",
-                  (qid, sid, rounds, passed))
+                  (qid, sid, rounds, passed, gen))
         c.commit()
 
 

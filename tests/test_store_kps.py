@@ -70,3 +70,37 @@ def test_野的src当场拒绝(db, tmp_path):
         assert "paper/answer_file/none" in str(e)
     else:
         raise AssertionError("野的 src 应该当场抛，不能悄悄写进库")
+
+
+def test_场景默认记成agent流程(db, tmp_path):
+    """不传 gen 时老行为一个字不变"""
+    work = _make_work(tmp_path, "gen卷A")
+    store.publish(work, name="gen卷A")
+    qid = store.get_paper("gen卷A")["questions"][0]["id"]
+    store.put_scene(qid, "s1", 1, True)
+    with store.connect() as c:
+        assert c.execute("SELECT gen FROM scenes WHERE question_id=%s",
+                         (qid,)).fetchone()[0] == "agent"
+
+
+def test_场景能记成codegen流程(db, tmp_path):
+    work = _make_work(tmp_path, "gen卷B")
+    store.publish(work, name="gen卷B")
+    qid = store.get_paper("gen卷B")["questions"][0]["id"]
+    store.put_scene(qid, "s2", 1, True, gen="codegen")
+    with store.connect() as c:
+        assert c.execute("SELECT gen FROM scenes WHERE question_id=%s",
+                         (qid,)).fetchone()[0] == "codegen"
+
+
+def test_失败不许覆盖成功这条仍然成立(db, tmp_path):
+    """加了一列不能把这条规则弄坏"""
+    work = _make_work(tmp_path, "gen卷C")
+    store.publish(work, name="gen卷C")
+    qid = store.get_paper("gen卷C")["questions"][0]["id"]
+    store.put_scene(qid, "good", 1, True, gen="agent")
+    store.put_scene(qid, "bad", 6, False, gen="codegen")
+    with store.connect() as c:
+        r = c.execute("SELECT scene_id, gen FROM scenes WHERE question_id=%s",
+                      (qid,)).fetchone()
+    assert r == ("good", "agent"), "失败的 codegen 把成功的 agent 覆盖掉了"

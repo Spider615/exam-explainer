@@ -318,3 +318,9 @@ ALTER TABLE papers ADD COLUMN IF NOT EXISTS source_kind text NOT NULL DEFAULT 'p
 -- 分两列而不是一列：判对错拿前者，「怎么提升」展示后者，混在一起两边都不好用。
 -- 实测：参考答案只有大题有详解，选择填空这一列多半是 NULL，那是常态不是缺陷
 ALTER TABLE questions ADD COLUMN IF NOT EXISTS ref_solution text;
+
+-- 这个场景是哪套流程产的：
+--   agent    模型自己写 figure.html + js（含物理）
+--   codegen  物理与读数面板由 pipeline/scenegen.py 生成，模型只写 draw.js
+-- 两套并存期间出了问题要分得清是谁的锅
+ALTER TABLE scenes ADD COLUMN IF NOT EXISTS gen text NOT NULL DEFAULT 'agent';
