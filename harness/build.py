@@ -79,11 +79,27 @@ def _declared_period(draw):
 
 
 def _forbidden_defs(draw):
-    """agent 有没有定义/赋值那些属于骨架的名字。"""
+    """
+    agent 有没有定义/赋值那些属于骨架的名字。
+
+    四种写法都要认，**少认一种就等于没有这道门**：
+
+        function probe(...)        函数声明
+        var probe = ...            变量声明
+        probe = ...                裸赋值（隐式全局）
+        window.probe = ...         挂到全局对象上 ← 对抗测试抓到的漏网
+
+    最后一种尤其阴：骨架里 `probe` 是闭包里的局部变量，`window.probe` 覆盖不了它，
+    但 agent 会以为自己接管了物理，然后画出一套跟 probe 不一致的东西 ——
+    L4 仍然过（它跑的是真 probe），画面却是错的。**这正是最难发现的那类错。**
+    """
     hit = []
     for name in FORBIDDEN:
-        pat = (r"(?:\bfunction\s+%s\s*\(|\bvar\s+%s\b|(?:^|\n)\s*%s\s*=[^=])"
-               % (name, name, name))
+        pat = (r"(?:\bfunction\s+%s\s*\("
+               r"|\bvar\s+%s\b"
+               r"|(?:^|[\n;{}])\s*%s\s*=[^=]"
+               r"|\b(?:window|globalThis|self)\s*[.\[]\s*['\"]?%s\b)"
+               % (name, name, name, name))
         if re.search(pat, draw):
             hit.append(name)
     return hit

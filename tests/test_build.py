@@ -178,3 +178,68 @@ def test_跑三次面板也只有一份(tmp_path):
     fig = open(os.path.join(wd, "t1.figure.html"), encoding="utf-8").read()
     assert fig.count('id="t1-ro-x"') == 1
     assert fig.count("当前位移x的数值") == 1
+
+
+# ---------------------------------------------------------------- 对抗：想绕过骨架
+def test_换个写法定义probe也要挡住(tmp_path):
+    """agent 未必用 function probe(){} 这一种写法"""
+    tries = [
+        "var probe = function (u, c) { return {}; };",
+        "probe = function (u, c) { return {}; };",
+        "window.probe = function (u, c) { return {}; };",
+        "var T = {c1:{x:[0,1]}};",
+        "N = 999;",
+        "CASES = ['zzz'];",
+    ]
+    for extra in tries:
+        wd = _wd(tmp_path, draw=DRAW + "\n" + extra + "\n")
+        probs = build.assemble(wd, "t1", FULL)
+        assert probs, "没挡住：%s" % extra
+
+
+def test_draw语法错要在拼装后被门禁抓到(tmp_path):
+    """build 只做文本检查，语法错由 node --check 抓。拼出来的文件必须是坏的、
+    而不是被 build 悄悄修好"""
+    wd = _wd(tmp_path, draw=DRAW + "\nfunction bad( {\n")
+    probs = build.assemble(wd, "t1", FULL)
+    if probs:
+        return                       # build 直接挡住也算合格
+    r = subprocess.run(["node", "--check", os.path.join(wd, "t1.js")],
+                       capture_output=True, text=True)
+    assert r.returncode != 0, "语法错的 draw.js 拼出来居然能过 node --check"
+
+
+def test_READOUTS用单引号也认(tmp_path):
+    wd = _wd(tmp_path, draw=DRAW.replace('["x"]', "['x']"))
+    assert build.assemble(wd, "t1", FULL) == []
+
+
+def test_READOUTS空数组时退回自动挑(tmp_path):
+    wd = _wd(tmp_path, draw=DRAW.replace('["x"]', "[]"))
+    assert build.assemble(wd, "t1", FULL) == []
+    fig = open(os.path.join(wd, "t1.figure.html"), encoding="utf-8").read()
+    assert "-ro-" in fig, "空 READOUTS 应该退回自动挑，而不是一行读数都不给"
+
+
+def test_面板占位符写成自闭合也认(tmp_path):
+    wd = _wd(tmp_path, fig=FIG.replace('<g id="t1-panel"></g>', '<g id="t1-panel"/>'))
+    assert build.assemble(wd, "t1", FULL) == []
+
+
+def test_figure里已有面板内容会被换掉而不是叠加(tmp_path):
+    """上一轮注入过、这一轮 agent 又改了 figure 的情形"""
+    dirty = FIG.replace('<g id="t1-panel"></g>',
+                        '<g id="t1-panel"><text id="t1-ro-x">旧的</text></g>')
+    wd = _wd(tmp_path, fig=dirty)
+    assert build.assemble(wd, "t1", FULL) == []
+    fig = open(os.path.join(wd, "t1.figure.html"), encoding="utf-8").read()
+    assert fig.count('id="t1-ro-x"') == 1 and "旧的" not in fig
+
+
+def test_有问题时不许写出半成品(tmp_path):
+    """半成品会让下一轮的门禁报一堆与病因无关的错"""
+    wd = _wd(tmp_path, draw=DRAW.replace("function drawReset", "function nope"))
+    before = open(os.path.join(wd, "t1.figure.html"), encoding="utf-8").read()
+    assert build.assemble(wd, "t1", FULL)
+    assert not os.path.exists(os.path.join(wd, "t1.js")), "失败了还是写出了 t1.js"
+    assert open(os.path.join(wd, "t1.figure.html"), encoding="utf-8").read() == before
