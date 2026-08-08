@@ -1,0 +1,149 @@
+{
+ "id": "q1-cg1",
+ "stem": "矫正牙齿时，牵引线对牙齿施加两个大小均为F、夹角为α的力。求两牵引力的合力大小（结果应为α的通用表达式，而非某个固定数值）。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "夹角α从0连续增大到π，展示合力大小2F·cos(α/2)"
+  }
+ ],
+ "title": "牙齿牵引线两等大力的合力随夹角变化",
+ "units": "力：以F为单位（归一化F=1，无量纲）；角度：弧度，α∈[0,π]；u为无量纲的过程进度",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。动画通过让夹角α在过程中从0连续增大到π来展示平行四边形定则给出的合力公式，而非展示题目原图中固定的某一夹角。",
+  "equations": [
+   "alpha = pi * u",
+   "Fx1 = F*cos(alpha/2), Fy1 = F*sin(alpha/2)",
+   "Fx2 = F*cos(alpha/2), Fy2 = -F*sin(alpha/2)",
+   "Fx = Fx1 + Fx2, Fy = Fy1 + Fy2",
+   "Fres = sqrt(Fx*Fx + Fy*Fy)",
+   "Fres_formula = 2*F*cos(alpha/2)"
+  ],
+  "definitions": [
+   "α：两牵引力之间的夹角（弧度）",
+   "F：单个牵引力的大小（归一化为1）",
+   "(Fx1,Fy1),(Fx2,Fy2)：两个牵引力沿x、y方向的分量，取其角平分线为x轴对称放置",
+   "(Fx,Fy)：两力的矢量和（合力）的分量",
+   "Fres：由分量矢量和算出的合力大小 sqrt(Fx^2+Fy^2)",
+   "Fres_formula：直接用平行四边形定则解析公式算出的合力大小 2F·cos(α/2)，二者理论上应处处相等"
+  ],
+  "given_facts": [
+   "F1 · 两牵引力大小均为F",
+   "F2 · 两牵引力夹角为α，动画中令α随过程从0线性增大到π以展示通用规律",
+   "F3 · 由平行四边形定则/矢量和，任意α下合力大小为2F·cos(α/2)（选项B）",
+   "F4 · α=0（两力同向）时合力最大为2F；α=π（两力反向）时合力为0"
+  ],
+  "normalization": "取单个牵引力大小 F=1 为归一化单位；角度α以弧度为单位，α∈[0,π]",
+  "free_parameters": ""
+ },
+ "constants": {},
+ "reference": "def probe(u, case):\n    F = 1.0\n    alpha = pi * u\n    Fx1 = F * cos(alpha / 2)\n    Fy1 = F * sin(alpha / 2)\n    Fx2 = F * cos(alpha / 2)\n    Fy2 = -F * sin(alpha / 2)\n    Fx = Fx1 + Fx2\n    Fy = Fy1 + Fy2\n    Fres = sqrt(Fx * Fx + Fy * Fy)\n    Fres_formula = 2 * F * cos(alpha / 2)\n    return {\n        \"u\": u,\n        \"alpha\": alpha,\n        \"F\": F,\n        \"Fx1\": Fx1,\n        \"Fy1\": Fy1,\n        \"Fx2\": Fx2,\n        \"Fy2\": Fy2,\n        \"Fx\": Fx,\n        \"Fy\": Fy,\n        \"Fres\": Fres,\n        \"Fres_formula\": Fres_formula,\n    }",
+ "invariants": [
+  {
+   "id": "c1-endpoint-max",
+   "why": "对应F4：α=0时合力应为2F",
+   "case": "c1",
+   "expr": "abs(Fres[0] - 2.0*F[0]) <= 0.02",
+   "report": "Fres[0]"
+  },
+  {
+   "id": "c1-endpoint-zero",
+   "why": "对应F4：α=π时合力应为0",
+   "case": "c1",
+   "expr": "abs(Fres[-1]) <= 0.02",
+   "report": "Fres[-1]"
+  },
+  {
+   "id": "c1-monotonic",
+   "why": "对应F3：2F·cos(α/2)在α∈[0,π]上单调不增，合力大小随α增大应单调不增",
+   "case": "c1",
+   "expr": "max(diff(Fres)) <= 1e-9",
+   "report": "max(diff(Fres))"
+  },
+  {
+   "id": "c1-vector-sum-consistency",
+   "why": "对应F3：Fres必须真的是由展示在画面上的两个力矢量分量矢量相加得到，而非独立算出的数值",
+   "case": "c1",
+   "expr": "max(abs(Fres - sqrt(Fx*Fx + Fy*Fy))) <= 0.02",
+   "report": "max(abs(Fres - sqrt(Fx*Fx+Fy*Fy)))"
+  },
+  {
+   "id": "c1-formula-match",
+   "why": "对应F3：矢量合成得到的Fres必须与解析公式2F·cos(α/2)算出的Fres_formula一致，这正是选项B成立的关键",
+   "case": "c1",
+   "expr": "max(abs(Fres - Fres_formula)) <= 0.02",
+   "report": "max(abs(Fres - Fres_formula))"
+  },
+  {
+   "id": "c1-dot-product-alpha",
+   "why": "对应F2：两力矢量之间的夹角必须真的等于alpha，用两力点积反算夹角余弦应与cos(alpha)一致",
+   "case": "c1",
+   "expr": "max(abs((Fx1*Fx2 + Fy1*Fy2) - F*F*cos(alpha))) <= 0.02",
+   "report": "max(abs((Fx1*Fx2+Fy1*Fy2) - F*F*cos(alpha)))"
+  },
+  {
+   "id": "c1-force1-magnitude",
+   "why": "对应F1：力1的大小在整个过程中必须恒为F",
+   "case": "c1",
+   "expr": "max(abs(sqrt(Fx1*Fx1 + Fy1*Fy1) - F)) <= 0.02",
+   "report": "max(abs(sqrt(Fx1*Fx1+Fy1*Fy1) - F))"
+  },
+  {
+   "id": "c1-force2-magnitude",
+   "why": "对应F1：力2的大小在整个过程中必须恒为F",
+   "case": "c1",
+   "expr": "max(abs(sqrt(Fx2*Fx2 + Fy2*Fy2) - F)) <= 0.02",
+   "report": "max(abs(sqrt(Fx2*Fx2+Fy2*Fy2) - F))"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "alpha",
+  "F",
+  "Fx1",
+  "Fy1",
+  "Fx2",
+  "Fy2",
+  "Fx",
+  "Fy",
+  "Fres",
+  "Fres_formula"
+ ],
+ "disclosures": [
+  {
+   "why": "α是决定合力大小的关键无量纲/几何参数，必须让观察者能对照α与合力变化，对应F2、F3",
+   "must_contain": "当前夹角α的数值（弧度或角度）"
+  },
+  {
+   "why": "确保观众理解合力数值是以单个牵引力F为单位表示的，对应F1",
+   "must_contain": "F=1（归一化）的标注"
+  },
+  {
+   "why": "题目为选择题，需在画面上明确展示该公式即为正确结论，对应F3",
+   "must_contain": "公式2F·cos(α/2)及对应选项B的标注"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "F": "单个牵引力大小，归一化为1（常数）",
+  "u": "归一化过程进度，等于传入的u",
+  "Fx": "合力x分量 = Fx1+Fx2",
+  "Fy": "合力y分量 = Fy1+Fy2",
+  "Fx1": "力1沿x轴分量",
+  "Fx2": "力2沿x轴分量",
+  "Fy1": "力1沿y轴分量",
+  "Fy2": "力2沿y轴分量",
+  "Fres": "由矢量分量算出的合力大小 sqrt(Fx^2+Fy^2)",
+  "alpha": "两牵引力夹角，alpha = pi*u（弧度）",
+  "Fres_formula": "由解析公式2F·cos(α/2)直接算出的合力大小"
+ },
+ "process_endpoints": "u=0对应α=0（两牵引力方向重合，合力最大为2F）；u=1对应α=π（两牵引力方向相反，合力为0）",
+ "scene_requirements": [
+  "画面中心一颗牙齿（或抽象为一点），两条牵引线从该点引出，夹角为α",
+  "两条牵引线上各画一个大小为F的力矢量箭头",
+  "随着动画推进（u从0到1），α从0连续增大到π，力矢量箭头随之张开",
+  "叠加画出合力矢量（平行四边形对角线方向），并实时显示其大小Fres",
+  "画面标注当前α的数值（弧度或角度）以及归一化的F=1",
+  "画面显示解析公式 2F·cos(α/2) 及其数值Fres_formula，与矢量合成得到的Fres对照，标出正确选项B"
+ ]
+}
