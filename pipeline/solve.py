@@ -60,9 +60,16 @@ MODEL = os.environ.get("EXAM_SOLVE_MODEL", "claude-sonnet-5")
 # 图里真有信息时它认得出来，这正是这条链最怕的失败模式（错得看不出来），它没犯。
 # 于是六成的题不必动视觉模型，而视觉模型每题贵 50 倍。
 BACKEND = os.environ.get("EXAM_SOLVE_BACKEND", "deepseek-first")
-DS_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
-DS_BASE = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-DS_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-pro")
+# 盲试那一级的端点。`DEEPSEEK_*` 是**五处共用**的（③ 解题、③b 目录、
+# ③c 知识点、④c 选题、② 的 LLM 兜底），后三处早就各有各的覆盖变量，只有 ③ 没有
+# —— 于是想给 ③ 换个端点，只能去动全局，把另外四步一起拖下水。
+# 而 ③ 恰恰最不该跟着别人走：**它的答案会被 ④ 冻成物理断言**，换脑子的影响
+# 一路传到动画，而且是静默的。命名跟隔壁三个模块一致，不另造一套。
+DS_KEY = os.environ.get("EXAM_SOLVE_KEY") or os.environ.get("DEEPSEEK_API_KEY", "")
+DS_BASE = os.environ.get("EXAM_SOLVE_BASE") or os.environ.get(
+    "DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+DS_MODEL = os.environ.get("EXAM_SOLVE_MODEL") or os.environ.get(
+    "DEEPSEEK_MODEL", "deepseek-v4-pro")
 ARK_KEY = os.environ.get("ARK_API_KEY", "")
 ARK_BASE = os.environ.get("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
 ARK_MODEL = os.environ.get("ARK_VISION_MODEL", "doubao-seed-2-0-pro-260215")
@@ -116,6 +123,10 @@ PROMPT = """你是高考物理阅卷组的老师。下面是一道题，可能�
   unreadable 非空时 confidence 不得为 high。
 - 只有你确信解法与答案都对时才写 high。拿不准就 medium 或 low ——
   下游会按 confidence 决定要不要进人工队列。
+- **表达式一律写成 `$…$` 包起来的 LaTeX**：`$\\sqrt{\\dfrac{2ah}{\\cos\\theta}}$`、
+  `$\\dfrac{4mv_0^2}{R}$`。不要用 `sqrt(...)`、`v0^2` 这种 ASCII 写法，
+  也不要写不带 `$` 的裸 LaTeX。answer / steps / key_facts 都是。
+  选择题的 answer 仍然只填字母，不要包 `$`。
 """
 
 
@@ -210,6 +221,16 @@ def post(base, key, payload):
                 raise
             time.sleep(3)
     raise last
+
+
+def blind_banner(base, model):
+    """
+    盲试这一级用的是谁。跑完那行要写出来 ——「跑完都不知道钱记在哪边」
+    这件事在 ⑤ 上踩过，而 ③ 是整条链里唯一决定答案对错的一步，更该说清楚。
+    """
+    where = "火山方舟" if "volces.com" in base else \
+            "DeepSeek 官方" if "api.deepseek.com" in base else base
+    return "%s %s" % (where, model)
 
 
 def ask_deepseek(text):
@@ -526,7 +547,8 @@ def main():
     fail = sum(1 for r in res if r[1] == "fail")
 
     vis = ARK_MODEL if VISION == "doubao" else CL_MODEL
-    used = ("%s → %s" % (DS_MODEL, vis)) if BACKEND == "deepseek-first" else MODEL
+    used = ("%s → %s" % (blind_banner(DS_BASE, DS_MODEL), vis)) \
+        if BACKEND == "deepseek-first" else MODEL
     print("── 解题 %s（%s，%d 路并行）" % (name, used, a.jobs))
     print("   新解 %d 题，跳过 %d（题面未变），失败 %d，耗时 %.0f 分钟"
           % (done, skip, fail, (time.time() - t0) / 60))

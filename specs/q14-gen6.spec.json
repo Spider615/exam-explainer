@@ -1,0 +1,200 @@
+{
+ "id": "q14-gen6",
+ "stem": "内半径为2r、长为L的圆筒，左右端面圆心O'、O各开小孔。以O为原点，O'O方向为x轴正方向。筒内x≤0区域有匀强磁场B沿x轴正方向；筒外x≥0区域有匀强电场E沿y轴正方向。电子枪在O'处向筒内多个方向发射电子，初速度方向均在xOy平面内，且在x轴正方向的分速度大小均为v0。电子质量为m、电量e，始终未与筒壁碰撞，不计相互作用和重力。求：(1)所有电子均能经过O进入电场时B的最小值；(2)取最小B，若进入磁场中电子速度方向与x轴正方向最大夹角为θ，求|tanθ|；(3)取最小B，求电子在电场中y轴正方向最大位移。",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "最大夹角电子（初始 vy = v0 tanθ = 2πr/L）"
+  }
+ ],
+ "title": "圆筒中电子在磁场和电场中的运动",
+ "units": "所有物理量无量纲化：长度以 L 为单位，速度以 v0 为单位，时间以 L/v0 为单位，质量以 m 为单位，电荷以 e 为单位，磁感应强度以 m v0/(e L) 为单位，电场强度以 m v0^2/(e L) 为单位。",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。 已取 L=1, v0=1, m=1, e=1, r=0.1, E=1。",
+  "equations": [
+   "磁场中：x = v0 t；横向运动满足 y = (v_y0/ω) sin(ωt), z = (v_y0/ω)(1 - cos(ωt))，其中 ω = eB/m。",
+   "从 O' 到 O 的条件：t = L/v0，且 ω t = 2π（最小 B 取 n=1），得 B_min = 2π m v0/(e L)。",
+   "不碰壁条件：2R ≤ 2r，即 v_y0 ≤ 2π r v0 / L，故 tanθ = v_y0/v0 = 2πr/L。",
+   "电场中：a_y = -eE/m，v_y = v_y0 - (eE/m)(t - L/v0)，y = v_y0(t-L/v0) - (1/2)(eE/m)(t-L/v0)^2。令 v_y=0 得 y_max = v_y0^2 m/(2eE) = 2π^2 m r^2 v0^2/(e E L^2)。"
+  ],
+  "definitions": [
+   "ω = eB/m 为回旋角频率",
+   "R = v_y0/ω 为横向回旋半径",
+   "tanθ = v_y0/v0 为最大夹角正切",
+   "y_max 为电场中最大 y 位移"
+  ],
+  "given_facts": [
+   "F1: 磁场中回旋周期 T = 2πm/(eB)",
+   "F2: 从 O' 到 O 的时间 t = L/v0，且 t = T（最小 B 时 n=1）",
+   "F3: 最小 B 满足 B_min = 2π m v0/(e L)",
+   "F4: 不碰壁条件给出 v_y0_max = 2π r v0 / L，因此 tanθ = 2πr/L",
+   "F5: 电场中最大 y 位移 y_max = 2π^2 m r^2 v0^2/(e E L^2)"
+  ],
+  "normalization": "取 L=1, v0=1, m=1, e=1；时间单位 L/v0=1，磁感应强度单位 m v0/(e L)。",
+  "free_parameters": "无"
+ },
+ "constants": {
+  "E": 1,
+  "L": 1,
+  "e": 1,
+  "m": 1,
+  "r": 0.1,
+  "v0": 1
+ },
+ "reference": "def probe(u, case):\n    L = 1.0\n    v0 = 1.0\n    m = 1.0\n    e = 1.0\n    r = 0.1\n    E = 1.0\n\n    B_mag = 2 * pi\n    vy0 = 2 * pi * r / L          # 0.2*pi\n    T_mag = L / v0               # 1\n    T_elec = vy0 / (E * e / m)   # 0.2*pi\n    T_total = T_mag + T_elec     # 1 + 0.2*pi\n\n    t = u * T_total\n\n    if t <= T_mag:\n        omega = B_mag\n        x = v0 * t\n        y = (vy0 / omega) * sin(omega * t)\n        z = (vy0 / omega) * (1 - cos(omega * t))\n        vx = v0\n        vy = vy0 * cos(omega * t)\n        vz = vy0 * sin(omega * t)\n        ax = 0.0\n        ay = -omega * vz\n        az = omega * vy\n        B = B_mag\n        E_field = 0.0\n    else:\n        dt = t - T_mag\n        x = 1.0 + v0 * dt\n        y = vy0 * dt - 0.5 * (E * e / m) * dt * dt\n        z = 0.0\n        vx = v0\n        vy = vy0 - (E * e / m) * dt\n        vz = 0.0\n        ax = 0.0\n        ay = -(E * e / m)\n        az = 0.0\n        B = 0.0\n        E_field = E\n\n    return {\n        \"u\": u,\n        \"t\": t,\n        \"x\": x,\n        \"y\": y,\n        \"z\": z,\n        \"vx\": vx,\n        \"vy\": vy,\n        \"vz\": vz,\n        \"ax\": ax,\n        \"ay\": ay,\n        \"az\": az,\n        \"B\": B,\n        \"E\": E_field,\n        \"L\": L,\n        \"r\": r,\n        \"v0\": v0,\n        \"m\": m,\n        \"e\": e\n    }",
+ "invariants": [
+  {
+   "id": "c1-y-final",
+   "why": "对应 F5：电场中最大 y 位移公式代入参数得 y_max=0.02π^2",
+   "case": "c1",
+   "expr": "abs(y[-1] - 0.02*pi*pi) <= 0.004",
+   "report": "y[-1]"
+  },
+  {
+   "id": "c1-vy-final",
+   "why": "对应 F5：最大位移处 vy=0",
+   "case": "c1",
+   "expr": "abs(vy[-1]) <= 0.01",
+   "report": "vy[-1]"
+  },
+  {
+   "id": "c1-vx-final",
+   "why": "电场中 x 方向不受力，vx 恒为 v0=1",
+   "case": "c1",
+   "expr": "abs(vx[-1] - 1) <= 0.001",
+   "report": "vx[-1]"
+  },
+  {
+   "id": "c1-vy-init",
+   "why": "对应 F4：最大夹角电子的初始 vy = v0 tanθ = 2πr/L = 0.2π",
+   "case": "c1",
+   "expr": "abs(vy[0] - 0.2*pi) <= 0.005",
+   "report": "vy[0]"
+  },
+  {
+   "id": "c1-B-min",
+   "why": "对应 F3：最小磁感应强度 B_min = 2π m v0/(e L) = 2π",
+   "case": "c1",
+   "expr": "abs(B[0] - 2*pi) <= 0.05",
+   "report": "B[0]"
+  },
+  {
+   "id": "c1-x-monotone",
+   "why": "整个过程中 vx = v0 > 0，x 必须单调递增",
+   "case": "c1",
+   "expr": "min(diff(x)) >= -0.001",
+   "report": "min(diff(x))"
+  },
+  {
+   "id": "c1-vx-const",
+   "why": "x 方向不受力，vx 恒为常数",
+   "case": "c1",
+   "expr": "max(abs(diff(vx))) <= 0.001",
+   "report": "max(abs(diff(vx)))"
+  },
+  {
+   "id": "c1-dx-self",
+   "why": "vx = dx/dt 的数值一致性，属于物理量自洽",
+   "case": "c1",
+   "expr": "max(abs(diff(x) - vx[:-1]*diff(t))) <= 0.002",
+   "report": "max(abs(diff(x)-vx[:-1]*diff(t)))"
+  },
+  {
+   "id": "c1-dy-self",
+   "why": "vy = dy/dt 的数值一致性，属于物理量自洽",
+   "case": "c1",
+   "expr": "max(abs(diff(y) - vy[:-1]*diff(t))) <= 0.002",
+   "report": "max(abs(diff(y)-vy[:-1]*diff(t)))"
+  },
+  {
+   "id": "c1-dz-self",
+   "why": "vz = dz/dt 的数值一致性，属于物理量自洽",
+   "case": "c1",
+   "expr": "max(abs(diff(z) - vz[:-1]*diff(t))) <= 0.002",
+   "report": "max(abs(diff(z)-vz[:-1]*diff(t)))"
+  },
+  {
+   "id": "c1-magnetic-force",
+   "why": "磁场中 ay = -B*vz（因 e/m=1），验证洛伦兹力关系",
+   "case": "c1",
+   "expr": "max(abs(ay[B>0] + B[B>0]*vz[B>0])) <= 0.02",
+   "report": "max(abs(ay[B>0]+B[B>0]*vz[B>0]))"
+  },
+  {
+   "id": "c1-electric-ay",
+   "why": "电场中 ay = -eE/m = -1",
+   "case": "c1",
+   "expr": "max(abs(ay[B<0.1] + 1)) <= 0.02",
+   "report": "max(abs(ay[B<0.1]+1))"
+  },
+  {
+   "id": "c1-electric-vz",
+   "why": "电场中 vz = 0（无 z 向力）",
+   "case": "c1",
+   "expr": "max(abs(vz[B<0.1])) <= 0.02",
+   "report": "max(abs(vz[B<0.1]))"
+  },
+  {
+   "id": "c1-ax-zero",
+   "why": "整个过程中 x 方向无受力，ax=0",
+   "case": "c1",
+   "expr": "max(abs(ax)) <= 0.001",
+   "report": "max(abs(ax))"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "t",
+  "x",
+  "y",
+  "z",
+  "vx",
+  "vy",
+  "vz",
+  "ax",
+  "ay",
+  "az",
+  "B",
+  "E",
+  "L",
+  "r",
+  "v0",
+  "m",
+  "e"
+ ],
+ "disclosures": [
+  {
+   "why": "所有物理量已无量纲化，便于动画显示数值",
+   "must_contain": "无量纲"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "B": "磁感应强度（以 m v0/(e L) 为单位）",
+  "E": "电场强度（以 m v0^2/(e L) 为单位）",
+  "L": "圆筒长度（此处为 1）",
+  "e": "电子电量（此处为 1）",
+  "m": "电子质量（此处为 1）",
+  "r": "半径参数（此处为 0.1）",
+  "t": "时间（以 L/v0 为单位）",
+  "u": "归一化进度，0→1",
+  "x": "x 坐标（以 L 为单位）",
+  "y": "y 坐标（以 L 为单位）",
+  "z": "z 坐标（以 L 为单位）",
+  "ax": "加速度 x 分量（以 v0^2/L 为单位）",
+  "ay": "加速度 y 分量（以 v0^2/L 为单位）",
+  "az": "加速度 z 分量（以 v0^2/L 为单位）",
+  "v0": "初速度 x 分量（此处为 1）",
+  "vx": "速度 x 分量（以 v0 为单位）",
+  "vy": "速度 y 分量（以 v0 为单位）",
+  "vz": "速度 z 分量（以 v0 为单位）"
+ },
+ "process_endpoints": "u=0: 电子在 O' 处；u=1: 电子在电场中达到最大 y 位移",
+ "scene_requirements": [
+  "显示圆筒（半径为 2r=0.2）",
+  "显示磁场区域（x≤0）和电场区域（x≥0）",
+  "显示电子轨迹（三维投影到 xOy 平面）",
+  "显示电子速度矢量",
+  "显示 B 和 E 的方向"
+ ]
+}
