@@ -51,9 +51,36 @@ ASSET_DIRS = {"page": "page", "img": "img", "mathimg": "mathimg"}
 
 
 # ---------------------------------------------------------------- 连接
+def readonly_from(env):
+    return (env.get("EXAM_READONLY") or "").strip().lower() not in ("", "0", "false", "no")
+
+
+# `EXAM_READONLY=1`：这一次运行不许改库。
+#
+# 反复踩的坑是「**本意只是看看，结果动了真东西**」：想看看 ⑤ 的清单，它把一道题
+# 真跑了；想冒烟试试 ④c 通不通，它把整卷的选题判定重写了。两次都不是不知道会
+# 写库，是顺手拿生产命令当查看工具。
+#
+# 「下次注意」不是修复，所以做成结构上做不到：开着它时会话是
+# `TRANSACTION READ ONLY`，**由 Postgres 拒绝**任何写 —— 不依赖哪个脚本记得
+# 支持 `--dry-run`，也不依赖人记得加。查东西时一律：
+#
+#     EXAM_READONLY=1 .venv/bin/python pipeline/<某一步>.py <卷名>
+#
+# 严格 opt-in：不设这个变量时行为一个字都不变。
+READONLY = readonly_from(os.environ)
+
+
 def connect():
     import psycopg
-    return psycopg.connect(DSN, autocommit=False)
+    c = psycopg.connect(DSN, autocommit=False)
+    if READONLY:
+        # 必须 autocommit 才设得进去：会话级只读是给「下一个事务」定的，
+        # 已经开着的事务里改不了
+        c.autocommit = True
+        c.execute("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
+        c.autocommit = False
+    return c
 
 
 _s3 = None

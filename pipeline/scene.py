@@ -666,7 +666,7 @@ def plan(questions, spec_of, done, only=None, allow_draft=False,
     return todo, skip
 
 
-def main():
+def build_argparser():
     ap = argparse.ArgumentParser()
     ap.add_argument("paper")
     ap.add_argument("--only", default="", help="题号，逗号分隔")
@@ -684,6 +684,17 @@ def main():
     ap.add_argument("--backend", default=BACKEND, choices=("auto",) + BACKENDS,
                     help="subscription=订阅 / relay=中转 / ark=豆包直连。"
                          "也可以在 .env 里设 EXAM_SCENE_BACKEND")
+    # 只出清单就退出。**不调模型、不写库、不花一分钱** ——
+    # 「我只想看看它打算做哪几道题」是最常见的需求，也正是手滑过两次的场景：
+    # 拿生产命令当查看工具，`| head` 拦不住已经跑起来的沙箱。
+    # 连库都不许碰的话再加 EXAM_READONLY=1（那道门禁由 Postgres 执行）。
+    ap.add_argument("--dry-run", action="store_true",
+                    help="只打印要做哪几题、跳过的为什么跳过，然后退出。不调模型、不写库")
+    return ap
+
+
+def main():
+    ap = build_argparser()
     a = ap.parse_args()
 
     backend = resolve_backend(a.backend)
@@ -714,6 +725,9 @@ def main():
               % (q["n"], row["n_invariants"], (row["worth_why"] or "")[:46]))
     if not todo:
         print("   没有要做的题")
+        return 0
+    if a.dry_run:
+        print("   —— 试算，到此为止（没有调模型、没有写库）")
         return 0
 
     # ── 并行 ──────────────────────────────────────────────────────────
