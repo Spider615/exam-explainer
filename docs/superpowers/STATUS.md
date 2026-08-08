@@ -2,7 +2,7 @@
 
 这份文件回答一个问题：**停在哪儿了、下一步捡哪一件。**
 
-工作区干净，203 条测试全绿。
+工作区干净，265 条测试全绿。
 
 ---
 
@@ -130,7 +130,7 @@
 
 ```bash
 cd /Users/jerry/Desktop/product/exam-explainer
-.venv/bin/pytest tests/ -q                    # 应该 203 passed
+.venv/bin/pytest tests/ -q                    # 应该 265 passed
 .venv/bin/uvicorn pipeline.api:app --host 127.0.0.1 --port 8712 >> logs/api.log 2>&1 &
 ```
 
