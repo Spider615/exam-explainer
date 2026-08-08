@@ -1,11 +1,14 @@
 # ⑤ 提速：让代码接管物理与读数面板
 
+> 2026-08-08 初稿，同日经一轮自我挑刺后重写。挑出来的问题与改法记在最后一节
+> 「自我挑刺记录」，包括 3 处内部矛盾和 8 处遗漏。
+
 ## 背景
 
-阶段⑤ 是一个沙箱里的 claude agent：读 spec，写 `<id>.figure.html` 和 `<id>.js`，
+阶段⑤ 是沙箱里的 claude agent：读 spec，写 `<id>.figure.html` 和 `<id>.js`，
 自己跑 ⑥ 门禁，看报错，改，直到 PASS。一题几分钟到几十分钟，很费 token。
 
-## 测量（这一节是事实，不是设计）
+## 测量（事实，不是设计）
 
 **门禁失败按层，47 次：**
 
@@ -15,183 +18,339 @@
 | L1 静态检查 | 10 | 缺少 spec 要求的披露文字 |
 | L3.5 渲染覆盖 | 3 | 有元素没动 / 被甩出画布 |
 
-**产出规模**：36 个场景，`figure.html` 平均 4.2KB，`.js` 平均 177 行。
+**规模**：36 个场景，`figure.html` 平均 4.2KB，`.js` 平均 177 行。
 
-**轮数**：14 个有记录的场景里 12 个一轮就过。**所以慢不在重试，在单轮本身。**
-（极端例子 q16 跨了 26 小时 6 轮。）
+**轮数**：14 个有记录的场景里 12 个一轮就过。**慢不在重试，在单轮本身。**
 
-**spec 里已经有什么**：`reference` 是一段**可执行的 Python** `probe(u, case)`，
-平均 37 行；`invariants` 是可执行断言；`probe_keys` / `probe_key_meaning` 给出量名与
-含义；`disclosures[].must_contain` 给出必须显示的文字；`sample_points` = 401。
+**spec 里已经有的**：`reference`（可执行 Python `probe(u, case)`，平均 37 行）、
+`invariants`（可执行断言）、`probe_keys` / `probe_key_meaning`、
+`disclosures[].must_contain`、`sample_points`（401）、`cases`。
 
-**结论**：agent 花掉的时间里，最容易出错的那部分（34/47）是在重抄一份
-**已经写好、而且已经被 ④b 验证过**的东西。
+**结论**：agent 最容易出错的那部分（34/47），是在重抄一份**已经写好、而且已被 ④b
+验证过**的东西。
 
 ## 目标
 
 - 把 `probe` 和读数面板从 agent 手里拿走，交给代码确定性生成。
-- L4 与 L1 从「靠 agent 写对」变成**结构性成立**。
+- L4 与 L1 从「靠 agent 写对」变成结构性成立。
 - agent 的产出从「177 行 JS + 4.2KB SVG」缩到「一个 `drawFrame` + 物理场景图形」。
+- 顺带把**拖时间轴**做出来（它卡在一个代码生成正好能解开的地方，见下）。
 
 ## 非目标
 
-- **不改交付形式。** 仍然是浏览器里的交互式 SVG + `step(t)`，不换视频。
+- **不改交付形式。** 仍是浏览器里的交互式 SVG + `step(t)`，不换视频。
 - **不动 ④ 与 ④b。** spec 的格式和自检一个字不改。
-- **不做「连场景也声明式」。** 图元词汇预先定死会让特殊题型画不出来，那是以后的事。
-- 不追求「所有题都秒出」—— 画图仍然要模型，仍然要时间。
+- **不做「连场景也声明式」。** 图元词汇预先定死会让特殊题型画不出来。
+- **不在这一期上「文字压图形」门禁。** 理由见「质量」一节。
+- 不追求所有题秒出 —— 画图仍然要模型，仍然要时间。
 
 ## 关键决策
 
 | 决策 | 取舍 |
 |---|---|
-| `probe` 由**预计算数值表**提供，不转译 | 39 份 `reference` 里有 88 个 `if`、12 个 `for`、2 个 `while`、58 个嵌套函数。转译是个编译器项目，而且**转错了是静默的**；查表没有这个风险 |
-| 表在 `sample_points` 个点上生成 | ⑥ 就在这些点上采样，**逐位相等**，不是近似 |
+| `probe` 由**预计算数值表**提供，不转译 | 33 份有 `reference` 的 spec 里有 88 个 `if`、12 个 `for`、2 个 `while`、58 个嵌套函数。转译是编译器项目，**转错了是静默的**；查表没有这个风险 |
+| 表在 `sample_points` 个点上生成，**全精度不截断** | ⑥ 就在这些点上采样，逐位相等。实测 gzip 后 4–37KB，不值得为省这点空间破坏这条保证 |
 | 读数面板由 `disclosures` + `probe_key_meaning` 生成 | 消掉 L1，而且面板恰好是 L5 版面层最容易压字的地方 |
 | agent 仍然画物理场景 | 斜面、导轨、粒子、箭头的画法一题一个样，这才是它该干的活 |
 | 骨架与绘图**分文件**，由代码拼装 | agent 碰不到 `probe`。「靠嘱咐不如靠门禁」—— 不是叮嘱它别改，是让它够不着 |
+| 没有 `reference` 的 spec **退回现有 agent 流程** | 库里进得了 ⑤ 的 21 份里只有 1 份没有（遗留），不值得为它改 ④ |
 
 **代价**：读数面板全卷统一样式，不再一题一个样。这是有意的 —— 现在恰恰是各写各的面板在压字。
 
 ## 架构
 
 ```
-④ spec ─┬─ reference ──► speccheck.run_reference()  ← 现成的，零新代码
-        │                        │  {case: {量名: [401 个值]}}
-        │                        ▼
-        ├─ disclosures ──►  scenegen.py  ──►  <id>.skel.js
-        │  probe_key_meaning                    · 数值表
-        │                                       · probe(u,case) 查表+插值
-        │                                       · updatePanel(p)
-        │                                       · step(t) / reset()
-        │                                       · /* @@DRAW@@ */ ← 占位
-        │                                  ──►  <id>.panel.svg  读数面板片段
+④ spec ─┬─ reference ──► speccheck.run_reference()   ← 现成的，零新代码
+        │                   {case: {量名: [401 个值]}}
+        │                        │
+        ├─ disclosures ──►  pipeline/scenegen.py
+        │  probe_key_meaning     │
+        │  cases                 ├──►  <id>.skel.js    骨架（含表、probe、面板更新、step/seek/reset）
+        │                        └──►  <id>.panel.svg  面板的 SVG 片段
         │
-        └─ scene_requirements ──► ⑤ agent ──►  <id>.figure.html  （含 <g id="__panel__"/>）
-                                            ──►  <id>.draw.js     （只有 drawFrame + els）
-                                                       │
-                                    harness/build.py ──┴──►  <id>.figure.html（面板已注入）
-                                                             <id>.js（骨架 + drawFrame）
-                                                       │
-                                                  ⑥ verify.py
+        └─ scene_requirements ──► ⑤ agent
+                                    ├──►  <id>.figure.html  （必须含 <g id="__panel__"/>）
+                                    └──►  <id>.draw.js      （PERIOD + drawFrame + drawReset）
+                                                │
+                        harness/build.py ───────┴──►  <id>.figure.html（面板已注入）
+                                                      <id>.js（骨架 + draw.js）
+                                                │
+                                           ⑥ verify.py
 ```
 
-**每一轮 agent 先 `build.py` 再 `verify.py`。** 它改的永远只有 `figure.html` 和 `draw.js`。
+**每一轮 agent 先跑 `build.py` 再跑 `verify.py`。** 它能改的永远只有
+`figure.html` 和 `draw.js` 两个文件（`scene.py` 的 allow-list 卡死）。
 
-## 生成的骨架长什么样
+**⑥ 检查的对象一律是 build 之后的产物** —— L1 要验的 `querySelector` id 里，
+面板那些只在 build 后才存在。
+
+## 生成的骨架
 
 ```js
 window.Scenes["<id>"] = function (fig) {
   var svg = fig.querySelector('svg');
 
-  // ── 以下到 @@DRAW@@ 之前，全部由 pipeline/scenegen.py 生成，不要手改 ──
-  var CASE = "c1", PERIOD = 6.0, N = 401;
-  var T = {"c1": {"u": [...], "alpha": [...], "Fres": [...]}};   // 数值表
+  /* ===== 以下由 pipeline/scenegen.py 生成，不要手改 ===== */
+  var CASES = ["c1", "c2"];              // 来自 spec.cases，可能不止一个
+  var N = 401;
+  var T = {"c1": {"u": [...], "Fres": [...]}, "c2": {…}};   // 全精度数值表
 
-  function probe(u, cid) {
-    // 查表 + 线性插值。u 落在采样点上时**逐位等于** reference 的输出
-    var col = T[cid] || T[CASE], x = u * (N - 1), i = Math.floor(x), f = x - i;
+  function probe(u, cid) {               // 查表 + 线性插值；采样点上逐位等于 reference
+    var col = T[cid] || T[CASES[0]], x = u * (N - 1), i = Math.floor(x), f = x - i;
     if (i >= N - 1) { i = N - 2; f = 1; }
     var r = {};
     for (var k in col) r[k] = col[k][i] * (1 - f) + col[k][i + 1] * f;
     return r;
   }
+  function probeAll(u) {                 // 多 case 场景一次拿全，drawFrame 要用
+    var m = {};
+    for (var i = 0; i < CASES.length; i++) m[CASES[i]] = probe(u, CASES[i]);
+    return m;
+  }
 
-  var panel = { alpha: svg.querySelector('#<id>-ro-alpha'), … };
-  function updatePanel(p) { panel.alpha.textContent = p.alpha.toFixed(2); … }
+  var PANEL_RECT = {x: 300, y: 12, w: 188, h: 76};   // 面板占的位置，见「面板」一节
+  var panelEls = { … };                              // 由 scenegen 按 disclosures 生成
+  function updatePanel(ps) { … }                     // ps = probeAll(u) 的结果
 
-  /* @@DRAW@@ */          // ← build.py 把 agent 的 draw.js 插在这里
+  /* @@DRAW@@ */        // ← build.py 把 agent 的 draw.js 原样插在这里
+                        //    它提供 PERIOD、drawFrame(ps, u, svg)、drawReset(svg)
+
+  function render(u) { var ps = probeAll(u); updatePanel(ps); drawFrame(ps, u, svg); }
 
   return {
-    step: function (t) {
-      var u = (t % PERIOD) / PERIOD, p = probe(u, CASE);
-      updatePanel(p);
-      drawFrame(p, u, svg);
-    },
+    step: function (t) { render((t % PERIOD) / PERIOD); },
     reset: function () { drawReset(svg); },
-    probe: probe
+    probe: probe,
+    /* ---- 给宿主做时间轴用，老场景没有这两个，宿主要检测 ---- */
+    duration: PERIOD,
+    cases: CASES,
+    seek: function (u) { drawReset(svg); render(Math.min(1, Math.max(0, u))); }
   };
 };
 ```
 
-agent 写的 `draw.js` 就两个函数：
+agent 写的 `draw.js` 只有三样：
 
 ```js
-function drawFrame(p, u, svg) { … }   // 必需：把 p 里的物理量画成几何
-function drawReset(svg) { }           // 必需：清掉轨迹之类的累积状态
+var PERIOD = 4.0;                       // 一次完整过程播多少秒。缺了骨架用 6.0
+function drawFrame(ps, u, svg) { … }    // ps 是 {caseId: {量名: 值}}
+function drawReset(svg) { … }           // 清掉轨迹之类的累积状态
 ```
+
+**`ps` 是按 case 分组的字典，不是单个对象** —— 39 份 spec 里 13 份有 2~4 个 case
+（对比「弹性碰撞 vs 完全非弹性」这类），单 case 的场景取 `ps[CASES[0]]` 即可。
+
+**`drawReset` 与 `drawFrame` 同处一个作用域**（draw.js 整段内联进骨架），
+所以轨迹数组之类的闭包状态两边都能访问。
 
 ## 为什么 L4 会恒真
 
-1. ④b `speccheck.check()` 已经用 `spec.invariants` 验过 `spec.reference` —— 通不过的 spec
-   根本进不了 ⑤。
+1. ④b `speccheck.check()` 已经用 `spec.invariants` 验过 `spec.reference` ——
+   通不过的 spec 进不了 ⑤。
 2. 表由 `run_reference` 生成，**就是 `reference` 的输出**。
-3. ⑥ 的 L4 在 `sample_points` 个点上调 `probe`，而表正是在这些点上生成的 —— 逐位相等。
-4. 求值逻辑两处**逐字一致**（`speccheck.check` 的注释里已经写死了这条）。
+3. ⑥ 的 L4 在 `sample_points` 个点上调 `probe`，表正是在这些点上生成的 —— 逐位相等。
+4. 求值逻辑两处**逐字一致**（`speccheck.check` 的注释里已经写死这条）。
 
-所以断言不可能不过。**L4 仍然保留**，它的职责从「查 agent 写没写对」变成
-「查表生成本身有没有 bug」—— 这是两码事，都要有人管。
+**L4 仍然保留**，职责从「查 agent 写没写对」变成「查表生成本身有没有 bug」。
 
-## 数据量
+**边界**：`probe` 在非采样点上是线性插值，与 `reference` 有微小偏差。L4 只在采样点上
+跑，不受影响；`seek(u)` 拖到任意位置时的偏差远小于肉眼可辨。
 
-401 点 × 平均 10 个量 × 8 字节 ≈ 32KB/场景（JSON 文本约 60KB，gzip 后约 8KB）。
-现在 `.js` 平均 5KB，涨了一个量级。
+## 表的体积（实测，不是估算）
 
-**减小的办法先不做**（降采样、只存独立量在前端算派生量）：它们都会破坏「逐位相等」
-这条结构性保证，而那是这次改动的全部价值。等真的嫌大了再说，届时先量再改。
+| spec | case 数 | 全精度 | gzip 后 |
+|---|---|---|---|
+| q19 | 2 | 105 KB | **37 KB** |
+| q4-gen3 | 1 | 21 KB | **4 KB** |
+| 最大的 q12 | 4 | 约 254 KB | 未测（它没有 reference，走不到这条路） |
 
-## 面板怎么生成
+现在 `.js` 平均 5KB，涨了一个量级。**接受，不做截断也不做降采样** ——
+gzip 后 4~37KB 比一张插图还小，而截断会破坏「逐位相等」这条保证，那是这次改动的
+全部价值。真嫌大了再说，届时先量再改。
+
+## 面板
 
 从 `disclosures[].must_contain` 拿要显示的东西，从 `probe_key_meaning` 拿标签，
-排成右上角一列：
+排成一列：
 
 ```
-α = 1.57 rad
-F合 = 1.41 F
+α    = 1.57 rad
+F合  = 1.41 F
 ```
 
-三条规则：
+四条规则：
 
-- **每个 `must_contain` 必须对应到一行**。对不上就在生成时报错，不生成 ——
-  L1 要在**生成期**就成立，而不是等门禁去抓。
-- 行距按实测字宽表算（`CONTRACT.md` §1.5 那张表），**代码排不会压字**。
-- 面板占据的矩形区域写进骨架的一个常量，agent 画图时要避开它 —— 这是它唯一
-  需要知道的面板信息。
+- **每个 `must_contain` 必须对应到一行。** 对不上就在 `scenegen` **生成期报错、不生成** ——
+  L1 要在生成期就成立，而不是等门禁去抓。
+- 行距按 `CONTRACT.md` §1.5 那张实测字宽表算，**代码排不会压字**。
+- 面板矩形由 `scenegen` 算出来，**写进给 agent 的提示词**（`scene.py` 组装 prompt 时带上），
+  因为 agent 看不到生成的骨架。
+- **`build.py` 静态检查「有没有图元侵进面板矩形」**，光靠提示词不够 ——
+  这条是「靠门禁不靠嘱咐」。
+
+## 播放控制
+
+老师给学生演示要能暂停、能拖回去重看。
+
+**暂停已经有了** —— `web/src/components/SceneMount.tsx` 与离线页的
+`harness/_runtime.js` 都有播放/暂停/重置。
+
+**拖时间轴现在做不了**，卡在一个具体的地方：每个场景在内部自己定周期
+（`var period = 2.0`）再 `t % period`，**宿主不知道一次完整过程有多长**。
+代码生成之后 `PERIOD` 是已知常量，顺手就能给出去 —— **拖时间轴是这次改动的副产品**。
+
+### 契约新增（都是可选，老场景没有）
+
+| 字段 | 含义 |
+|---|---|
+| `duration` | 一次完整过程多少秒 |
+| `cases` | 情形 id 列表 |
+| `seek(u)` | 跳到进度 `u ∈ [0,1]` |
+
+**`seek` 收的是 `u` 不是 `t`。** `u` 是物理过程进度，spec 的 `probe` 就按它定义；
+`t` 里可能含定格与停顿。拖条上标的应该是「过程走到哪」。
+
+**`seek` 内部先 `drawReset`。** 有轨迹、有累积标记的场景不清就会留鬼影。
+
+### 宿主要做的（`SceneMount.tsx` 与 `_runtime.js` **两处都要**）
+
+离线页 `out.html` 用的是 `_runtime.js`，只改 React 那边的话，导出的离线页没有时间轴。
+
+- **检测到 `seek`/`duration` 才画时间轴**，检测不到就退回现在的播放/暂停 ——
+  不报错，也不留一个拖不动的空条。
+- **拖动时自动暂停**；松手后**保持暂停**，由老师自己点播放。演示时松手就跑，
+  话还没说完画面已经过去了。
+- **续播要对齐**：从 `u` 继续播时把内部计时 `t` 设成 `u * duration`，否则画面会跳。
+- **键盘**：空格播放/暂停，`←`/`→` 逐帧（±1/N），`Home` 回到 0。老师演示时手在键盘上。
+- **倍速** 0.5× / 1× / 2×：有些过程太快看不清，有些太慢等不及。
+- **多 case 切换**：`cases.length > 1` 时给一排按钮切当前对照的情形。
+  没有它的话，「弹性碰撞 vs 完全非弹性」这种题只能干看两个一起动。
+- **触屏**：时间轴要能用手指拖（投影常配触屏一体机）。
+
+## 质量：文字压图形（**这一期不做**，但先把测量记下来）
+
+现在门禁管「文字压文字」（L5），**不管「文字压图形」**，而后者是老师一眼就难受的乱。
+
+### 实测
+
+用 `svg.checkIntersection()` 在 36 个场景上量「每条文字压中几个图形」
+（13 帧采样，排除场标记与 opacity≈0 的元素）：
+
+| 组 | 范围 | 均值 |
+|---|---|---|
+| 已知干净（q17 / q17-gen2 / q11 / q4-gen3 / q1-gen2 / q15） | 0.07 – 0.50 | **0.27** |
+| 已知乱（q14 / q7 / q19 / q8-gen3 / q6） | 1.09 – 2.55 | **1.79** |
+
+中间是一段 **2.2 倍的空档**，和当初标定 L5 时那个 3.8px 空档同一性质。
+
+**绝对数没有意义**：36 个场景无一为零（min=1 中位=18 max=84）。文字压在坐标轴、
+引出线、箭头上是正常的。**必须按文字条数归一化。**
+
+### 为什么这一期不上
+
+1. **代码生成会改变分布。** 读数面板被代码接管之后，文字条数和位置都变了，
+   现在标出来的阈值到时候不作数。
+2. **「干净/乱」这组标签是凭上次标定 L5 时的印象，不是重新逐张看过的。**
+   真要上门禁，先做一次像样的人工目检（逐张判）来定阈值。
+
+顺序：代码生成落地 → 新流程生成 3 道题 → 连同旧的一起人工目检 → **那时再标阈值、
+再决定上不上 L6**。
+
+### 一个补不上的洞，明写在这里
+
+这条判据**治不了「标签甩飞」**：q13-gen3（把标签甩进空白处那一版）归一化只有 0.19，
+它会说这场景干净。排斥力有了，吸引力还是没有 —— 上次试过的「标签必须靠近它标注的
+对象」被实测否掉了（干净的 q17 中位距离 51.8px **反而大于**有问题的 q13-gen3 的 43.4px）。
+
+## 没有 `reference` 的 spec 怎么办
+
+库里 59 份 spec 中 38 份有 `reference`。但**真正会进 ⑤ 的**（`approved` 且
+`animatable`）21 份里，只有 1 份没有，是 ④b 要求 `reference` 之前的遗留。
+
+**没有就退回现有 agent 流程**，日志里说明原因。`scenes` 表加一列 `gen`
+（`agent` / `codegen`）记这个场景是哪套流程产的，出问题时分得清。
 
 ## 迁移
 
-**现有 36 个场景不动。** 它们已经过了门禁、已经在页面上跑。新骨架只对**新生成的**
-场景生效。
+**现有 36 个场景不动。** 它们已经过门禁、已经在页面上跑。新骨架只对新生成的场景生效。
 
-`scenes` 表加一列 `gen` 记「这个场景是哪套流程产的」（`agent` / `codegen`），
-出问题时分得清。
+老场景没有 `duration`/`seek`，宿主检测不到就退回播放/暂停 —— 不会因为这次改动
+变差。
+
+## 守护文件要一起改
+
+- `harness/build.py` 是新的门禁前置步骤，**要进 `.readonly.sha256`**。
+- `CONTRACT.md` 改了（agent 的产出从 2 个文件变成 2 个**不同的**文件），
+  **基线要重算**。`report.py` 是真的比对哈希的，不重算会一直报警。
 
 ## 风险
 
 | 风险 | 怎么办 |
 |---|---|
-| 插值在非采样点上与 `reference` 有微小偏差 | L4 只在采样点上跑，不受影响；`step` 渲染用不到那个精度 |
-| 表太大拖慢页面 | 先量再改。gzip 后约 8KB，比一张插图小 |
-| agent 不适应新契约，反而更容易失败 | **先拿一道已经过了的题重跑**（如 q19），对比轮数与耗时，再决定要不要铺开 |
-| `reference` 跑不起来 | ④b 已经拦过一道；这里再拦一道，报错说清楚是 spec 的问题不是场景的问题 |
+| agent 不适应新契约，反而更容易失败 | **先拿 3 道已经过了的题重跑**，对比轮数与耗时，数字不好看就停 |
+| 表太大拖慢页面 | 已实测 gzip 后 4–37KB；真变大了再量再改 |
+| `run_reference` 跑不起来 | ④b 已拦一道，这里再拦一道，报错说清是 spec 的问题不是场景的问题 |
+| 面板样式统一之后有些题显得挤 | 目检时一起看；面板是代码排的，改一次全卷受益 |
 
 ## 验收
 
-**这次改动的成败只看两个数**，拿同一道题新旧各跑一次比：
+**成败看三个数**，同一道题新旧各跑一次比：
 
-1. **单轮耗时**（agent 写的东西少了多少）
+1. **单轮耗时**
 2. **轮数**（L4/L1 是不是真的不再失败）
+3. **人工目检**：新旧两版并排看，新的不许更难看
 
-先跑 3 道题（一道简单、一道中等、一道曾经失败多轮的），数字不好看就停下来重想，
-不要因为「方案听起来对」就铺开。
+先跑 3 道题（一道简单、一道中等、一道曾经失败多轮的）。**数字不好看就停下来重想，
+不要因为「方案听起来对」就铺开。**
 
 ## 实施顺序
 
-| 步 | 做什么 |
-|---|---|
-| 一 | `scenegen.py`：spec → 数值表 + probe + 面板 + 骨架。**纯代码，可单测** |
-| 二 | `harness/build.py`：拼装 `figure.html` 与 `<id>.js`，并加静态检查（占位符在不在、面板行数对不对） |
-| 三 | 改 `CONTRACT.md` 与 `scene.py` 的 allow-list，agent 只准写两个文件 |
-| 四 | 拿 3 道题实跑对比，出数字 |
-| 五 | 数字好看再铺开；不好看就停 |
+| 步 | 做什么 | 烧不烧 token |
+|---|---|---|
+| 一 | `scenegen.py`：spec → 表 + probe + 面板 + 骨架。**纯代码，可单测** | 否 |
+| 二 | `harness/build.py`：拼装两个产物 + 静态检查（占位符、面板行数、图元侵入面板） | 否 |
+| 三 | 改 `CONTRACT.md`、`scene.py` 的 allow-list 与提示词、重算 `.readonly.sha256` | 否 |
+| 四 | 拿 3 道题实跑对比，出数字 + 目检 | 是 |
+| 五 | 数字好看再铺开；不好看就停 | — |
+| 六 | 播放控制（`SceneMount.tsx` + `_runtime.js` 两处） | 否 |
 
-第一步和第二步都是纯代码、可单测、不烧 token。**第四步之前不碰 ⑤ 的正式链路。**
+**第四步之前不碰 ⑤ 的正式链路。** 第六步可以和四五并行，它不依赖前面的结论 ——
+但它依赖骨架给出 `duration`/`seek`，所以要排在第一步之后。
+
+---
+
+## 自我挑刺记录
+
+初稿写完后自查了一遍，下面是挑出来的问题和改法。**列在这里是为了下次别再犯。**
+
+### 3 处内部矛盾
+
+1. **「逐位相等」vs「数值截断」。** 初稿一边承诺逐位相等，一边打算截断到 9 位省空间。
+   → 实测 gzip 后只有 4–37KB，**不截断**，矛盾消除。
+2. **面板由谁生成说了两遍且不一致。** 架构图写 `scenegen` 产 `panel.svg`，正文写
+   `build.py` 注入。→ 统一：`scenegen` 生成片段，`build.py` 注入。
+3. **「agent 只写两个文件」vs「面板矩形写进骨架常量给 agent 避开」。**
+   agent 读不到生成的骨架。→ 面板矩形写进**提示词**，并由 `build.py` 静态检查侵入。
+
+### 8 处遗漏
+
+4. **多 case 完全没考虑。** 骨架写死 `CASE = "c1"`，而 39 份 spec 里 13 份有 2–4 个 case。
+   → `probeAll(u)` 返回按 case 分组的字典，`drawFrame(ps, …)` 收它。
+5. **`PERIOD` 没有来源。** spec 里没这个字段，现在是 agent 自己定的。
+   → 由 `draw.js` 声明，骨架读它，缺了用 6.0。周期是表现不是物理，agent 定是对的。
+6. **表体积估错了一个量级。** 初稿写「约 60KB」，那是按单 case 估的。
+   → 改成实测数（q19 双 case 105KB / gzip 37KB）。
+7. **没有 `reference` 的 spec 没定义行为。** → 退回 agent 流程，`scenes.gen` 记来源。
+8. **L1 的检查对象没说清。** 面板 id 只在 build 后存在。→ 明写「⑥ 检查 build 后的产物」。
+9. **`.readonly.sha256` 没提。** `build.py` 要收进去，`CONTRACT.md` 改了要重算基线。
+10. **离线页 `_runtime.js` 漏了。** 只改 React 那边的话导出的 `out.html` 没有时间轴。
+11. **`seek` 之后续播会跳。** → 把内部计时 `t` 对齐成 `u * duration`。
+
+### 交互上补的 7 条
+
+拖动自动暂停且松手保持暂停、键盘（空格/←→/Home）、倍速 0.5×–2×、
+**多 case 切换按钮**、触屏拖动、检测不到 `seek` 就退回而不是留一个拖不动的空条、
+续播对齐。
+
+其中**多 case 切换**是被第 4 条带出来的：一个场景两种情形，老师不能切的话就只能
+干看两个一起动。
