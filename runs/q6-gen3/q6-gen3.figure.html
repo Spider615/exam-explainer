@@ -1,0 +1,56 @@
+<figure data-scene="q6-gen3"><svg viewBox="0 0 560 310" role="img" aria-label="两人相向拉绳、塔块沿竖直方向匀速下降的动画，含手速v、下降距离、水平距离与绳夹角α的实时读数">
+  <text class="u" x="14" y="24">两人相向拉绳，塔块匀速下降（示意）</text>
+
+  <line class="sh" x1="80" y1="92" x2="470" y2="92"></line>
+  <text class="u" x="84" y="78">水平面</text>
+
+  <line class="sh" x1="280" y1="92" x2="280" y2="266" stroke-dasharray="3 3"></line>
+
+  <rect id="q6-gen3-block" class="sk fa" x="266.00" y="168.00" width="28" height="28"></rect>
+  <text id="q6-gen3-blockLabel" class="u" x="234" y="186.00">塔块</text>
+
+  <line id="q6-gen3-ropeL" class="sk" x1="115.46" y1="92" x2="280" y2="182.00"></line>
+  <line id="q6-gen3-ropeR" class="sk" x1="444.54" y1="92" x2="280" y2="182.00"></line>
+
+  <path id="q6-gen3-arc" class="sc" d="M 424.54,92.00 A 20 20 0 0 0 424.54,92.00"></path>
+  <text id="q6-gen3-alphaLabel" class="c" x="405.00" y="101.00">α</text>
+
+  <line id="q6-gen3-vArrowL" class="sr" x1="89.46" y1="92" x2="109.46" y2="92" marker-end="url(#ar)"></line>
+  <text id="q6-gen3-vLabelL" class="r" x="85.46" y="96" text-anchor="end">v</text>
+
+  <line id="q6-gen3-vArrowR" class="sr" x1="470.54" y1="92" x2="450.54" y2="92" marker-end="url(#ar)"></line>
+  <text id="q6-gen3-vLabelR" class="r" x="474.54" y="96">v</text>
+
+  <g id="q6-gen3-personL" class="sk" transform="translate(115.46,92)">
+    <circle class="fk" cx="0" cy="0" r="2.6"></circle>
+    <circle cx="0" cy="16" r="6"></circle>
+    <line x1="0" y1="22" x2="0" y2="42"></line>
+    <line x1="0" y1="42" x2="-7" y2="58"></line>
+    <line x1="0" y1="42" x2="7" y2="58"></line>
+    <line class="sh" x1="-11" y1="58" x2="11" y2="58"></line>
+  </g>
+  <g id="q6-gen3-personR" class="sk" transform="translate(444.54,92)">
+    <circle class="fk" cx="0" cy="0" r="2.6"></circle>
+    <circle cx="0" cy="16" r="6"></circle>
+    <line x1="0" y1="22" x2="0" y2="42"></line>
+    <line x1="0" y1="42" x2="-7" y2="58"></line>
+    <line x1="0" y1="42" x2="7" y2="58"></line>
+    <line class="sh" x1="-11" y1="58" x2="11" y2="58"></line>
+  </g>
+
+  <text class="u" x="14" y="278">参数（演示自定，非题目给定）：L=1，α₀=30°</text>
+  <text class="u" x="14" y="294">α_end≈64.16°，vDrop=0.4（不演示到α→90°）</text>
+
+  <g id="q6-gen3-panel">
+<rect class="sh" x="415.7" y="10.0" width="132.3" height="70.4" rx="2" fill="var(--panel)"/>
+  <text class="u" x="421.7" y="26.9">每名同学手的</text>
+  <text class="n" id="q6-gen3-ro-v" x="542.0" y="26.9" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="41.5">每根绳的竖直</text>
+  <text class="n" id="q6-gen3-ro-yDrop" x="542.0" y="41.5" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="56.1">每根绳的水平</text>
+  <text class="n" id="q6-gen3-ro-xHand" x="542.0" y="56.1" text-anchor="end">–</text>
+  <text class="u" x="421.7" y="70.8">细绳与水平方</text>
+  <text class="n" id="q6-gen3-ro-alpha" x="542.0" y="70.8" text-anchor="end">–</text>
+</g>
+</svg>
+<figcaption>绳吊塔块匀速下降，两人拉绳速率v的变化趋势。L=1（绳长归一化）、α0=30°、末态α_end≈64.16°、vDrop=0.4 等具体数值。本动画只演示 α 从30°增大到约64.16°这一段，未演示到 α→90°（此时v发散、手速趋于无穷，无法动画化）。</figcaption></figure>

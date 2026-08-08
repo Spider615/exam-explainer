@@ -1,0 +1,174 @@
+{
+ "id": "q6-gen3",
+ "stem": "两条等长细绳一端系在同一塔块上，两名同学分别握住绳的另一端，保持手在同一水平面以相同速率v相向运动。为使塔块沿竖直方向匀速下落，则v的变化情况是：A.一直减小 B.一直增大 C.先减小后增大 D.先增大后减小",
+ "cases": [
+  {
+   "id": "c1",
+   "label": "两人以相同速率v相向运动，握绳手保持同一水平面，塔块沿竖直方向匀速下降（vDrop=0.4），绳与水平方向夹角从30°增大到约64.16°"
+  }
+ ],
+ "title": "绳吊塔块匀速下降，两人拉绳速率v的变化趋势",
+ "units": "长度：以绳长L归一化为1（无量纲）；角度alpha：弧度(rad)；时间：归一化，使动画总时长为1，故u在数值上等于归一化时间t；速度v、vDrop：绳长单位/归一化时间单位（无量纲速度）。",
+ "physics": {
+  "note": "以下为权威解法，实现必须与之一致。禁止自行改动力的形式。",
+  "equations": [
+   "几何约束（绳不可伸长）：xHand(u)^2 + yDrop(u)^2 = L^2 = 1",
+   "塔块匀速下降：yDrop(u) = y0 + vDrop·u，vDrop=0.4 为常数（y0=0.5）",
+   "xHand(u) = sqrt(L^2 - yDrop(u)^2)",
+   "alpha(u) = arctan( yDrop(u) / xHand(u) )",
+   "沿绳方向速度分量相等（绳不可伸长的推论）：v(u)·cos(alpha(u)) = vDrop·sin(alpha(u))，即 v(u) = vDrop·tan(alpha(u))"
+  ],
+  "definitions": [
+   "L：单根细绳长度（不可伸长），归一化为1",
+   "xHand(u)：每根绳的水平投影长度，等于每名同学的手到塔块所在竖直中轴线的水平距离",
+   "yDrop(u)：每根绳的竖直投影长度，等于塔块相对两人手所在水平面已下降的距离",
+   "alpha(u)：细绳与水平方向的夹角，tanα = yDrop/xHand",
+   "vDrop：塔块下降速率，题目要求恒定，归一化取值0.4",
+   "v(u)：每名同学手的水平移动速率（即题目所求的v）",
+   "u：归一化过程进度，u=0对应α=α0=30°的时刻，u=1对应α=α_end≈64.158°（yDrop=0.9）的时刻；由归一化选取使得 u 在数值上等于归一化时间 t"
+  ],
+  "given_facts": [
+   "F1 · 塔块沿竖直方向匀速下落，速率vDrop恒定",
+   "F2 · 绳不可伸长时，绳两端物体沿绳方向的速度分量大小相等，故几何约束 xHand^2+yDrop^2=L^2 全程成立",
+   "F3 · 塔块下落过程中，细绳与水平方向的夹角α单调增大",
+   "F4 · v与tanα成正比，比例系数为恒定的vDrop（v=vDrop·tanα）"
+  ],
+  "normalization": "取绳长 L=1 为长度单位；取塔块下降速度 vDrop=0.4（每单位归一化时间下降0.4倍绳长）为速度基准，并令动画演示的总归一化时长为1，使得 u∈[0,1] 在数值上直接等于归一化时间 t（t=u），从而 yDrop(u)=y0+vDrop·u 是关于 u 的线性函数。初始夹角取 α0=30°（题目未给具体角度，为使动画可具体演示而自行选定，不影响'单调递增'这一定性结论），对应 y0=sin30°=0.5、x0=cos30°=√3/2≈0.866025；动画演示到 α_end=arcsin(0.9)≈64.158°（yDrop=0.9）为止，不演示到 α→90°（此处 v 发散，无法动画化）。",
+  "free_parameters": ""
+ },
+ "constants": {
+  "L": 1.0,
+  "v0": 0.2309401077,
+  "x0": 0.8660254038,
+  "y0": 0.5,
+  "vEnd": 0.8258966419,
+  "xEnd": 0.4358898944,
+  "yEnd": 0.9,
+  "vDrop": 0.4,
+  "alpha0_rad": 0.5235987756,
+  "alphaEnd_rad": 1.119769515
+ },
+ "reference": "def probe(u, case):\n    L = 1.0\n    vDrop = 0.4\n    y0 = 0.5\n    yDrop = y0 + vDrop * u\n    xHand = sqrt(L * L - yDrop * yDrop)\n    alpha = atan(yDrop / xHand)\n    v = vDrop * tan(alpha)\n    return {\"u\": u, \"xHand\": xHand, \"yDrop\": yDrop, \"alpha\": alpha, \"v\": v, \"vDrop\": vDrop}",
+ "invariants": [
+  {
+   "id": "c1-vdrop-const",
+   "why": "F1：塔块沿竖直方向匀速下落，速率vDrop在全过程中必须恒定",
+   "case": "c1",
+   "expr": "max(abs(diff(vDrop))) <= 1e-9",
+   "report": "max(abs(diff(vDrop)))"
+  },
+  {
+   "id": "c1-ydrop-start",
+   "why": "F1+归一化选定：初始夹角α0=30°对应 y0=sin30°=0.5",
+   "case": "c1",
+   "expr": "abs(yDrop[0] - 0.5) <= 0.002",
+   "report": "yDrop[0]"
+  },
+  {
+   "id": "c1-ydrop-end",
+   "why": "F1：块以恒定vDrop=0.4、归一化时长1匀速下降，末态 yDrop=y0+vDrop·1=0.9",
+   "case": "c1",
+   "expr": "abs(yDrop[-1] - 0.9) <= 0.002",
+   "report": "yDrop[-1]"
+  },
+  {
+   "id": "c1-string-length",
+   "why": "F2：绳不可伸长 ⇒ 绳长恒为L=1，几何约束 xHand^2+yDrop^2=L^2 须在全过程成立",
+   "case": "c1",
+   "expr": "max(abs(xHand*xHand + yDrop*yDrop - 1.0)) <= 0.01",
+   "report": "max(abs(xHand*xHand+yDrop*yDrop-1.0))"
+  },
+  {
+   "id": "c1-alpha-mono",
+   "why": "F3：细绳与水平方向夹角α在下落过程中单调增大",
+   "case": "c1",
+   "expr": "min(diff(alpha)) >= -1e-6",
+   "report": "min(diff(alpha))"
+  },
+  {
+   "id": "c1-xhand-mono",
+   "why": "F3的几何后果：α单调增大等价于xHand（手到中轴的水平距离）持续缩短",
+   "case": "c1",
+   "expr": "max(diff(xHand)) <= 1e-6",
+   "report": "max(diff(xHand))"
+  },
+  {
+   "id": "c1-v-mono",
+   "why": "F4：v=vDrop·tanα，α单调增大且vDrop恒定，故v全程单调不减——这是本题选B（一直增大）的直接体现",
+   "case": "c1",
+   "expr": "min(diff(v)) >= -1e-9",
+   "report": "min(diff(v))"
+  },
+  {
+   "id": "c1-tan-consistency",
+   "why": "F4：probe输出的v数组必须与其自身的alpha、vDrop数组代入v=vDrop·tanα后的结果一致，防止v和alpha各算各的",
+   "case": "c1",
+   "expr": "max(abs(v - vDrop*tan(alpha))) <= 0.01",
+   "report": "max(abs(v-vDrop*tan(alpha)))"
+  },
+  {
+   "id": "c1-v-derivative-consistency",
+   "why": "F2+F4：由归一化选取使u数值上等于归一化时间t，故v本质上就是-d(xHand)/du；防止实现方让xHand的轨迹与v的读数互不相干，各自满足终点值却内部不自洽",
+   "case": "c1",
+   "expr": "max(abs(diff(xHand)/diff(u) + (v[:-1] + v[1:])/2)) <= 0.05",
+   "report": "max(abs(diff(xHand)/diff(u)+(v[:-1]+v[1:])/2))"
+  },
+  {
+   "id": "c1-ydrop-rate-consistency",
+   "why": "F1：vDrop按定义应等于yDrop对归一化时间的变化率，防止yDrop轨迹与vDrop读数互不相干",
+   "case": "c1",
+   "expr": "max(abs(diff(yDrop)/diff(u) - mean(vDrop))) <= 0.01",
+   "report": "max(abs(diff(yDrop)/diff(u)-mean(vDrop)))"
+  },
+  {
+   "id": "c1-v-start",
+   "why": "F4：代入初始夹角α0=30°、vDrop=0.4，得 v(0)=0.4·tan30°≈0.23094",
+   "case": "c1",
+   "expr": "abs(v[0] - 0.230940) <= 0.008",
+   "report": "v[0]"
+  },
+  {
+   "id": "c1-v-end",
+   "why": "F4：代入末态夹角α_end=arcsin(0.9)≈64.16°、vDrop=0.4，得 v(1)=0.4·tan(64.16°)≈0.82590，相比v(0)明显增大，体现v'一直增大'（选项B）",
+   "case": "c1",
+   "expr": "abs(v[-1] - 0.825897) <= 0.025",
+   "report": "v[-1]"
+  }
+ ],
+ "probe_keys": [
+  "u",
+  "xHand",
+  "yDrop",
+  "alpha",
+  "v",
+  "vDrop"
+ ],
+ "disclosures": [
+  {
+   "why": "这些数值是为了让动画具体可演而自选，并非题目给出的条件，必须让观众知道这是本动画的自选设定，否则易误导为题目给定的精确参数",
+   "must_contain": "L=1（绳长归一化）、α0=30°、末态α_end≈64.16°、vDrop=0.4 等具体数值"
+  },
+  {
+   "why": "避免观众误以为动画覆盖了完整物理过程，或误判v的增长存在上限",
+   "must_contain": "本动画只演示 α 从30°增大到约64.16°这一段，未演示到 α→90°（此时v发散、手速趋于无穷，无法动画化）"
+  }
+ ],
+ "sample_points": 401,
+ "probe_key_meaning": {
+  "u": "归一化过程进度，同时数值上等于归一化时间t（u=0为α0=30°时刻，u=1为α_end≈64.16°时刻）",
+  "v": "每名同学手的水平移动速率，v=vDrop·tanα，即题目所求的量",
+  "alpha": "细绳与水平方向的夹角（弧度），tanα=yDrop/xHand，随u单调增大",
+  "vDrop": "塔块竖直下落速率，应为恒定常数0.4",
+  "xHand": "每根绳的水平投影长度=每名同学手到塔块中轴线的水平距离，随u单调减小",
+  "yDrop": "每根绳的竖直投影长度=塔块相对手所在水平面已下降的距离，随u线性增大（yDrop=0.5+0.4u）"
+ },
+ "process_endpoints": "u=0对应两人手处于初始位置、绳与水平方向夹角α0=30°的时刻；u=1对应塔块已下降至绳与水平方向夹角α_end≈64.16°（此时塔块相对手所在水平面下降0.9倍绳长）的时刻。动画只演示这一段过程，不演示到绳竖直（α=90°，此时v发散）为止。",
+ "scene_requirements": [
+  "中央悬挂的方形塔块，两条等长细绳一端共同系在塔块上",
+  "两名同学分别站在塔块两侧地面，握绳的手保持同一水平面，沿水平方向相向运动（水平距离持续缩短）",
+  "塔块沿竖直方向匀速下落",
+  "绳与水平方向的夹角α随时间可视化增大（绳变得越来越陡）",
+  "实时显示手的速率v的数值读数，以及夹角α（或tanα）的数值读数，直观呈现v随时间持续增大的趋势",
+  "画面明确披露本动画所选定的具体参数：绳长L=1（归一化）、初始夹角α0=30°、塔块下降速率vDrop=0.4、动画结束时夹角α_end≈64.16°，并说明这些数值为演示所需自定，非题目给定"
+ ]
+}
