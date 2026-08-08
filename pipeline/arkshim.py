@@ -219,13 +219,20 @@ def identity():
 
 
 def probe(port, timeout=1.0):
-    """问端口上那位是谁。不是垫片就回 None。"""
+    """
+    问端口上那位是谁。
+
+    三种结果要分开，因为处理方式不同：
+      None          问不出来 —— 大概率不是垫片，也可能是别的服务
+      {} 缺 thinking 是垫片，但认不出配置 —— 加身份牌**之前**起的旧进程
+      完整的身份     可以比对
+    """
     try:
         d = json.loads(urllib.request.urlopen(
             "http://127.0.0.1:%d/" % port, timeout=timeout).read())
     except Exception:
         return None
-    return d if isinstance(d, dict) and d.get("ok") and "thinking" in d else None
+    return d if isinstance(d, dict) and d.get("ok") else None
 
 
 def ensure(port=None):
@@ -252,18 +259,21 @@ def ensure(port=None):
         busy = s.connect_ex(("127.0.0.1", port)) == 0
     if busy:
         live, want = probe(port), identity()
+        how = ("换掉它：lsof -ti:%d | xargs kill，"
+               "或换个端口：EXAM_ARKSHIM_PORT=8899" % port)
         if live is None:
+            raise RuntimeError("127.0.0.1:%d 上蹲着的不是方舟垫片。%s" % (port, how))
+        if "thinking" not in live:
             raise RuntimeError(
-                "127.0.0.1:%d 上蹲着的不是方舟垫片。换个端口："
-                "EXAM_ARKSHIM_PORT=8899，或先腾出来：lsof -ti:%d | xargs kill" % (port, port))
+                "127.0.0.1:%d 上是个**加身份牌之前起的旧垫片**，认不出它的思考开关和 key，\n"
+                "所以不敢复用 —— 它很可能还是开思考的。%s" % (port, how))
         diff = [(k, live.get(k), want[k]) for k in want if live.get(k) != want[k]]
         if diff:
             raise RuntimeError(
                 "127.0.0.1:%d 上在跑的垫片跟这次要的对不上，%s。\n"
                 "它是上一轮留下的 —— 那些设置是进程启动时读死的，改 .env 影响不到它。\n"
-                "换掉它：lsof -ti:%d | xargs kill，或换端口 EXAM_ARKSHIM_PORT=8899"
-                % (port, "；".join("%s 在跑的是 %r、这次要 %r" % (k, a, b)
-                                   for k, a, b in diff), port))
+                "%s" % (port, "；".join("%s 在跑的是 %r、这次要 %r" % (k, a, b)
+                                        for k, a, b in diff), how))
     else:
         import subprocess
         subprocess.Popen([sys.executable, os.path.abspath(__file__),

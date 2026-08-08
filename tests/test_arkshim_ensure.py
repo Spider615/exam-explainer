@@ -119,6 +119,19 @@ def test_报错里不能出现完整的_key(key):
         stop()
 
 
+def test_加身份牌之前的旧垫片要单独说清楚(key):
+    """
+    改动之前的垫片 GET / 只回 `{"ok":true}`。它**是**垫片，只是认不出配置 ——
+    报「不是垫片」会把人带偏，得说清楚「是旧的、很可能还开着思考」。
+    """
+    port, stop = stub({"ok": True})
+    try:
+        with pytest.raises(RuntimeError, match="旧垫片"):
+            arkshim.ensure(port)
+    finally:
+        stop()
+
+
 def test_端口上蹲的不是垫片也要停(key):
     port, stop = stub("<html>我是别的服务</html>".encode())
     try:
