@@ -106,6 +106,14 @@ export interface Section { label: string; title: string; declared: number }
 
 export interface Paper {
   name: string
+  /**
+   * `'pdf'` 解析试卷 / `'answers_only'` 答题卡诊断。**这是两个功能**，
+   * 页面话术要按它分开：解析试卷上没有学生答案要判，判卷的提示一句都不该出现。
+   *
+   * 进度里也有一份，但那是轮询回来的、带延迟 —— 拿它决定一句话显不显示会闪，
+   * 所以整卷自己也带一份。
+   */
+  sourceKind?: string
   sections: Section[]
   warnings: string[]
   questions: Question[]

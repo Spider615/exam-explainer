@@ -388,12 +388,12 @@ def get_paper(name):
     """整卷读回，形状与旧的 questions.json 一致，好让上层不必改。"""
     with connect() as c:
         cur = c.cursor()
-        cur.execute("SELECT id, source_pdf, sections, warnings FROM papers WHERE name=%s",
-                    (name,))
+        cur.execute("SELECT id, source_pdf, sections, warnings, source_kind "
+                    "FROM papers WHERE name=%s", (name,))
         row = cur.fetchone()
         if not row:
             return None
-        pid, src, sections, warnings = row
+        pid, src, sections, warnings, src_kind = row
         cur.execute("""SELECT id, n, type, points, section, stem, stem_latex,
                               stem_low_conf, stem_image, option_image, text_quality,
                               quality_reason, n_chars, pages, label,
@@ -422,7 +422,10 @@ def get_paper(name):
                 by_id[qid]["tables"].append({"id": tid, "page": pg, "caption": cap,
                                              "rows": cells, "box": box,
                                              "cont_of": cont, "image": img})
+        # sourceKind 页面要用来分开「解析试卷」和「答题卡诊断」两个功能。
+        # 建库早于这一列的卷子是 NULL，按普通试卷算 —— 不能让它掉进判卷那条分支
         return {"name": name, "source": src, "sections": sections,
+                "sourceKind": src_kind or "pdf",
                 "warnings": warnings, "questions": qs}
 
 

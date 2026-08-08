@@ -27,12 +27,22 @@ function digest(log: string[]): string | null {
   return `第 ${round} 轮` + (gate ? ` · 上轮挂在 ${gate}` : '')
 }
 
-export default function QuestionCard({ q, paper, onRescened }: {
+export default function QuestionCard({ q, paper, sourceKind, onRescened }: {
   q: Question
   paper: string
+  /**
+   * 这份卷子是干什么的：`'pdf'` 解析试卷 / `'answers_only'` 答题卡诊断。
+   *
+   * **这是两个功能，话术不能混。** 解析试卷只讲题，没有学生答案要判；
+   * 判卷的话（「判学生对错时这道题会记『判不了』」）出现在一份普通高考真题上
+   * 是错的 —— 那份卷子压根没有人在判。
+   */
+  sourceKind?: string
   /** 重跑出新动画了。外面要重取试卷并重新加载 scene.js，否则页面上还是旧的 */
   onRescened?: () => void
 }) {
+  // 判卷相关的提示只在答题卡诊断那条链上出现
+  const grading = sourceKind === 'answers_only'
   const [compare, setCompare] = useState(false)
   const [job, setJob] = useState<Job | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -165,8 +175,13 @@ export default function QuestionCard({ q, paper, onRescened }: {
         </div>
 
         {/* 卷子上的标准答案。三种状态要分得出来：没跑过 ②d（不显示这一块）、
-            跑过但卷子没答案、抽到了 */}
-        {q.refAnswerSrc && (
+            跑过但卷子没答案、抽到了。
+
+            **「没抽到」这一格只在答题卡诊断里说。** 解析试卷上它既没用又是错的：
+            高考真题 PDF 本来就不带答案，十五道题挨个说一遍「没有参考答案」是噪音；
+            而那句「判学生对错时会记『判不了』」更是另一个功能的话 ——
+            这份卷子上没有任何人在判对错。 */}
+        {q.refAnswerSrc && (q.refAnswer || grading) && (
           <div className="refans">
             {q.refAnswer ? (
               <>

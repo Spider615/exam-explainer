@@ -11,8 +11,13 @@ export const STAGE_LABEL: [string, string][] = [
 /**
  * 后端的阶段代号 → 上面这排标志里的哪一格。
  *
- * ③b 目录、④b 自检、④c 选题都是子步骤，没有自己的标志位，归到所属的大阶段上。
- * 少了这张表，跑 ④c 选题的时候整排标志会一个都不亮，看着像卡死了。
+ * ③b 目录、③c 知识点、④b 自检、④c 选题都是子步骤，没有自己的标志位，
+ * 归到所属的大阶段上。少了这张表，跑 ④c 选题的时候整排标志会一个都不亮，
+ * 看着像卡死了 —— ③c 加进管线时忘了往这里加，就真这样了一回。
+ *
+ * **加新阶段必须同时改这里。** `stage_of` 里每 `return` 一个新代号，这张表就
+ * 要多一行，否则那一步全程「一格都不亮」。`refread`（Ⓐ 读参考答案）同理，
+ * 它是答案卷那条链的开头，归到 ① 摄入上。
  *
  * `ingest` / `segment` 这两条 **`stage_of` 永远不会返回**（它是从库里的计数反推的，
  * 而卷子入了库就意味着 ①② 已经过去了），但 `failedStage` 会 —— 管线在 ① 摄入或
@@ -20,8 +25,8 @@ export const STAGE_LABEL: [string, string][] = [
  * 于是失败**一格都不红**，只剩下面那条横幅。
  */
 const STAGE_OF_CODE: Record<string, string> = {
-  ingest: 'ingest', segment: 'segment',
-  solve: 'solve', outline: 'solve',
+  ingest: 'ingest', segment: 'segment', refread: 'ingest',
+  solve: 'solve', outline: 'solve', kpmark: 'solve',
   pick: 'spec', spec: 'spec', check: 'spec',
   scene: 'scene', assemble: 'assemble',
 }
@@ -400,7 +405,8 @@ export default function PaperView({ name }: { name: string }) {
                   {/* 重跑成功后调 load()：它重取试卷（拿到新的 sceneId），
                       而 paper 身份一变，上面那个场景脚本 effect 会跟着重跑、
                       带新时间戳重新加载 scene.js —— 新动画才真的换得上去 */}
-                  <QuestionCard q={q} paper={name} onRescened={load} />
+                  <QuestionCard q={q} paper={name}
+                                sourceKind={paper.sourceKind} onRescened={load} />
                 </div>
               )
             })}

@@ -1125,7 +1125,10 @@ def paper(name: str, user=Depends(current_user)):
         asm_note = "out.html 比库里的数据旧，重跑 ⑦ 才能把新的解法装进去"
     else:
         asm_note = "out.html 已生成，且不比库里的数据旧"
-    return {"name": name, "sections": q.get("sections") or [],
+    # sourceKind 页面要用来分开「解析试卷」和「答题卡诊断」两个功能。
+    # 进度里也有一份，但那是轮询回来的、带延迟，拿它决定一句话显不显示会闪
+    return {"name": name, "sourceKind": q.get("sourceKind") or "pdf",
+            "sections": q.get("sections") or [],
             "warnings": q.get("warnings") or [], "questions": qs,
             "stages": {"ingest": True, "segment": True,
                        "solve": len(sols) > 0,
