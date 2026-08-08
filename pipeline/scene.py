@@ -619,6 +619,53 @@ def build(sid, spec, rounds=6, model=MODEL, log=print, backend="relay", images=N
     return False, out, rounds, sid, ("codegen" if codegen else "agent")
 
 
+def plan(questions, spec_of, done, only=None, allow_draft=False,
+         do_all=False, redo=False):
+    """
+    开工前的清单：回 `(要做的, [(题号, 为什么跳过)])`。
+
+    闸门一道比一道贵，所以顺序不能乱：
+      0. **已经有通过门禁的动画** —— 最便宜，一次查询就知道，排最前
+      1. ④ 有没有 spec（免费，已在库里）
+      2. ④ 判做不做得了
+      3. ④b 自检自不自洽（纯计算）
+      4. ④c 值不值得做（一次轻量调用）
+    再往后才是一题几分钟到几十分钟的付费沙箱。
+
+    第 0 道是「继续执行」那个按钮的前提：接着没做完的往下跑，不是从头再来一遍。
+    数据不会丢（`put_scene` 挡住了「失败覆盖成功」），丢的是时间和钱，而且重做
+    成功时会把一个已经人工看过的动画换成一个没人看过的。
+
+    两个例外：`only` 是人明确点名重跑（页面上那个按钮），`redo` 是整卷强制重做
+    （改完管线想全部重生成时用）。
+    """
+    todo, skip = [], []
+    for q in questions:
+        if only and q["n"] not in only:
+            continue
+        if q["n"] in done and not only and not redo:
+            skip.append((q["n"], "已经有通过门禁的动画（要重做加 --redo，或用 --only 点名）"))
+            continue
+        row = spec_of(q["id"])
+        if not row:
+            skip.append((q["n"], "没有 spec（④ 没跑到这道题）"))
+            continue
+        if not row["animatable"]:
+            skip.append((q["n"], "④ 判定不适合做动画：%s" % (row["why_not"] or "")[:40]))
+            continue
+        if row["status"] != "approved" and not allow_draft:
+            skip.append((q["n"], "④b 自检未过，不放行"))
+            continue
+        if row["worth"] is False and not do_all:
+            skip.append((q["n"], "④c 判定不值得：%s" % (row["worth_why"] or "")[:40]))
+            continue
+        if row["worth"] is None and not (do_all or only):
+            skip.append((q["n"], "④c 还没判过（跑 pick.py，或加 --all 强行做）"))
+            continue
+        todo.append((q, row))
+    return todo, skip
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("paper")
@@ -629,6 +676,8 @@ def main():
                     help="spec 还没过 ④b 自检也照做（默认拒绝）")
     ap.add_argument("--all", action="store_true",
                     help="忽略 ④c 的选题结果，候选题全做")
+    ap.add_argument("--redo", action="store_true",
+                    help="已经通过门禁的题也重做一遍（默认跳过，接着没做完的往下跑）")
     ap.add_argument("-j", "--jobs", type=int,
                     default=int(os.environ.get("EXAM_SCENE_JOBS", "3")),
                     help="并行度。每个沙箱是一个 claude 进程，别开太大")
@@ -650,30 +699,10 @@ def main():
     only = {int(x) for x in a.only.split(",") if x.strip()} if a.only else None
 
     # ── 先出清单，再动手 ──────────────────────────────────────────────
-    # 三道闸门，一道比一道贵：④ 判做不做得了（免费，已在库里）、
-    # ④b 自检判 spec 自不自洽（纯计算）、④c 判值不值得做（一次轻量调用）。
-    # 到这一步才是一题几十分钟的沙箱。清单先打出来，跳过的都要说得出原因。
-    todo, skip = [], []
-    for q in paper["questions"]:
-        if only and q["n"] not in only:
-            continue
-        row = store.get_spec(q["id"])
-        if not row:
-            skip.append((q["n"], "没有 spec（④ 没跑到这道题）"))
-            continue
-        if not row["animatable"]:
-            skip.append((q["n"], "④ 判定不适合做动画：%s" % (row["why_not"] or "")[:40]))
-            continue
-        if row["status"] != "approved" and not a.allow_draft:
-            skip.append((q["n"], "④b 自检未过，不放行"))
-            continue
-        if row["worth"] is False and not a.all:
-            skip.append((q["n"], "④c 判定不值得：%s" % (row["worth_why"] or "")[:40]))
-            continue
-        if row["worth"] is None and not (a.all or only):
-            skip.append((q["n"], "④c 还没判过（跑 pick.py，或加 --all 强行做）"))
-            continue
-        todo.append((q, row))
+    # 判据在 plan() 里，那边有单元测试。清单先打出来，跳过的都要说得出原因。
+    todo, skip = plan(paper["questions"], store.get_spec,
+                      set(store.paper_scenes(name)), only=only,
+                      allow_draft=a.allow_draft, do_all=a.all, redo=a.redo)
 
     where = {"subscription": "claude CLI · 订阅", "relay": "claude CLI · 302 中转",
              "ark": "火山方舟直连", "ark-cli": "claude CLI · 豆包驱动"}[backend]
