@@ -130,15 +130,38 @@ PROMPT = """你是高考物理阅卷组的老师。下面是一道题，可能�
 """
 
 
-def q_source_hash(q, figs):
-    """题面内容哈希：题干 + 选项 + 插图字节。题没变就不必重解。"""
+def q_source_hash(q, figs, labels=None):
+    """
+    题面内容哈希：题干 + 选项 + 插图字节 + **选项配图的字母归属**。
+    题没变就不必重解。
+
+    为什么字节之外还要算字母
+    ------------------------
+    原来只哈希插图字节。修好「图形选项题的选项配图」之后，同样四张图从题干挪到
+    A/B/C/D 名下 —— 字节集合一个没变，哈希也没变，于是判「题面未变」，
+    **这类改进永远传不下去**。而这恰恰最要紧：模型原来拿到的是「题干插图1..4」，
+    只能靠数数猜哪张对应哪个选项，猜错就是整道题全错而且静默。
+
+    为什么只给有选项配图的题加
+    --------------------------
+    这个哈希一变，全库每道题都会被判 stale，等于整库重解 —— 几个小时加一大笔
+    额度。而「哪张图属于哪个选项」这个绑定只有真有选项配图时才存在：题干图的
+    位置信息本来就由**顺序**表达（题干插图1..N），顺序早就在哈希里了。
+    所以标签只对选项图生效，没有选项配图的题哈希逐字节不变。
+    """
+    if labels is not None and len(labels) != len(figs):
+        raise ValueError("标签 %d 个、图 %d 张，对不上 —— 按位置硬凑会得到一个"
+                         "看着像对的哈希" % (len(labels), len(figs)))
     h = hashlib.sha256()
     h.update((q.get("stem_latex") or q.get("stem") or "").encode())
     for o in q.get("options") or []:
         h.update((o.get("key", "") + (o.get("latex") or o.get("text") or "")).encode())
     for t in q.get("tables") or []:
         h.update(json.dumps(t.get("rows") or [], ensure_ascii=False).encode())
-    for b in figs:
+    for i, b in enumerate(figs):
+        lab = labels[i] if labels else ""
+        if lab.startswith("选项"):
+            h.update(lab.encode())
         h.update(hashlib.sha256(b).digest())
     return h.hexdigest()
 
@@ -352,7 +375,7 @@ def solve_one(name, q, tmp, force=False, crosscheck=False):
             open(p, "wb").write(b)
             paths.append((lab, p))
 
-    sha = q_source_hash(q, figs)
+    sha = q_source_hash(q, figs, [lab for lab, _ in labeled])
     if not force and store.solution_fresh(q["id"], sha):
         return False, "题面未变，跳过"
 
