@@ -154,3 +154,23 @@ def test_没有invariants也能挑():
     spec = {**FULL, "invariants": []}
     got = scenegen.pick_readouts(spec, scenegen.table_of(spec))
     assert "x" in got and "u" not in got
+
+
+def test_setCase切的是面板读谁(tmp_path):
+    """drawFrame 本来就同时拿到所有 case（画面上一起画），
+    能切的是面板显示哪一个的读数"""
+    sk = scenegen.skeleton(FULL, ["x"])
+    prog = ("var window={Scenes:{}};\n" + sk["js"] +
+            "var txt={};\n"
+            "var fake={querySelector:function(){return {querySelector:function(id){"
+            "  txt[id]={textContent:'-'}; return txt[id];}};}};\n"
+            "var api=window.Scenes['t1'](fake);\n"
+            "api.seek(1.0); var a = txt['#t1-ro-x'].textContent;\n"
+            "api.setCase('c2'); api.seek(1.0); var b = txt['#t1-ro-x'].textContent;\n"
+            "api.setCase('不存在'); var c = api.currentCase();\n"
+            "console.log([a, b, c].join('|'));\n")
+    r = subprocess.run(["node", "-e", prog], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr[-500:]
+    a, b, c = r.stdout.strip().split("|")
+    assert a == "1.00" and b == "2.00", (a, b)
+    assert c == "c2", "切到不存在的 case 应该维持原样，不是变成 undefined"

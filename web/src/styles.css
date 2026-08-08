@@ -422,3 +422,12 @@ td.prg{white-space:nowrap}
 .refans{margin:8px 0;font-size:14px;line-height:1.7}
 .refans .src{color:var(--ink3);font-size:12px;margin-left:6px}
 .refans .pill.w{margin-left:8px}
+
+/* 场景播放控件。时间轴只在代码生成的新场景上出现（老场景没有 seek/duration） */
+.scenebox:focus{outline:2px solid var(--acc);outline-offset:2px;border-radius:3px}
+.scenebox:focus:not(:focus-visible){outline:none}
+.ctlbar input[type=range]{width:150px;accent-color:var(--acc);cursor:pointer;
+  /* 投影常配触屏一体机，手指要抓得住 */
+  height:22px}
+.ctl-num{font-family:var(--mono);font-size:11px;color:var(--ink3);min-width:34px}
+.ctl-lab{font-size:11px;color:var(--ink3)}

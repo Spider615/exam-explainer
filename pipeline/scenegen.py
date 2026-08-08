@@ -212,8 +212,9 @@ def panel_js(spec, keys, sid=None):
                       for k in keys)
     return (
         'var panelEls = {\n%s\n};\n'
+        'var panelCase = CASES[0];\n'
         'function updatePanel(ps) {\n'
-        '  var p = ps[CASES[0]], k, el, v;\n'
+        '  var p = ps[panelCase] || ps[CASES[0]], k, el, v;\n'
         '  for (k in panelEls) {\n'
         '    el = panelEls[k];\n'
         '    if (!el) continue;\n'
@@ -273,7 +274,14 @@ SKEL = """window.Scenes["%(sid)s"] = function (fig) {
     seek: function (u) {
       if (typeof drawReset === "function") drawReset(svg);
       render(u < 0 ? 0 : (u > 1 ? 1 : u));
-    }
+    },
+    /* 多 case 场景：drawFrame 本来就同时拿到所有 case（画面上一起画），
+       所以能切的是**面板显示哪一个的读数**，不是切画面 */
+    setCase: function (cid) {
+      for (var i = 0; i < CASES.length; i++) if (CASES[i] === cid) panelCase = cid;
+      return panelCase;
+    },
+    currentCase: function () { return panelCase; }
   };
 };
 """
