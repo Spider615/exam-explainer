@@ -224,11 +224,27 @@ def loads_json(txt):
 # 一次调用的上限。正常几秒到一两分钟，**5 分钟不回基本就是卡死而不是在算** ——
 # 实测两次都是请求挂在本机代理（127.0.0.1:7897）上，连接还在、CPU 0%、永远等不到响应。
 # 原来给 900 秒，等于一道题白白堵掉 15 分钟；重试一条新连接通常几秒就出结果。
-HTTP_TIMEOUT = int(os.environ.get("EXAM_HTTP_TIMEOUT", "300"))
-HTTP_TRIES = int(os.environ.get("EXAM_HTTP_TRIES", "2"))
+def timeout_from(env, name, default):
+    return int(env.get(name) or default)
 
 
-def post(base, key, payload):
+HTTP_TIMEOUT = timeout_from(os.environ, "EXAM_HTTP_TIMEOUT", 300)
+HTTP_TRIES = timeout_from(os.environ, "EXAM_HTTP_TRIES", 2)
+
+# **读图那条路不能共用上面这个 300 秒。**
+#
+# 300 是按盲试定的（纯文本，中位数几十秒），而读图是把图 base64 内联进 payload，
+# 一道题几分钟。实测黑吉辽卷第 5、9、15 题**一直没解出来**、库里 12/15 挂了很久；
+# 重跑三道全部 `read operation timed out`，放到 900 秒后**三道一次全过**。
+# 它们不是难题，是被超时砍掉的 —— 而且 solution_failures 表里一条记录都没有，
+# 是静默消失。
+#
+# 盲试那边不动：没有证据说 300 不够，而放宽它会让「挂在本机代理上」那类死锁
+# 每次多堵好几分钟（就是上面注释里记的那两次）。
+VISION_TIMEOUT = timeout_from(os.environ, "EXAM_VISION_TIMEOUT", 900)
+
+
+def post(base, key, payload, timeout=None):
     last = None
     for k in range(HTTP_TRIES):
         try:
@@ -236,7 +252,8 @@ def post(base, key, payload):
                                        json.dumps(payload).encode(),
                                        {"Authorization": "Bearer " + key,
                                         "Content-Type": "application/json"})
-            d = json.loads(urllib.request.urlopen(r, timeout=HTTP_TIMEOUT).read())
+            d = json.loads(urllib.request.urlopen(
+                r, timeout=timeout or HTTP_TIMEOUT).read())
             return loads_json(d["choices"][0]["message"]["content"])
         except Exception as e:
             last = e
@@ -276,7 +293,8 @@ def vision_payload(text, imgs):
 
 def ask_doubao(text, imgs):
     return post(ARK_BASE, ARK_KEY, {"model": ARK_MODEL, "temperature": 0,
-                                    "messages": vision_payload(text, imgs)})
+                                    "messages": vision_payload(text, imgs)},
+                timeout=VISION_TIMEOUT)
 
 
 def ask_claude(text, imgs):
@@ -287,7 +305,8 @@ def ask_claude(text, imgs):
     错误表现成「没有返回 JSON」而不是「被截断」—— 比原因难查得多。
     """
     return post(CL_BASE, CL_KEY, {"model": CL_MODEL, "max_tokens": 32000,
-                                  "messages": vision_payload(text, imgs)})
+                                  "messages": vision_payload(text, imgs)},
+                timeout=VISION_TIMEOUT)
 
 
 def ask_subscription(text, imgs):
