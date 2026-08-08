@@ -5,7 +5,7 @@ build.py —— 把 agent 写的两个文件和代码生成的骨架拼成 ⑥ �
 
     python3 harness/build.py <id> [-d 工作目录]
 
-    读：  <id>.figure.html   agent 画的场景（必须留 <g id="__panel__"></g>）
+    读：  <id>.figure.html   agent 画的场景（必须留 <g id="<id>-panel"></g>）
           <id>.draw.js       agent 写的 PERIOD / READOUTS / drawFrame / drawReset
     写：  <id>.figure.html   面板与 figcaption 已注入
           <id>.js            骨架 + draw.js
@@ -19,7 +19,7 @@ L4 恒真的保证当场作废。所以这里逐个检查，不是叮嘱。
 
 幂等
 ----
-agent 每一轮都会跑这个命令。面板注入到 `<g id="__panel__">` 的**内容**里
+agent 每一轮都会跑这个命令。面板注入到 `<g id="<id>-panel">` 的**内容**里
 （先清空再写），figcaption 整段替换 —— 连跑 N 次结果相同。
 不幂等的话面板会一层层叠，而那种画面 agent 自己也看不懂。
 
@@ -36,7 +36,11 @@ ROOT = os.path.dirname(HARNESS)
 sys.path.insert(0, os.path.join(ROOT, "pipeline"))
 import scenegen                                    # noqa: E402
 
-PANEL_SLOT = "__panel__"
+# 面板占位符**必须带场景 id 前缀** —— ⑥ 的 L1 要求 figure 里所有 id 都带前缀，
+# 用裸的 `__panel__` 会被判违规。这条是对抗性测试抓到的：手写一份 draw.js 走完
+# 整条链，L2/L3/L3.5/L4/L5 全过，只有 L1 挂在这上面
+def panel_slot(sid):
+    return "%s-panel" % sid
 # draw.js 只准定义这四样。别的名字撞上骨架就会覆盖它
 ALLOWED_DEFS = {"PERIOD", "READOUTS", "drawFrame", "drawReset"}
 # 这些名字被 agent 定义或赋值 = 想绕过骨架，一律挡下
@@ -85,28 +89,29 @@ def _forbidden_defs(draw):
     return hit
 
 
-_PANEL_G = re.compile(r'<g\b[^>]*\bid="%s"[^>]*>.*?</g>' % PANEL_SLOT, re.S)
+def _panel_g_re(slot):
+    return re.compile(r'<g\b[^>]*\bid="%s"[^>]*>.*?</g>' % slot, re.S)
 
 
-def _strip_panel(fig):
+def _strip_panel(fig, slot):
     """
     把面板组的内容整段挖掉。
 
     **不挖的话第二次跑就会误报**：面板自己的 rect 和 text 当然落在面板矩形里，
     于是「幂等」和「侵入检查」互相打架 —— 这个 bug 是幂等测试逮到的。
     """
-    return _PANEL_G.sub("", fig)
+    return _panel_g_re(slot).sub("", fig)
 
 
-def _intrude(fig, rect):
+def _intrude(fig, rect, slot):
     """有没有图元的坐标落进面板矩形。见模块开头「面板侵入检查的边界」。"""
-    fig = _strip_panel(fig)
+    fig = _strip_panel(fig, slot)
     x0, y0 = rect["x"], rect["y"]
     x1, y1 = x0 + rect["w"], y0 + rect["h"]
     bad = []
     for m in _TAG.finditer(fig):
         tag = m.group(0)
-        if 'id="%s"' % PANEL_SLOT in tag:
+        if 'id="%s"' % slot in tag:
             continue
         xs = [float(v) for v in _COORD.findall(tag)]
         # 成对取 (x, y)：属性顺序不保证，但落进矩形的点用任一配对都能发现
@@ -117,13 +122,13 @@ def _intrude(fig, rect):
     return bad
 
 
-def _inject_panel(fig, frag):
+def _inject_panel(fig, frag, slot):
     """把面板写进 <g id="__panel__">…</g> 的内容里（先清空）。幂等。"""
-    pat = re.compile(r'(<g\b[^>]*\bid="%s"[^>]*>)(.*?)(</g>)' % PANEL_SLOT, re.S)
+    pat = re.compile(r'(<g\b[^>]*\bid="%s"[^>]*>)(.*?)(</g>)' % slot, re.S)
     if pat.search(fig):
         return pat.sub(lambda m: m.group(1) + "\n" + frag + "\n" + m.group(3), fig, count=1)
-    # 自闭合写法 <g id="__panel__"/>
-    pat2 = re.compile(r'<g\b([^>]*\bid="%s"[^>]*)/>' % PANEL_SLOT)
+    # 自闭合写法 <g id="<id>-panel"/>
+    pat2 = re.compile(r'<g\b([^>]*\bid="%s"[^>]*)/>' % slot)
     if pat2.search(fig):
         return pat2.sub(lambda m: "<g%s>\n%s\n</g>" % (m.group(1), frag), fig, count=1)
     return None
@@ -180,12 +185,13 @@ def assemble(wd, sid, spec):
         probs.append(str(e))
         return probs
 
-    if PANEL_SLOT not in fig:
+    slot = panel_slot(sid)
+    if slot not in fig:
         probs.append('%s.figure.html 里必须留一个 <g id="%s"></g> 给读数面板'
-                     % (sid, PANEL_SLOT))
+                     % (sid, slot))
         return probs
 
-    intr = _intrude(fig, sk["rect"])
+    intr = _intrude(fig, sk["rect"], slot)
     if intr:
         probs.append("有 %d 个图元画进了面板矩形 %s（那块是禁区）：%s"
                      % (len(intr), json.dumps(sk["rect"]), intr[0]))
@@ -193,9 +199,9 @@ def assemble(wd, sid, spec):
     if probs:
         return probs
 
-    fig2 = _inject_panel(fig, sk["panel"])
+    fig2 = _inject_panel(fig, sk["panel"], slot)
     if fig2 is None:
-        return ['%s.figure.html 里的 <g id="%s"> 写法认不出来' % (sid, PANEL_SLOT)]
+        return ['%s.figure.html 里的 <g id="%s"> 写法认不出来' % (sid, slot)]
     fig2 = _inject_caption(fig2, sk["caption"])
 
     js = sk["js"].replace("/* @@DRAW@@ */", draw.strip())

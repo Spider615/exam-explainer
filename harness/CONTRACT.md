@@ -7,7 +7,7 @@
 你产出**两个文件**：
 
 ```
-<id>.figure.html    只含一个 <figure>…</figure>，且**必须留一个空的 <g id="__panel__"></g>**
+<id>.figure.html    只含一个 <figure>…</figure>，且**必须留一个空的 <g id="&lt;id&gt;-panel"></g>**
 <id>.draw.js        只准定义 PERIOD / READOUTS / drawFrame / drawReset 四样
 ```
 

@@ -12,7 +12,7 @@ FULL = {**SPEC, "title": "演示", "invariants": [{"report": "x[0]"}],
 FIG = """<figure>
 <svg viewBox="0 0 560 320" id="t1-svg">
   <line class="sk" id="t1-rod" x1="40" y1="200" x2="200" y2="200"/>
-  <g id="__panel__"></g>
+  <g id="t1-panel"></g>
 </svg>
 <figcaption class="u">占位</figcaption>
 </figure>"""
@@ -83,9 +83,9 @@ def test_声明的READOUTS生效(tmp_path):
 
 # ---------------------------------------------------------------- 挡住的情况
 def test_没有面板占位符要失败(tmp_path):
-    wd = _wd(tmp_path, fig=FIG.replace('<g id="__panel__"></g>', ""))
+    wd = _wd(tmp_path, fig=FIG.replace('<g id="t1-panel"></g>', ""))
     probs = build.assemble(wd, "t1", FULL)
-    assert probs and any("__panel__" in p for p in probs)
+    assert probs and any("t1-panel" in p for p in probs)
 
 
 def test_缺drawFrame要失败(tmp_path):
@@ -139,9 +139,9 @@ def test_图元侵进面板矩形要失败(tmp_path):
     sk_rect = build.scenegen.skeleton(FULL)["rect"]
     cx = sk_rect["x"] + sk_rect["w"] / 2
     cy = sk_rect["y"] + sk_rect["h"] / 2
-    bad = FIG.replace('<g id="__panel__"></g>',
+    bad = FIG.replace('<g id="t1-panel"></g>',
                       '<circle id="t1-bad" cx="%.1f" cy="%.1f" r="4"/>\n'
-                      '  <g id="__panel__"></g>' % (cx, cy))
+                      '  <g id="t1-panel"></g>' % (cx, cy))
     wd = _wd(tmp_path, fig=bad)
     probs = build.assemble(wd, "t1", FULL)
     assert probs and any("面板" in p for p in probs), probs
