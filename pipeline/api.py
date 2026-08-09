@@ -877,6 +877,33 @@ def stage_of(pg):
     return modes.of(pg.get("sourceKind")).stage_of(pg)
 
 
+def mode_block(pg, name, code, failed_stage, artifacts=None):
+    """
+    「这是哪个模式、那排格子现在什么样」。两个进度端点都带它。
+
+    **状态在后端算完再下发。** 前端没有测试框架，而这段判断（三段切分、
+    跑过去了没产物、失败只画在自己那一格）恰恰是出过两次错的那段。
+
+    `artifacts=None` 时自己去查 —— `/progress` 那条路没有 `paper.stages` 可用。
+    只有 `needs_artifact` 非空的模式才查，答题卡模式没有 ⑤/⑦，白查一次库。
+    """
+    m = modes.of(pg.get("sourceKind"))
+    if artifacts is None:
+        if m.needs_artifact:
+            asm = store.assembled(name)
+            artifacts = {
+                "scene": pg.get("scenes", 0) > 0,
+                # 只比时间戳不够：out.html 可能已经不在磁盘上了
+                "assemble": bool(asm["path"]) and os.path.exists(asm["path"])
+                            and asm["fresh"],
+            }
+        else:
+            artifacts = {}
+    return {"code": m.code, "label": m.label,
+            "stages": modes.cell_states(m, code, code == "done",
+                                        failed_stage, artifacts)}
+
+
 @app.get("/api/papers/{name}/progress")
 def paper_progress(name: str, user=Depends(current_user)):
     """
@@ -898,6 +925,7 @@ def paper_progress(name: str, user=Depends(current_user)):
             "done": code == "done", "failed": failed, "failedStage": failed_stage,
             # 网页上传的任务还能给出更细的信息（正在解哪道题），命令行跑的没有
             "step": (live or {}).get("step"), "last": (live or {}).get("last"),
+            "mode": mode_block(pg, name, code, failed_stage),
             "busy": busy}
 
 
@@ -1164,16 +1192,24 @@ def paper(name: str, user=Depends(current_user)):
         asm_note = "out.html 比库里的数据旧，重跑 ⑦ 才能把新的解法装进去"
     else:
         asm_note = "out.html 已生成，且不比库里的数据旧"
+    # 这份卷子属于哪个模式，以及那排格子现在什么样。状态在后端算完再下发 ——
+    # 前端没有测试框架，这段判断不能留在那边。
+    # 这里的产物事实直接用刚算好的 stages，不再查第二遍
+    pg = store.progress(name)
+    stages = {"ingest": True, "segment": True,
+              "solve": len(sols) > 0,
+              "spec": any(v["spec_status"] for v in sols.values()),
+              "scene": len(sc) > 0,
+              "assemble": asm_exists and asm["fresh"]}
+    mode = mode_block(pg or {"sourceKind": q.get("sourceKind")}, name,
+                      stage_of(pg)[0] if pg else None, None, artifacts=stages)
     # sourceKind 页面要用来分开「解析试卷」和「答题卡诊断」两个功能。
     # 进度里也有一份，但那是轮询回来的、带延迟，拿它决定一句话显不显示会闪
     return {"name": name, "sourceKind": q.get("sourceKind") or "pdf",
             "sections": q.get("sections") or [],
             "warnings": q.get("warnings") or [], "questions": qs,
-            "stages": {"ingest": True, "segment": True,
-                       "solve": len(sols) > 0,
-                       "spec": any(v["spec_status"] for v in sols.values()),
-                       "scene": len(sc) > 0,
-                       "assemble": asm_exists and asm["fresh"]},
+            "stages": stages,
+            "mode": mode,
             # 灭着的标志要能说出为什么灭 —— 光是灰掉，人无从知道是没跑还是跑旧了
             "stageNotes": {"assemble": asm_note},
             # 这份卷子此刻在不在跑。有的话试卷页顶部画进度带
