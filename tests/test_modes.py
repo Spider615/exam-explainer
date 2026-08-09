@@ -233,8 +233,15 @@ def _step_code_values():
 
 
 def test_失败阶段代号解析得出来():
-    """判据本身要先站得住 —— 解析不出来的话下面那条会假绿"""
-    assert _step_code_values() == {"ingest", "segment", "refread", "kpmark"}
+    """
+    判据本身要先站得住 —— 解析不出来的话下面那条会假绿。
+
+    这个集合会随管线加步骤而变（`stemread` 就是后加的）。改这一行之前先想清楚：
+    新代号在**下面那条**里落得进某个模式的格子吗？落不进的话，那一步失败时
+    一格都不会红，只剩下面一条横幅。
+    """
+    assert _step_code_values() == {"ingest", "segment",
+                                   "refread", "stemread", "kpmark"}
 
 
 def test_失败阶段代号都落得进某个模式的格子():

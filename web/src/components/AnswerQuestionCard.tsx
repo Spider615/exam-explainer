@@ -88,8 +88,27 @@ export default function AnswerQuestionCard({ q }: { q: Question }) {
           {q.stem
             ? <MathText text={q.stem} math={q.stemMath ?? []} />
             /* 留白会被读成「这道题没题干」。要明说它为什么没有 */
-            : <span className="dim">这道题的题干还没有 —— 要传题目图才读得到</span>}
+            : <span className="dim">这道题的题干还没有 —— 把原卷传进「原卷」那一栏就能读到</span>}
         </dd>
+
+        {/* 原卷上这道题的那一条截图。
+            **转写的题干把图丢了**：Ⓔ 的提示词明确要求「插图只用一句话描述、
+            不要转写坐标刻度」（逐点转写一张受力分析图，错了没人看得出来），
+            于是物理题一句「如图所示」之后什么都没有，人根本没法读。
+
+            截图摆在转写的题干**下面**而不是替代它：两样并排，切歪了、读错了
+            一眼就看得见（图文对不上）——「裁歪了没人看得见」正是设计文档当初
+            否掉裁图的理由，这样摆就不成立了。 */}
+        {q.stemImage && (
+          <>
+            <dt>原卷</dt>
+            <dd>
+              <a href={q.stemImage} target="_blank" rel="noreferrer" title="点开看大图">
+                <img className="stemshot" src={q.stemImage} alt={`第 ${q.n} 题在原卷上的样子`} />
+              </a>
+            </dd>
+          </>
+        )}
       </dl>
     </section>
   )

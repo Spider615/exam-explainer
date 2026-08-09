@@ -494,3 +494,7 @@ td.prg{white-space:nowrap}
 .fieldrow>span{color:var(--ink3);font-size:14px}
 .fieldrow input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:4px;
   background:var(--panel);color:var(--ink);font:inherit;font-size:15px}
+/* 原卷上这道题的那一条截图。整页宽切下来的，所以按容器宽自适应；
+   点开看大图（切歪没切歪、公式转写对不对，都要能核） */
+.stemshot{max-width:100%;border:1px solid var(--hair);border-radius:3px;
+  background:#fff;display:block}

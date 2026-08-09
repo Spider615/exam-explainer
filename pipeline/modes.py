@@ -130,7 +130,19 @@ SHEET = Mode(
     code="sheet", label="答题卡诊断",
     source_kinds=("answers_only",),
     stages=[("refread", "Ⓐ 读参考答案"), ("kpmark", "③c 知识点")],
-    cell_of={"refread": "refread", "kpmark": "kpmark"},
+    # `stemread`（Ⓔ 读题干）**不单独占一格**，归到 ③c 上。
+    #
+    # 不占格是有理由的：原卷那一栏是**选填**的。给它一格的话，没传原卷的卷子
+    # 那一格要么永远灰着（读作「卡住了」）、要么打勾（撒谎说读过题干了）——
+    # 而「一格永远不亮所以看着像卡死」正是这个文件存在要消灭的那种毛病。
+    #
+    # 归到 ③c 是按**后果**归的：Ⓔ 的产出就是喂给 ③c 的题干，它挂了的后果
+    # 就是那些「答案只有一个字母」的题挂不上知识点。红在 ③c 那一格上，
+    # 和人看到的现象对得上。
+    #
+    # 跑的时候看得见：进度区那行 `step` 会写「Ⓔ 读题干」并带页数进度，
+    # 不靠格子。
+    cell_of={"refread": "refread", "stemread": "kpmark", "kpmark": "kpmark"},
     needs_artifact=(),
     stage_of=_stage_of_sheet,
 )

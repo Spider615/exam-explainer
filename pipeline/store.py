@@ -652,6 +652,28 @@ def put_answer_question(paper_name, n, ref_answer, ref_solution):
         return row[0]
 
 
+def put_stem_image(paper_name, n, rel_path):
+    """
+    Ⓔ 的第二件产出：这道题在原卷上的那一条截图。
+
+    **只更新 stem_image 一列**（同 put_stem 的分工）。题号必须已经存在。
+
+    为什么非有它不可：Ⓔ 的提示词明确要求「插图只用一句话描述，不要转写坐标
+    刻度」—— 于是转出来的题干**把图丢了**，物理题一句「如图所示」之后什么
+    都没有，人根本没法读。截图摆在转写的题干旁边，还顺带让「裁歪了」变成
+    一眼可见（图文对不上），而不是悄悄的错。
+    """
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""UPDATE questions q SET stem_image=%s
+                        FROM papers p
+                       WHERE p.id=q.paper_id AND p.name=%s AND q.n=%s
+                       RETURNING q.id""", (rel_path, paper_name, n))
+        if not cur.fetchone():
+            raise ValueError("「%s」里没有第 %s 题" % (paper_name, n))
+        c.commit()
+
+
 def put_stem(paper_name, n, stem):
     """
     Ⓔ 的产出：一道题的题干。

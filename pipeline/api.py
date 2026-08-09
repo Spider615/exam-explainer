@@ -870,6 +870,7 @@ def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
     # 某个模式的格子，改名字会让这张表对那条门禁隐身。
     step_code = (
         ("Ⓐ 读参考答案", "refread", "refread.py", 3600),
+        ("Ⓔ 读题干", "stemread", "stemread.py", 3600),
         ("③c 知识点", "kpmark", "kpmark.py", 1800),
     )
     try:
@@ -908,14 +909,37 @@ def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
         log("✓ 读出 %d 题，可以开始看了。知识点在后台继续挂" % n_q)
         # 原卷和答题卡：这一轮读不了，但收下存着，等 Ⓔ 和步二做好直接能用。
         # 纯代码（规范化 + 落库），几秒钟，不进 run_step 那套子进程/超时
-        for kind, extra_paths in extra:
-            if extra_paths:
-                log("▸ 收下%s" % stash.KINDS[kind][0])
-                stash.stash(name, extra_paths, kind, verbose=False)
-                log("   %d 个文件已收下，%s（现在还不会读它）"
-                    % (len(extra_paths), stash.KINDS[kind][1]))
-        # ③c 挂不上知识点不算失败：页面逐题写「没挂上知识点」，不塞占位标签
+        extra = dict(extra)
+        # Ⓔ 读题干：传了原卷就读，没传就跳过。**跳过不算失败** —— 这一栏是选填的，
+        # 没有题干只是那些「答案只有一个字母」的题挂不上知识点，不是整条链坏了。
+        #
+        # 排在 ③c 前面是必须的：③c 判「这道题考什么」靠的就是题干 + 官方解答，
+        # 而参考答案里只有大题有解答过程（实测 26 道里 8 道）。反过来的话，
+        # ③c 会在没有题干的情况下先跑一遍、给 18 道题交白卷，然后没人再叫它
         label, code, script, timeout = step_code[1]
+        if extra.get("stem"):
+            if not run_step(jid, label, step_path(script) + [name]
+                            + list(extra["stem"]), timeout=timeout,
+                            on_line=page_progress):
+                # 读不出题干不中止整条链：参考答案已经读出来了，那部分是好的。
+                # 说出来就行 —— 不说的话，页面上只会看到「有些题没挂上知识点」，
+                # 而真正的原因（题干这一步挂了）没人知道
+                with LOCK:
+                    JOBS[jid].update(err_code=code)
+                log("   ⚠ %s 没跑成。参考答案那部分是好的，但答案只有一个字母的题"
+                    "挂不上知识点 —— 换清楚一点的原卷图再传一次" % label)
+        elif extra.get("sheet") is not None:
+            log("▸ %s：没传原卷，跳过（答案只有一个字母的题会挂不上知识点）" % label)
+
+        # 答题卡这一轮读不了，先收下存着
+        if extra.get("sheet"):
+            log("▸ 收下%s" % stash.KINDS["sheet"][0])
+            stash.stash(name, extra["sheet"], "sheet", verbose=False)
+            log("   %d 个文件已收下，%s（现在还不会读它）"
+                % (len(extra["sheet"]), stash.KINDS["sheet"][1]))
+
+        # ③c 挂不上知识点不算失败：页面逐题写「没挂上知识点」，不塞占位标签
+        label, code, script, timeout = step_code[2]
         run_step(jid, label, step_path(script) + [name], timeout=timeout)
         with LOCK:
             JOBS[jid].update(state="done")
