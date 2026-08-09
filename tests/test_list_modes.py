@@ -8,6 +8,7 @@
 from unittest.mock import patch
 
 import pytest
+from fastapi import HTTPException
 
 import store
 from pipeline import api
@@ -61,6 +62,14 @@ def test_不给mode就全给():
 
 
 def test_没见过的mode值不许静默返回空():
-    """空列表会被读成「你一份卷子都没有」，那是撒谎"""
-    with pytest.raises(Exception):
+    """
+    空列表会被读成「你一份卷子都没有」，那是撒谎。
+
+    **必须是 HTTPException 且 400**，不能只断言 Exception —— `Exception`
+    连 `KeyError` / `AttributeError` 都算通过，把 mode 校验重构成一个没接住
+    的 500 照样绿；而 500 和 400 在前端是两种完全不同的话：400 是「你传错了」，
+    500 是「后端炸了」。
+    """
+    with pytest.raises(HTTPException) as e:
         _papers("不存在的模式")
+    assert e.value.status_code == 400
