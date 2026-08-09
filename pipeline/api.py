@@ -863,13 +863,16 @@ def pipeline_running(name=None, cmds=None):
     cmds = running_cmds() if cmds is None else cmds
     if name is None:
         return bool(cmds)
-    # 裸卷名：solve / spec / scene / outline / pick / speccheck / assemble
-    # work/<卷名>：ingest（-o 的值）/ segment / mathvlm
-    # refread 是第三种落位：卷名后面跟着一串图片文件名，既不是行尾、也不是
-    # 「-x」这样的 flag —— 老边界死卡「下一个字符是 -」会漏判。放宽成
-    # 「下一个字符不是 (」：真正要挡的只有 free_name 那个「X (2)」后缀——
-    # 卷名后面紧跟一个空格再跟 "("，是唯一会让短卷名撞上长卷名命令行的形状，
-    # 其余（flag、行尾、图片文件名……）都该放行。
+    # 三个分支各卡一种落位，逐一对应 docstring 里那三种：
+    #   `\s+-`            裸卷名 + flag：solve / spec / scene / outline /
+    #                     pick / speccheck / assemble，以及 work/<卷名> 那几个
+    #                     （ingest 的 -o 值 / segment / mathvlm）
+    #   `$`               裸卷名在行尾
+    #   `\s+(?!\()\S`     卷名后面还跟着别的位置参数：refread 的「卷名 图1 图2…」
+    #
+    # 第三个分支里的 `\S` **不能省**，理由见 docstring：只写 `\s+(?!\()` 的话，
+    # 碰上两个以上连续空格，`\s+` 会回溯少吃一个、把 lookahead 让给第二个空格，
+    # 于是查「X」照样撞上属于「X (2)」的命令行 —— 正是这个边界当初要修的那个误判。
     pats = [re.compile(r"(?:^|\s)%s(?:\s+-|\s+(?!\()\S|$)" % re.escape(s))
             for s in (name, os.path.join(WORK, name))]
     return any(p.search(ln) for ln in cmds for p in pats)
