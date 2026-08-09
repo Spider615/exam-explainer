@@ -1206,8 +1206,21 @@ def paper(name: str, user=Depends(current_user)):
               "spec": any(v["spec_status"] for v in sols.values()),
               "scene": len(sc) > 0,
               "assemble": asm_exists and asm["fresh"]}
+    # **两个模式的「产物」不是同一批东西。** 上面那六个键是解析试卷那条链的；
+    # 答题卡那两格（Ⓐ / ③c）在这份字典里一个都找不到，直接复用的话
+    # `artifacts.get("refread")` 永远是 None —— 一份诊断完的卷子两格全画成
+    # 「还没轮到」，而且没有任何东西会报错。
+    #
+    # 答题卡这两格的产物就是它自己两步的产出，口径跟 `_stage_of_sheet` 一致：
+    # 分母是**题数**，26 题里挂上 3 题不叫「③c 做完了」，所以用 all 不用 any
+    if modes.of(q.get("sourceKind")) is modes.SHEET:
+        artifacts = {"refread": bool(q["questions"]),
+                     "kpmark": bool(q["questions"])
+                               and all(x.get("kps") for x in q["questions"])}
+    else:
+        artifacts = stages
     mode = mode_block({"sourceKind": q.get("sourceKind")}, name,
-                      None, None, artifacts=stages)
+                      None, None, artifacts=artifacts)
     # sourceKind 页面要用来分开「解析试卷」和「答题卡诊断」两个功能。
     # 进度里也有一份，但那是轮询回来的、带延迟，拿它决定一句话显不显示会闪
     return {"name": name, "sourceKind": q.get("sourceKind") or "pdf",

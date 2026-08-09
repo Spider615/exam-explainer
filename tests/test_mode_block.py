@@ -83,3 +83,50 @@ def test_整卷端点不为了画标志再查一次进度():
         got = api.paper("某卷", user={"id": 7})
     prog.assert_not_called()
     assert got["mode"]["code"] == "paper"
+
+
+def _paper_call(questions, source_kind):
+    """把 `api.paper()` 那一圈依赖全 patch 掉，只留下我们要看的那段。"""
+    with (
+        patch.object(api, "mine", return_value="某卷"),
+        patch.object(api.store, "get_paper",
+                     return_value={"sections": [], "warnings": [],
+                                   "sourceKind": source_kind,
+                                   "questions": questions}),
+        patch.object(api, "scenes_for", return_value={}),
+        patch.object(api.store, "paper_solutions", return_value={}),
+        patch.object(api.store, "paper_solution_failures", return_value={}),
+        patch.object(api.store, "assembled",
+                     return_value={"path": None, "at": None, "fresh": False}),
+        patch.object(api, "active_job_for", return_value=None),
+        patch.object(api.os.path, "exists", return_value=False),
+        patch.object(api.store, "progress", return_value=None),
+    ):
+        return api.paper("某卷", user={"id": 7})
+
+
+def _aq(n, kps):
+    return {"n": n, "type": "", "points": None, "section": None, "pages": [1, 1],
+            "stem": "", "options": [], "figures": [], "kps": kps}
+
+
+def test_诊断完的答案卷两格都是done():
+    """
+    产物字典要按模式给。直接复用解析试卷那六个键的话，答题卡两格在里面一个都
+    找不到，一份**诊断完**的卷子会两格全画成「还没轮到」—— 而且没有任何东西报错
+    """
+    got = _paper_call([_aq(1, [{"code": "k1"}]), _aq(11, [{"code": "k2"}])],
+                      "answers_only")
+    assert [c["state"] for c in got["mode"]["stages"]] == ["done", "done"]
+
+
+def test_知识点没挂完的答案卷第二格还没做():
+    """口径跟 _stage_of_sheet 一致：分母是题数，挂上一半不叫做完"""
+    got = _paper_call([_aq(1, [{"code": "k1"}]), _aq(11, [])], "answers_only")
+    by = {c["code"]: c["state"] for c in got["mode"]["stages"]}
+    assert by == {"refread": "done", "kpmark": "todo"}
+
+
+def test_一题都没有的答案卷两格都没做():
+    got = _paper_call([], "answers_only")
+    assert [c["state"] for c in got["mode"]["stages"]] == ["todo", "todo"]
