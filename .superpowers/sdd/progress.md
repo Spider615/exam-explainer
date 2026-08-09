@@ -17,7 +17,7 @@
 ## 任务
 
 - [x] Task 1: `sheetcut.py`（Ⓢ）　complete（commit `f29ae14`，10 条测试，真材料跑过）
-- [ ] Task 2: 数据模型 —— 分数列、partial、判据只留一份
+- [x] Task 2: 数据模型 —— 分数列、partial、判据只留一份　complete（commit 见 git log，25 条测试）
 - [ ] Task 3: 答题卡的进度和失败要有自己的出口
 - [ ] Task 4: 上传入口 + 两道零成本闸门 + 按卡存料
 - [ ] Task 5: `sheetread.py`（Ⓑa/Ⓑb/Ⓑc）
@@ -29,4 +29,4 @@
 
 ## 测试基线
 
-592 passed（Task 1 之后）。569 是本轮开工时的数。
+617 passed（Task 2 之后）。569 是本轮开工时的数。
