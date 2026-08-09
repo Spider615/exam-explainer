@@ -561,6 +561,19 @@ def create_answers_paper(name, owner_id=None):
     那份跑了一小时的卷子会当场变成答题卡卷子：进度改走两格链，解法和动画
     还在库里却一格都不显示，**而且一句提示都没有**。
     调用方（API）该在挑卷名时就用 free_name 避开，走到这里抛已经是最后一道闸。
+
+    **撞上别人的答案卷也要抛，不只挡 source_kind。** API 那边靠
+    `answer_paper_name` 里的 `paper_owner` 检查避开撞名，但那是 TOCTOU：
+    从读 CLAIMS 快照、判定要用哪个卷名，到真正调这个函数落库之间，隔着一次
+    `paper_owner` 查询、一次 fork `ps`、以及最多 80 MB 的落盘。这个窗口里
+    两个账号填了同一个还不存在的新卷名，都会通过前面那道闸——先落库的那个
+    INSERT 成功，后落库的那个撞上 ON CONFLICT。原来这里的 WHERE 只挡
+    source_kind，后一个人的答案就会悄悄写进前一个人的卷子，而他自己从此
+    404 看不到自己传的东西。
+    这里用 `IS NOT DISTINCT FROM` 而不是 `=`：`owner_id` 可能是 NULL
+    （命令行建的卷子没有登录态），SQL 里 `NULL = NULL` 的结果是 NULL 不是
+    真，用 `=` 的话两边都无主的重跑（`test_重跑同一份答案卷不报错` 那种）
+    会被这道新闸误伤，条件恒假。
     """
     with connect() as c:
         cur = c.cursor()
@@ -572,13 +585,20 @@ def create_answers_paper(name, owner_id=None):
               updated_at=now(), run_started_at=now(),
               owner_id=COALESCE(papers.owner_id, EXCLUDED.owner_id)
             WHERE papers.source_kind = 'answers_only'
+              AND papers.owner_id IS NOT DISTINCT FROM EXCLUDED.owner_id
             RETURNING id""", (name, owner_id))
         row = cur.fetchone()
         if not row:
-            # DO UPDATE 的 WHERE 没通过：这个名字被一份解析试卷占着
+            # DO UPDATE 的 WHERE 没通过：要么这个名字被一份解析试卷占着，要么
+            # 被别人的答题卡卷子占着 —— 两种要说不一样的话，查一次现状再报
+            cur.execute("SELECT source_kind FROM papers WHERE name=%s", (name,))
+            kind = cur.fetchone()
             c.rollback()
+            if not kind or kind[0] != "answers_only":
+                raise ValueError(
+                    "「%s」已经是一份解析试卷，不能把它改成答题卡卷子 —— 换个卷名" % name)
             raise ValueError(
-                "「%s」已经是一份解析试卷，不能把它改成答题卡卷子 —— 换个卷名" % name)
+                "「%s」已经是别人的答题卡卷子，不能写进去 —— 换个卷名" % name)
         c.commit()
         return row[0]
 
