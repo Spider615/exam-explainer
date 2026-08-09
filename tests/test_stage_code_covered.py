@@ -18,6 +18,8 @@
 import os
 import re
 
+import modes
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 API = os.path.join(ROOT, "pipeline", "api.py")
 VIEW = os.path.join(ROOT, "web", "src", "components", "PaperView.tsx")
@@ -27,11 +29,18 @@ NOT_A_STEP = {"done"}
 
 
 def codes_from_stage_of():
-    """`def stage_of` 那个函数体里所有 `return "代号", ...` 的第一个字符串。"""
-    src = open(API, encoding="utf-8").read()
-    body = src.split("def stage_of(", 1)[1]
-    body = re.split(r"\ndef ", body, maxsplit=1)[0]
-    return {m.group(1) for m in re.finditer(r'return\s+"([a-z_]+)"\s*,', body)} - NOT_A_STEP
+    """
+    两个模式各自的 `stage_of` 会返回的所有代号。
+
+    这些 `return "代号", ...` 原来都挤在 api.py 的 `stage_of` 一个函数体里，
+    后来搬进了 `pipeline/modes.py`（一个模式一份，`api.stage_of` 退成一行
+    分发）。这里跟着搬，不然这条门禁会对着搬空了的 api.stage_of 扫，
+    永远扫出空集合，看着像通过，其实是瞎的。
+    """
+    codes = set()
+    for m in modes.ALL:
+        codes |= modes.codes_returned_by(m.stage_of)
+    return codes - NOT_A_STEP
 
 
 def codes_from_step_code():

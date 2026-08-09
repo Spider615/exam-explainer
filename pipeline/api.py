@@ -48,6 +48,7 @@ import store            # 库与资产存储；API 只经过它
 import kp               # 知识点词表：标签的名字与所属章由后端给，前端不再存一份
 import grade            # 判等的口径只写一份，阅卷和「AI vs 卷子」共用
 import mailer           # 验证码信；没配 SMTP 时退化成打日志
+import modes            # 「一共有哪几步、每步叫什么」只有这一份，stage_of 只负责分发
 
 from fastapi import Body, Depends, FastAPI, Request, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -863,58 +864,17 @@ def stage_of(pg):
     """
     从库里的计数反推「现在在哪一步」，返回 (代号, 带编号的阶段名, 短状态词, 已完成, 总数)。
 
-    没有谁上报状态 —— 这是**推断**出来的，所以按管线顺序找第一个没做完的环节。
-    好处是命令行跑的、服务重启过的、别的进程跑的，一律看得见。
+    没有谁上报状态 —— 这是**推断**出来的。好处是命令行跑的、服务重启过的、
+    别的进程跑的，一律看得见。
 
-    每一步的分母都要用**那一步自己的口径**
-    ------------------------------------
-    这里原来一律拿题数或上一步的行数当分母，于是 ④c 挪到 ④ 前面之后，
-    跑完的卷子在列表里永远显示「④ 写断言 6/16」—— ④ 只给 ④c 选中的 6 道题
-    写断言，剩下 10 道**本来就不该有** spec，可是分母写的是 16。
-    同样的坑还有两个：④b 自检的对象是 spec 不是题（而且 animatable=false 的
-    spec 根本不过自检），⑤ 的分子必须是「试过几道」而不是「绿灯几道」——
-    有一道怎么都过不了门禁的话，按绿灯数算就永远差一个，永远显示在跑。
+    **判据本身在 `pipeline/modes.py`**，一个模式一份，这里只负责分发。
+    签名和返回值一个字没变，所以 `test_stage_of.py` / `test_stage_answers_only.py` /
+    `test_progress.py` 不用改 —— 它们不变还绿，才证明这次搬家没碰坏东西。
 
-    两个短状态词是有区别的：`stage` 带编号，给试卷页的进度带用（和上面那排
-    ①②③ 标志对得上）；`short` 是给试卷库列表用的白话，那里没有编号可对照。
+    两个短状态词是有区别的：`stage` 带编号，给试卷页的进度带用；
+    `short` 是给试卷库列表用的白话，那里没有编号可对照。
     """
-    q, sol = pg["questions"], pg["solutions"]
-
-    # 「参考答案 + 题目图」的卷子：没跑过 ①②③，进不了 ④⑤⑦。终点是 ③c 挂完知识点。
-    # **不分支的话 solutions/specs/scenes 恒为 0，进度带永远转、done 永远是 false。**
-    # 期一加 ③c 那一格已经踩过一次一模一样的坑
-    if pg.get("sourceKind") == "answers_only":
-        if not q:
-            return "refread", "Ⓐ 读参考答案", "读参考答案", 0, 1
-        if pg.get("kps", 0) < q:
-            return "kpmark", "③c 知识点", "标知识点", pg.get("kps", 0), q
-        return "done", "完成", "已完成", 1, 1
-
-    # **终态失败也算「③ 走完了」。** 只数 solutions 的话，一道重试到底仍然失败的题
-    # 会让进度永远停在「解题中 14/15」—— 而它已经不会再有解法了，等下去没有意义。
-    terminal = sol + pg.get("solutionFailures", 0)
-    if terminal < q:
-        return "solve", "③ 解题", "解题中", terminal, q
-    # ③b 的分母是**解出来的题数**：失败的题不会有解法，也就不会有短答案，
-    # 拿题数当分母会永远差那几道
-    if pg["labels"] < sol:
-        return "outline", "③b 目录", "生成目录", pg["labels"], sol
-    # ③c 知识点。分母是题数不是解出来的题数 —— 没解出来的题也该有知识点
-    # （只看题干也判得出个大概），而诊断报告要拿它做聚合
-    if pg.get("kps", 0) < q:
-        return "kpmark", "③c 知识点", "标知识点", pg.get("kps", 0), q
-    # ④c 的候选是「解出来的题」，不是全部题 —— 没解出来的它压根不判
-    if pg["judged"] < sol:
-        return "pick", "④c 选题", "动画选题", pg["judged"], sol
-    if pg["specsWorth"] < pg["worth"]:
-        return "spec", "④ 写断言", "写断言", pg["specsWorth"], pg["worth"]
-    if pg["drafts"]:
-        return "check", "④b 自检", "断言自检", pg["specs"] - pg["drafts"], pg["specs"]
-    if pg["sceneTried"] < pg["ready"]:
-        return "scene", "⑤ 生成场景", "生成动画", pg["sceneTried"], pg["ready"]
-    if not pg["assembledFresh"]:
-        return "assemble", "⑦ 装配成页", "装配成页", 0, 1
-    return "done", "完成", "已完成", 1, 1
+    return modes.of(pg.get("sourceKind")).stage_of(pg)
 
 
 @app.get("/api/papers/{name}/progress")
