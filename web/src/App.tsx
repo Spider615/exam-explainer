@@ -180,7 +180,7 @@ export default function App() {
         mode === 'sheet' ? <SheetView name={open} /> : <PaperView name={open} />
       ) : mode === 'sheet' ? (
         <>
-          <SheetUpload onDone={(n) => { refresh(); go('sheet', n) }} />
+          <SheetUpload onDone={(n, o) => { refresh(); if (o) go('sheet', n) }} />
           <h2 className="lbl">答题卡库</h2>
           {note && <div className="toast">{note}</div>}
           <SheetList rows={rows} onOpen={(n) => go('sheet', n)}
