@@ -146,8 +146,6 @@ export default function App() {
     return () => window.clearInterval(t)
   }, [open, me, refresh])
 
-  // busy / note 的声明挪到了 `go` 上面 —— `go` 换模式时要清掉它们
-
   const remove = useCallback((names: string[]) => {
     setBusy(true)
     setNote(null)
