@@ -236,7 +236,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("paper")
     ap.add_argument("images", nargs="+")
+    # 建卷子必须**显式**说出来。让 read() 自己隐式建的话，卷名打错一个字
+    # 就会凭空多出一份新卷子，而人以为自己在往老卷子里补页
+    ap.add_argument("--create", action="store_true",
+                    help="这个卷名还不存在，现在建一份答题卡卷子")
     a = ap.parse_args()
+    if a.create:
+        store.create_answers_paper(a.paper)
     read(a.paper, a.images)
     return 0
 

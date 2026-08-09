@@ -555,6 +555,12 @@ def create_answers_paper(name, owner_id=None):
 
     题目由 Ⓐ（refread）一条条写进去，题干由 Ⓔ（stemread）按题号填。
     两步分工写死，谁都不许碰对方那一列 —— 见 put_answer_question / put_stem。
+
+    **撞上一份解析试卷就抛，不许就地转模式。** 原来这条 upsert 无条件
+    `source_kind='answers_only'`，于是填一个和某份高考真题重名的卷名，
+    那份跑了一小时的卷子会当场变成答题卡卷子：进度改走两格链，解法和动画
+    还在库里却一格都不显示，**而且一句提示都没有**。
+    调用方（API）该在挑卷名时就用 free_name 避开，走到这里抛已经是最后一道闸。
     """
     with connect() as c:
         cur = c.cursor()
@@ -564,12 +570,17 @@ def create_answers_paper(name, owner_id=None):
             VALUES (%s, 0, 'answers_only', now(), now(), %s)
             ON CONFLICT (name) DO UPDATE SET
               updated_at=now(), run_started_at=now(),
-              source_kind='answers_only',
               owner_id=COALESCE(papers.owner_id, EXCLUDED.owner_id)
+            WHERE papers.source_kind = 'answers_only'
             RETURNING id""", (name, owner_id))
-        pid = cur.fetchone()[0]
+        row = cur.fetchone()
+        if not row:
+            # DO UPDATE 的 WHERE 没通过：这个名字被一份解析试卷占着
+            c.rollback()
+            raise ValueError(
+                "「%s」已经是一份解析试卷，不能把它改成答题卡卷子 —— 换个卷名" % name)
         c.commit()
-        return pid
+        return row[0]
 
 
 def source_kind_of(name):

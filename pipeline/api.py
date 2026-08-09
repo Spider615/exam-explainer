@@ -798,8 +798,8 @@ def failure_note(name, code, busy):
 # 管线脚本名。判「在不在跑」用它，比「多久没落库」可靠 ——
 # ④ 一题六分钟、⑤ 一道十几分钟，按时间阈值判必然误报「已停止」。
 PIPE_RE = re.compile(
-    r"pipeline/(solve|spec|scene|outline|kpmark|refans|pick|speccheck|assemble"
-    r"|ingest|segment|mathvlm)\.py")
+    r"pipeline/(solve|spec|scene|outline|kpmark|refans|refread|pick|speccheck"
+    r"|assemble|ingest|segment|mathvlm)\.py")
 # 而且**跑它的得是个 python**。只按命令行里出没出现过脚本名来判的话，一条
 # 恰好提到了 `pipeline/solve.py` 的 shell 命令（编辑器、别的工具、甚至一次
 # 手敲的 grep）就会被算成「管线在跑」，整份卷子被标成解题中。
@@ -855,7 +855,12 @@ def pipeline_running(name=None, cmds=None):
         return bool(cmds)
     # 裸卷名：solve / spec / scene / outline / pick / speccheck / assemble
     # work/<卷名>：ingest（-o 的值）/ segment / mathvlm
-    pats = [re.compile(r"(?:^|\s)%s(?:\s+-|$)" % re.escape(s))
+    # refread 是第三种落位：卷名后面跟着一串图片文件名，既不是行尾、也不是
+    # 「-x」这样的 flag —— 老边界死卡「下一个字符是 -」会漏判。放宽成
+    # 「下一个字符不是 (」：真正要挡的只有 free_name 那个「X (2)」后缀——
+    # 卷名后面紧跟一个空格再跟 "("，是唯一会让短卷名撞上长卷名命令行的形状，
+    # 其余（flag、行尾、图片文件名……）都该放行。
+    pats = [re.compile(r"(?:^|\s)%s(?:\s+(?!\()|$)" % re.escape(s))
             for s in (name, os.path.join(WORK, name))]
     return any(p.search(ln) for ln in cmds for p in pats)
 
