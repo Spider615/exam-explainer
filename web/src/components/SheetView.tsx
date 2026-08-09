@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, getPaper, getProgress } from '../api'
 import AnswerQuestionCard from './AnswerQuestionCard'
+import { fmtDur } from '../fmt'
 import type { Paper, Progress } from '../types'
 
 /**
@@ -71,6 +72,20 @@ export default function SheetView({ name }: { name: string }) {
 
   const cells = pg?.mode?.stages ?? paper.mode?.stages ?? []
   const qs = paper.questions
+  /**
+   * 那条进度条的分子分母。两步各有各的口径，**不能共用一个**：
+   *
+   * Ⓐ 的分母是**页数**（一页一分钟上下），由后端从 refread 的输出里抠出来；
+   * ③c 的分母是**题数**。硬拿 `stageCur/stageTotal` 画的话，Ⓐ 那一步永远是
+   * 0/1 —— 一个从头到尾不动的条，比没有还糟。
+   *
+   * 两样都拿不到就不画条，只留状态词和日志：**宁可不画，也不画一个假的**。
+   */
+  const bar = pg?.stageCode === 'refread'
+    ? (pg.pageTotal ? { cur: pg.pageDone ?? 0, total: pg.pageTotal, unit: '页' } : null)
+    : pg?.stageCode === 'kpmark'
+      ? { cur: pg.kps, total: pg.questions, unit: '题' }
+      : null
   const withSolution = qs.filter((q) => q.refSolution).length
   const withKps = qs.filter((q) => q.kps?.length).length
 
@@ -125,6 +140,44 @@ export default function SheetView({ name }: { name: string }) {
 
       {pg?.failed && (
         <div className="banner bad"><b>上一次没跑完</b>　{pg.failed}</div>
+      )}
+
+      {/* 跑着的时候要说清楚跑到哪了。
+          没有这块的时候，Ⓐ 那几分钟里这一屏只有一个转不停的呼吸点和三个 0 ——
+          用户原话：「都看不到读取到哪一题了，什么进度都看不到啊」。
+          停下来（busy=false 但没跑完）也要画，而且要说「已停止」——
+          光把进度条画在那儿，人分不出「在跑」和「停了」。 */}
+      {pg && (pg.busy || !pg.done) && (
+        <div className={`prog${pg.busy ? '' : ' idle'}`}>
+          <div className="prog-hd">
+            <span className="prog-dot" />
+            <b>{pg.failed ? `失败 · ${pg.stage}`
+              : pg.busy ? pg.stage
+                : `${pg.stage} · 已停止`}</b>
+            {bar && <span className="prog-num">{bar.cur}/{bar.total} {bar.unit}</span>}
+            {pg.elapsedSeconds != null && (
+              <span className="prog-t">已用时 {fmtDur(pg.elapsedSeconds)}</span>
+            )}
+          </div>
+          {bar && (
+            <div className="prog-bar">
+              <i style={{ width: `${Math.round((bar.cur / bar.total) * 100)}%` }} />
+            </div>
+          )}
+          {/* 最后一行日志。Ⓐ 每读完一页打一条「第2页 读到 20 条（到第14(2)题）」，
+              这句话恰好回答了「读到哪一题了」—— 比进度条本身还有用 */}
+          {pg.step && (
+            <code className="prog-last">
+              {pg.step}{pg.last ? ` · ${pg.last.trim()}` : ''}
+            </code>
+          )}
+          {!pg.busy && !pg.done && (
+            <code className="prog-last">
+              没有进程在动。参考答案没读完的话，重新上传一次就行 ——
+              这一步不支持接着跑（上传的原件跑完就收掉了）。
+            </code>
+          )}
+        </div>
       )}
 
       <div className="facts">

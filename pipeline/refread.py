@@ -174,6 +174,11 @@ def read(paper_name, page_files, verbose=True):
     log = ((lambda s: print(s, flush=True)) if verbose else (lambda *a, **k: None))
     work = os.path.join(ROOT, "work", paper_name)
     pgs = pages.normalize(page_files, os.path.join(work, "page"), prefix="p")
+    # 先把分母报出来。**页面上那条进度条要靠它** —— 没有分母的话，只能显示
+    # 一个转个不停的圈，人分不出「在读第 2 页」和「卡死了」。
+    # 这行是给人看的，同时也是给 api.py 解析的（`read_progress`），改措辞时
+    # 「共 N 页」这四个字要留着
+    log("── 共 %d 页要读（一页一分钟上下）" % len(pgs))
 
     raw, failed, last_q, blank = [], [], None, 0
     for pg in pgs:

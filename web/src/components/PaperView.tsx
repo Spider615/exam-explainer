@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getPaper, getProgress, resumePaper, sceneScriptUrl } from '../api'
 import QuestionCard from './QuestionCard'
+import { fmtDur } from '../fmt'
 import type { Paper, Progress, Question } from '../types'
 
 /**
@@ -15,15 +16,6 @@ function jumpTo(n: number) {
   if (!target) return
   target.focus({ preventScroll: true })
   target.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-/** 秒 → 「1 小时 4 分」。整条链动辄一小时，只显示秒数没人读得出来 */
-function fmtDur(sec: number) {
-  const s = Math.max(0, Math.round(sec))
-  if (s < 60) return `${s} 秒`
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m} 分 ${s % 60} 秒`
-  return `${Math.floor(m / 60)} 小时 ${m % 60} 分`
 }
 
 /** 一格答案放得下多少字。超过就不硬塞，点进去看完整解法 */

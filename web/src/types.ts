@@ -218,6 +218,15 @@ export interface Progress {
   /** 网页上传的任务才有的细节（正在解哪道题）；命令行跑的是 null */
   step?: string | null
   last?: string | null
+  /**
+   * Ⓐ 读参考答案读到第几页 / 共几页。
+   *
+   * **没有分母的进度条只是个转不停的圈** —— 人分不出「在读第 2 页」和「卡死了」，
+   * 而 Ⓐ 一页要一分钟上下，四页起步。两个值都由后端从 refread 自己的输出里抠
+   * （`api.read_progress`）；解析试卷那条链没有这两个键，是 null。
+   */
+  pageDone?: number | null
+  pageTotal?: number | null
 }
 
 /** /api/papers/{name} 里带的活跃任务摘要，够画一条进度带 */

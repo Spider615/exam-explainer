@@ -374,9 +374,12 @@ def job_log(jid, s):
         JOBS[jid]["log"].append(CTRL.sub("", s)[:400])
 
 
-def run_step(jid, label, cmd, timeout=900):
+def run_step(jid, label, cmd, timeout=900, on_line=None):
     """
     跑管线的一步，返回是否成功。
+
+    `on_line` 每读到一行 stdout 调一次，用来把这一步自己的进度抠进 JOBS
+    （Ⓐ 是「读到第几页 / 共几页」）。**只读不写日志** —— 日志已经在这里写了。
 
     **边跑边把 stdout 送进日志**，不是等它跑完一次性吐出来 —— ④ 写断言一卷要十几
     分钟，攒着的话页面上十几分钟一行不动，跟卡死没有区别。这也是阶段③ 逐题回报
@@ -416,6 +419,8 @@ def run_step(jid, label, cmd, timeout=900):
             for piece in raw.splitlines():
                 if piece.strip():
                     job_log(jid, "  " + piece.rstrip())
+                    if on_line:
+                        on_line(piece)
         rc = p.wait()
     finally:
         killer.cancel()
@@ -801,6 +806,38 @@ async def upload(file: UploadFile = File(...), user=Depends(current_user)):
     return {"job": jid, "name": name}
 
 
+# Ⓐ 的进度：从它自己的输出里抠。
+#   `── 共 4 页要读（一页一分钟上下）`   → 分母
+#   `   第2页 读到 20 条（到第14(2)题）`  → 分子（这一页读完了）
+#   `   第4页 ✗ 没读成：…`               → 分子（这一页也完了，只是失败）
+#
+# **分子必须连「读到 / ✗」一起卡，不能只认「第…页」。** 光认「第…页」的话，
+# 收尾那行 `⚠ 有 1 页没读成（第 4 页）` 也会命中 —— 进度条会在只成功了 3 页
+# 的时候直接跳到 4/4。多页时写成「第 1、2 页」反而不命中，于是同一类消息
+# 一页命中、两页不命中，错得还不一致。实拨真实日志时抓到的。
+#
+# 「第12(1)题」这种逐题清单不会命中：那是「题」不是「页」。
+_PAGE_TOTAL = re.compile(r"共\s*(\d+)\s*页")
+_PAGE_DONE = re.compile(r"第\s*(\d+)\s*页\s*(?:读到|✗)")
+
+
+def read_progress(line, cur):
+    """
+    从 Ⓐ 的一行输出里抠出「读到第几页 / 共几页」。**纯函数**，回一个新的 dict。
+
+    抠不出来就原样回 —— 大多数行本来就跟进度无关（逐题清单、告警）。
+    页号只增不减：模型的输出顺序不保证与版面一致，倒退一格会让进度条抖。
+    """
+    out = dict(cur)
+    m = _PAGE_TOTAL.search(line)
+    if m:
+        out["pageTotal"] = int(m.group(1))
+    m = _PAGE_DONE.search(line)
+    if m:
+        out["pageDone"] = max(out.get("pageDone") or 0, int(m.group(1)))
+    return out
+
+
 def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
     """
     答题卡模式的整条链：Ⓐ 读参考答案 → 收下原卷/答题卡 → ③c 挂知识点。
@@ -837,9 +874,17 @@ def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
     )
     try:
         label, code, script, timeout = step_code[0]
+
+        def page_progress(line):
+            # 边跑边把「第几页 / 共几页」记进 JOBS，`/progress` 会带给页面 ——
+            # 没有它，答题卡那一屏在 Ⓐ 跑的那几分钟里只有一个转不停的圈，
+            # 人分不出「在读第 2 页」和「卡死了」
+            with LOCK:
+                JOBS[jid].update(read_progress(line, JOBS[jid]))
+
         # Ⓐ 一页要一分钟上下，四页就是好几分钟；给足超时，别拿默认的 900 秒去砍它
         if not run_step(jid, label, step_path(script) + [name] + list(paths),
-                        timeout=timeout):
+                        timeout=timeout, on_line=page_progress):
             with LOCK:
                 JOBS[jid].update(state="error", err=label + " 失败", err_code=code)
             if created:
@@ -997,6 +1042,9 @@ def active_job_for(name):
         jid, j = live[-1]          # dict 保插入序，最后一个就是最近起的那个
         return {"id": jid, "state": j.get("state"), "step": j.get("step"),
                 "solved": j.get("solved"), "total": j.get("total"),
+                # Ⓐ 读参考答案的进度：读到第几页 / 共几页（见 read_progress）。
+                # 解析试卷那条链没有这两个键，回 None，前端据此不画那条
+                "pageDone": j.get("pageDone"), "pageTotal": j.get("pageTotal"),
                 "last": (j["log"][-1] if j.get("log") else "")}
 
 
@@ -1197,6 +1245,9 @@ def paper_progress(name: str, user=Depends(current_user)):
             "done": code == "done", "failed": failed, "failedStage": failed_stage,
             # 网页上传的任务还能给出更细的信息（正在解哪道题），命令行跑的没有
             "step": (live or {}).get("step"), "last": (live or {}).get("last"),
+            # Ⓐ 那一步「读到第几页 / 共几页」。没有分母的进度条只是个转不停的圈
+            "pageDone": (live or {}).get("pageDone"),
+            "pageTotal": (live or {}).get("pageTotal"),
             "mode": mode_block(pg, name, code, failed_stage),
             "busy": busy}
 
