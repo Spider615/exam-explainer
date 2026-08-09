@@ -811,20 +811,38 @@ def run_answer_pipeline(jid, paths, name, owner_id, created):
     def log(s):
         job_log(jid, s)
 
-    step_code = {"Ⓐ 读参考答案": "refread", "③c 知识点": "kpmark"}
+    # (显示名, 代号, 脚本名, 超时秒数)。显示名和代号绑在同一个元组里一起走，
+    # **不再有「按显示名去一张表里查代号」这个动作** —— 原来是
+    # `step_code = {"Ⓐ 读参考答案": "refread", ...}` 再拿字符串字面量去
+    # `step_code["Ⓐ 读参考答案"]` 查，显示名要打两遍字、还要跟 run_step 那句
+    # 里的第三份拷贝保持一致。三份里改动其中一份、漏改另一份，字典查找会抛
+    # KeyError，被下面整段的 try/except 吞掉：那次 `.update(..., err_code=...)`
+    # 根本没跑到，`err_code` 这个键压根不存在，`failed_job_for` 读到的就是
+    # None，失败时对应那一格不会红 —— 这种坏法一声不响，见 _RESUME 上面那段注释。
+    STEPS = (
+        ("Ⓐ 读参考答案", "refread", "refread.py", 3600),
+        ("③c 知识点", "kpmark", "kpmark.py", 1800),
+    )
     try:
+        label, code, script, timeout = STEPS[0]
         # Ⓐ 一页要一分钟上下，四页就是好几分钟；给足超时，别拿默认的 900 秒去砍它
-        if not run_step(jid, "Ⓐ 读参考答案",
-                        step_path("refread.py") + [name] + list(paths),
-                        timeout=3600):
+        if not run_step(jid, label, step_path(script) + [name] + list(paths),
+                        timeout=timeout):
             with LOCK:
-                JOBS[jid].update(state="error", err="Ⓐ 读参考答案 失败",
-                                 err_code=step_code["Ⓐ 读参考答案"])
+                JOBS[jid].update(state="error", err=label + " 失败", err_code=code)
             if created:
-                # 一道题都没读出来。空壳留着的话，页面上会冒出一份 0 题的卷子，
-                # 而没有任何东西说明它是怎么来的
+                # run_step 返回 False 不等于「一道题都没读出来」——超时被 killpg
+                # 时，refread 逐题落库的那些题可能已经写进去了。删之前先问一次
+                # 库里到底有几题，日志按实际数目说话，不能不分青红皂白地断言
+                #「一道都没有」
+                n_before_delete = len(
+                    (store.get_paper(name) or {"questions": []})["questions"])
                 store.delete_papers([name], owner_id)
-                log("   这次新建的空卷子已经删掉了 —— 一道题都没读出来")
+                if n_before_delete:
+                    log("   这次新建的空卷子已经删掉了 —— 读出了 %d 题，"
+                        "但这一步没跑完" % n_before_delete)
+                else:
+                    log("   这次新建的空卷子已经删掉了 —— 一道题都没读出来")
             return
         n_q = len((store.get_paper(name) or {"questions": []})["questions"])
         with LOCK:
@@ -832,7 +850,8 @@ def run_answer_pipeline(jid, paths, name, owner_id, created):
                              warnings=[], solved=n_q, total=n_q)
         log("✓ 读出 %d 题，可以开始看了。知识点在后台继续挂" % n_q)
         # ③c 挂不上知识点不算失败：页面逐题写「没挂上知识点」，不塞占位标签
-        run_step(jid, "③c 知识点", step_path("kpmark.py") + [name], timeout=1800)
+        label, code, script, timeout = STEPS[1]
+        run_step(jid, label, step_path(script) + [name], timeout=timeout)
         with LOCK:
             JOBS[jid].update(state="done")
         log("✓ 完成")

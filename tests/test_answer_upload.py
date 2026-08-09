@@ -102,10 +102,35 @@ def test_读参考答案失败_新建的空壳要删掉():
     _fresh_job(jid)
     try:
         with patch.object(api, "run_step", return_value=False), \
+             patch.object(api.store, "get_paper", return_value={"questions": []}), \
              patch.object(api.store, "delete_papers") as mock_delete:
             api.run_answer_pipeline(jid, [], "期末卷", 7, created=True)
         mock_delete.assert_called_once_with(["期末卷"], 7)
         assert api.JOBS[jid]["state"] == "error"
+        log = "\n".join(api.JOBS[jid]["log"])
+        assert "一道题都没读出来" in log
+    finally:
+        api.JOBS.pop(jid, None)
+
+
+def test_读参考答案超时被杀_已经读出的题要如实说():
+    """
+    run_step 返回 False 不只发生在「一道都没读出来」——超时被 killpg 时，
+    refread 逐题落库的那些题可能已经写进去了。删除空壳时的日志不能不分
+    青红皂白地断言「一道都没有」，得先问一次库里到底有几题，按实际说话。
+    """
+    jid = "job-created-fail-partial"
+    _fresh_job(jid)
+    try:
+        with patch.object(api, "run_step", return_value=False), \
+             patch.object(api.store, "get_paper",
+                          return_value={"questions": [{"n": 1}, {"n": 2}, {"n": 3}]}), \
+             patch.object(api.store, "delete_papers") as mock_delete:
+            api.run_answer_pipeline(jid, [], "期末卷", 7, created=True)
+        mock_delete.assert_called_once_with(["期末卷"], 7)
+        log = "\n".join(api.JOBS[jid]["log"])
+        assert "3" in log
+        assert "一道题都没读出来" not in log
     finally:
         api.JOBS.pop(jid, None)
 
@@ -123,6 +148,27 @@ def test_读参考答案失败_重跑已有卷子绝不能删():
              patch.object(api.store, "delete_papers") as mock_delete:
             api.run_answer_pipeline(jid, [], "期末卷", 7, created=False)
         mock_delete.assert_not_called()
+    finally:
+        api.JOBS.pop(jid, None)
+
+
+def test_读参考答案失败给出的err_code是refread():
+    """
+    err_code 现在由 (显示名, 代号, 脚本名, 超时) 元组直接带出来，不再靠
+    「拿显示名字符串去字典里查代号」—— 后者三处都写着同一句中文，改一处漏
+    另一处会让字典查找抛 KeyError，被外层 try/except 吞掉，那次
+    `.update(..., err_code=...)` 根本没跑到，`err_code` 这个键压根不存在。
+    这里直接钉住失败路径真的带出了 err_code == "refread"。
+    """
+    jid = "job-err-code"
+    _fresh_job(jid)
+    try:
+        with patch.object(api, "run_step", return_value=False), \
+             patch.object(api.store, "get_paper", return_value={"questions": []}), \
+             patch.object(api.store, "delete_papers"):
+            api.run_answer_pipeline(jid, [], "期末卷", 7, created=True)
+        assert api.JOBS[jid]["state"] == "error"
+        assert api.JOBS[jid]["err_code"] == "refread"
     finally:
         api.JOBS.pop(jid, None)
 
