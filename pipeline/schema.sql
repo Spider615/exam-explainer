@@ -334,3 +334,29 @@ ALTER TABLE questions ADD COLUMN IF NOT EXISTS ref_solution text;
 --   codegen  物理与读数面板由 pipeline/scenegen.py 生成，模型只写 draw.js
 -- 两套并存期间出了问题要分得清是谁的锅
 ALTER TABLE scenes ADD COLUMN IF NOT EXISTS gen text NOT NULL DEFAULT 'agent';
+
+-- ③c **判过**这道题的时间。和 kps 是两件事：kps 空只说明「没挂上标签」，
+-- 说不出到底是「还没判过」还是「判过了但判不出来」。
+--
+-- 少了这一列，`stage_of` 只能拿「挂上几道」当分子 —— 而参考答案那条链上，
+-- 只有一个字母答案（`D`/`BC`）的题**永远挂不上**，于是那份卷子永远到不了
+-- 「已完成」，页面上永远写着「已停止」。用户两次问「为啥停止了」。
+--
+-- 这正是 stage_of 注释里记过的同一个教训：「⑤ 的分子必须是『试过几道』
+-- 而不是『绿灯几道』—— 有一道怎么都过不了门禁的话，按绿灯数算就永远
+-- 差一个，永远显示在跑」。
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS kps_at timestamptz;
+
+-- 回填：③c 已经跑过的卷子，整卷标成判过。
+--
+-- **不回填的话，已经跑完的卷子会集体退回「未完成」** —— STATUS 的「踩过的坑」
+-- 第 1 条就是这个（`stage_of` 加一格必须同时改分支/回填，踩过两次）。
+--
+-- 判据是「这份卷子里有任何一道挂上了知识点」：③c 是整卷一次调用，有一道挂上
+-- 就说明它在这份卷子上跑过，那么同一份里没挂上的那些也是判过的。一道都没挂上
+-- 的卷子留空 —— 那种情况分不出「跑过但全军覆没」和「压根没跑」，宁可当成没跑
+-- （代价是多跑一次 ③c，几秒钟；反过来会把没跑过的说成跑完了）。
+UPDATE questions q SET kps_at = now()
+ WHERE q.kps_at IS NULL
+   AND EXISTS (SELECT 1 FROM questions x
+                WHERE x.paper_id = q.paper_id AND jsonb_array_length(x.kps) > 0);

@@ -137,9 +137,13 @@ class SolutionFailureStoreTests(unittest.TestCase):
     def test_progress_reports_failure_count_and_uses_failure_timestamp(self):
         now = dt.datetime(2026, 8, 5, 10, tzinfo=dt.timezone.utc)
         last = now - dt.timedelta(seconds=10)
-        # 列序见 store.progress 的 SELECT：… source_kind, 题数, kps, labels,
-        # solutions, solution_failures, …
-        row = (1, 4, None, now - dt.timedelta(seconds=30), "pdf", 4, 4, 2, 1, 2, 0, 0,
+        # 列序见 store.progress 的 SELECT：… source_kind, 题数, kps,
+        # kpsJudged, labels, solutions, solution_failures, …
+        #
+        # kpsJudged（③c 判过几道）是后加的一列：kps 空既可能是「还没判过」
+        # 也可能是「判过了但一个标签都挂不上」，两件事分不开的话，只有一个
+        # 字母答案的题会让卷子永远到不了「已完成」
+        row = (1, 4, None, now - dt.timedelta(seconds=30), "pdf", 4, 4, 4, 2, 1, 2, 0, 0,
                0, 0, 0, 0, 0, 0, 0, last, now)
         conn = FakeConnection([row])
         with patch.object(store, "connect", return_value=conn):
@@ -152,7 +156,7 @@ class SolutionFailureStoreTests(unittest.TestCase):
 
     def test_progress_counts_labels_only_for_successful_solutions(self):
         now = dt.datetime(2026, 8, 5, 10, tzinfo=dt.timezone.utc)
-        row = (1, 2, None, now, "pdf", 2, 2, 0, 1, 1, 0, 0,
+        row = (1, 2, None, now, "pdf", 2, 2, 2, 0, 1, 1, 0, 0,
                0, 0, 0, 0, 0, 0, 0, now, now)
         conn = FakeConnection([row])
 

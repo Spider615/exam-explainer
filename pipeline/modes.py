@@ -65,9 +65,15 @@ def _stage_of_paper(pg):
     if pg["labels"] < sol:
         return "outline", "③b 目录", "生成目录", pg["labels"], sol
     # ③c 知识点。分母是题数不是解出来的题数 —— 没解出来的题也该有知识点
-    # （只看题干也判得出个大概），而诊断报告要拿它做聚合
-    if pg.get("kps", 0) < q:
-        return "kpmark", "③c 知识点", "标知识点", pg.get("kps", 0), q
+    # （只看题干也判得出个大概），而诊断报告要拿它做聚合。
+    #
+    # **分子是「判过几道」，不是「挂上几道」。** 挂不上是允许的结果（页面上
+    # 明说「这道题没挂上知识点」），按挂上几道算的话，只要有一道怎么都挂不上
+    # 就永远差一个、永远显示没跑完 —— 和 ⑤ 那条「要数试过几道，不是绿灯几道」
+    # 是同一个教训。`kpsJudged` 不在的话退回 `kps`（打桩的进度字典没有这个键）
+    judged_kp = pg.get("kpsJudged", pg.get("kps", 0))
+    if judged_kp < q:
+        return "kpmark", "③c 知识点", "标知识点", judged_kp, q
     # ④c 的候选是「解出来的题」，不是全部题 —— 没解出来的它压根不判
     if pg["judged"] < sol:
         return "pick", "④c 选题", "动画选题", pg["judged"], sol
@@ -93,8 +99,12 @@ def _stage_of_sheet(pg):
     q = pg["questions"]
     if not q:
         return "refread", "Ⓐ 读参考答案", "读参考答案", 0, 1
-    if pg.get("kps", 0) < q:
-        return "kpmark", "③c 知识点", "标知识点", pg.get("kps", 0), q
+    # 分子是「判过几道」不是「挂上几道」—— 这条链上只有一个字母答案的题
+    # （`D`/`BC`）**永远挂不上**，按挂上几道算的话这份卷子永远到不了「已完成」，
+    # 页面上永远写着「已停止」。用户两次问「为啥停止了」
+    judged_kp = pg.get("kpsJudged", pg.get("kps", 0))
+    if judged_kp < q:
+        return "kpmark", "③c 知识点", "标知识点", judged_kp, q
     return "done", "完成", "已完成", 1, 1
 
 

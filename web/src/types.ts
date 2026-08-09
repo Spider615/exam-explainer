@@ -196,6 +196,14 @@ export interface Progress {
   labels: number
   /** 挂上知识点的题数（③c）。分母是题数，不是解出来的题数 */
   kps: number
+  /**
+   * ③c **判过**几道（不是挂上几道）。
+   *
+   * 挂不上是允许的结果 —— 参考答案那条链上，只有一个字母答案（`D`/`BC`）的题
+   * 判不出考什么，那个字母里真的不含这个信息。进度的分子必须用这个，
+   * 否则那份卷子永远到不了「已完成」、页面上永远写着「已停止」。
+   */
+  kpsJudged?: number
   solutions: number
   solutionFailures: number
   specs: number

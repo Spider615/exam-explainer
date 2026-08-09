@@ -525,9 +525,15 @@ def put_kps(qid, kps):
 
     整体替换而不是追加：③c 是整卷一次调用，每次都给出这道题的完整清单，
     追加会让重跑一次就变成两倍标签。
+
+    **空列表也要写。** 「③c 判过这道题、但一个标签都挂不上」是个正常结果
+    （参考答案那条链上，只有一个字母答案的题就是这样），而它和「还没判过」
+    在 `kps` 这一列里长得一模一样 —— 所以另记一个 `kps_at`。少了它，
+    `stage_of` 只能拿「挂上几道」当分子，那种题永远挂不上，卷子就永远
+    到不了「已完成」、页面上永远写着「已停止」。
     """
     with connect() as c:
-        c.execute("UPDATE questions SET kps=%s WHERE id=%s",
+        c.execute("UPDATE questions SET kps=%s, kps_at=now() WHERE id=%s",
                   (json.dumps(kps, ensure_ascii=False), qid))
         c.commit()
 
@@ -867,6 +873,11 @@ def progress(name):
                    -- 知识点（只看题干就判得出个大概），诊断报告要拿它做聚合
                    (SELECT count(*) FROM questions q
                      WHERE q.paper_id=p.id AND jsonb_array_length(q.kps) > 0),
+                   -- ③c **判过**几道（不是挂上几道）。分子必须用这个：
+                   -- 只有一个字母答案的题永远挂不上，按「挂上几道」算的话
+                   -- 卷子永远到不了「已完成」。同 ⑤ 的 sceneTried
+                   (SELECT count(*) FROM questions q
+                     WHERE q.paper_id=p.id AND q.kps_at IS NOT NULL),
                    -- ③b 的分母只数**已经有解法**的题。否则一道终态失败的题留下的
                    -- 标题会冒充成进度，而它永远等不到解法
                    (SELECT count(*) FROM solutions s JOIN questions q ON q.id=s.question_id
@@ -915,13 +926,15 @@ def progress(name):
     if not r:
         return None
     (_pid, _nq, asm_at, started, src_kind,
-     n_q, n_kps, n_label, n_sol, n_failure, n_spec, n_appr, n_judged,
+     n_q, n_kps, n_kps_judged, n_label, n_sol, n_failure, n_spec, n_appr, n_judged,
      n_worth, n_scene, n_spec_worth, n_draft, n_ready, n_scene_try, last, now) = r
     idle = (now - last).total_seconds()
     # 总时长：跑完了就是 起点→装配完成，还在跑就是 起点→现在
     elapsed = ((asm_at or now) - started).total_seconds() if started else None
     return {"sourceKind": src_kind,
-            "questions": n_q, "labels": n_label, "kps": n_kps, "solutions": n_sol,
+            "questions": n_q, "labels": n_label, "kps": n_kps,
+            # 挂上几道 vs **判过几道**。页面显示前者，进度判定用后者
+            "kpsJudged": n_kps_judged, "solutions": n_sol,
             "solutionFailures": n_failure,
             "startedAt": started.timestamp() if started else None,
             "elapsedSeconds": elapsed,

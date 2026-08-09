@@ -84,7 +84,9 @@ export default function SheetView({ name }: { name: string }) {
   const bar = pg?.stageCode === 'refread'
     ? (pg.pageTotal ? { cur: pg.pageDone ?? 0, total: pg.pageTotal, unit: '页' } : null)
     : pg?.stageCode === 'kpmark'
-      ? { cur: pg.kps, total: pg.questions, unit: '题' }
+      // 分子是「判过几道」不是「挂上几道」—— 只有一个字母答案的题永远挂不上，
+      // 按挂上几道画的话，这条进度条永远走不到头
+      ? { cur: pg.kpsJudged ?? pg.kps, total: pg.questions, unit: '题判过' }
       : null
   const withSolution = qs.filter((q) => q.refSolution).length
   const withKps = qs.filter((q) => q.kps?.length).length
@@ -188,6 +190,19 @@ export default function SheetView({ name }: { name: string }) {
         </div>
         <div className="fact"><b>{withKps}</b><span>题挂了知识点</span></div>
       </div>
+
+      {/* ③c 判完了、但有题挂不上，要**明说**。
+          阶段格子打了勾，人很容易读成「26 道都挂上了」；而这里挂不上的原因是
+          具体且可解的（缺题干），说出来才知道下一步该做什么 —— 不说的话
+          只剩一堆「这道题没挂上知识点」，看着像模型不行 */}
+      {pg?.done && withKps < qs.length && (
+        <div className="banner">
+          <b>{qs.length - withKps} 道题没挂上知识点</b>
+          它们的参考答案只有一个字母或一个数（`D`、`BC`、`170 / A`），
+          判不出考什么 —— 这不是漏读，是那个答案里真的不含这个信息。
+          要挂上得有<b>题干</b>：把原卷传进「原卷」那一栏，等「读题干」做好就能补上。
+        </div>
+      )}
 
       {qs.map((q) => <AnswerQuestionCard key={q.n} q={q} />)}
 

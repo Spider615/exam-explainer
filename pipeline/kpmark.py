@@ -204,6 +204,20 @@ def mark(name, force=False, verbose=True):
         log("   第%2d题 %s" % (n, "、".join(cat[k["code"]]["name"] for k in got[n])))
 
     miss = sorted(set(valid) - set(got))
+    # **判过但一个都没挂上的，也要落一笔。** 不落的话，`kps` 空既可能是
+    # 「还没判过」也可能是「判过了判不出来」，两件事分不开 —— 而参考答案那条链上
+    # 只有一个字母答案（`D`/`BC`）的题**永远挂不上**，于是那份卷子永远到不了
+    # 「已完成」，页面上永远写着「已停止」。用户两次问「为啥停止了」。
+    #
+    # 写的是空列表：标签本来就没有，不能塞一个「最接近的」上去 —— 页面明说
+    # 「这道题没挂上知识点」是有意的。这一笔只改 kps_at。
+    #
+    # 只标这一轮真的送进模型的那些（`todo`），不是整卷：`--force` 之外的重跑
+    # 会跳过已经挂上的题，那些题的 kps_at 该留着上一次的时间，不该被刷新
+    judged = {q["n"] for q in todo}
+    for n in miss:
+        if n in judged:
+            store.put_kps(valid[n], [])
     log("── 知识点 %s（%s）" % (name, MODEL))
     log("   挂上 %d 题，没挂上 %d 题" % (len(got), len(miss)))
     if miss:
