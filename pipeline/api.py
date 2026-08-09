@@ -948,12 +948,20 @@ def job(jid: str, user=Depends(current_user)):
 
 # ---------------------------------------------------------------- 试卷
 @app.get("/api/papers")
-def papers(user=Depends(current_user)):
+def papers(user=Depends(current_user), mode: str | None = None):
     """
     列表也带进度。**返回试卷库不等于任务停了** —— 后台照跑，
     所以列表这一屏也要能看出哪份还在跑、跑到哪一步，否则一退出详情页就等于瞎了。
+
+    `mode` 是页面上那两个 tab 各自要的那一半。不给就全给（命令行和运维用）。
+    **给了一个不认识的值要当场拒**，不能静默回空列表 ——
+    空列表会被读成「你一份卷子都没有」。
     """
+    if mode is not None and mode not in {m.code for m in modes.ALL}:
+        raise HTTPException(400, "没有这个模式：%s" % mode)
     out = store.list_papers(user["id"])
+    if mode is not None:
+        out = [r for r in out if modes.of(r.get("sourceKind")).code == mode]
     cmds = running_cmds()            # 一次就够，别对每份卷子都 fork 一个 pgrep
     for r in out:
         r["scenes"] = len(scenes_for(r["name"]))

@@ -373,12 +373,21 @@ def list_papers(owner_id=None):
             SELECT p.name, p.n_questions, jsonb_array_length(p.warnings),
                    p.updated_at,
                    (SELECT count(*) FROM assets a
-                     WHERE a.paper_id=p.id AND a.kind IN ('img','mathimg'))
+                     WHERE a.paper_id=p.id AND a.kind IN ('img','mathimg')),
+                   p.source_kind,
+                   -- 答题卡那一列：有官方解答过程的题数。参考答案的版式就是只有
+                   -- 大题给详解，所以这个数天生小于题数，不是缺陷
+                   (SELECT count(*) FROM questions q
+                     WHERE q.paper_id=p.id AND q.ref_solution IS NOT NULL),
+                   (SELECT count(*) FROM questions q
+                     WHERE q.paper_id=p.id AND jsonb_array_length(q.kps) > 0)
               FROM papers p
              WHERE %s::bigint IS NULL OR p.owner_id = %s
              ORDER BY p.updated_at DESC""", (owner_id, owner_id))
         return [{"name": r[0], "n": r[1], "warnings": r[2],
-                 "mtime": r[3].timestamp(), "figures": r[4]} for r in cur.fetchall()]
+                 "mtime": r[3].timestamp(), "figures": r[4],
+                 "sourceKind": r[5], "withSolution": r[6], "kps": r[7]}
+                for r in cur.fetchall()]
 
 
 def paper_owner(name):
