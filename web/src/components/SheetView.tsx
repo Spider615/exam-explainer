@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ApiError, getPaper, getProgress } from '../api'
-import AnswerQuestionCard from './AnswerQuestionCard'
+import AnswerQuestionCard, { mainOf } from './AnswerQuestionCard'
 import { fmtDur } from '../fmt'
 import type { Paper, Progress } from '../types'
 
@@ -88,6 +88,13 @@ export default function SheetView({ name }: { name: string }) {
       // 按挂上几道画的话，这条进度条永远走不到头
       ? { cur: pg.kpsJudged ?? pg.kps, total: pg.questions, unit: '题判过' }
       : null
+  const groups: [number, typeof qs][] = []
+  for (const q of qs) {
+    const m = mainOf(q.n)
+    const last = groups[groups.length - 1]
+    if (last && last[0] === m) last[1].push(q)
+    else groups.push([m, [q]])
+  }
   const withSolution = qs.filter((q) => q.refSolution).length
   const withKps = qs.filter((q) => q.kps?.length).length
 
@@ -200,11 +207,21 @@ export default function SheetView({ name }: { name: string }) {
           <b>{qs.length - withKps} 道题没挂上知识点</b>
           它们的参考答案只有一个字母或一个数（`D`、`BC`、`170 / A`），
           判不出考什么 —— 这不是漏读，是那个答案里真的不含这个信息。
-          要挂上得有<b>题干</b>：把原卷传进「原卷」那一栏，等「读题干」做好就能补上。
+          {qs.some((q) => q.stem)
+            ? '这几道连题干都有了还挂不上，多半是题干本身没读全 —— 换清楚一点的原卷图重传一次。'
+            : '要挂上得有题干：把原卷传进「原卷」那一栏，重新上传一次就会连题干一起读。'}
         </div>
       )}
 
-      {qs.map((q) => <AnswerQuestionCard key={q.n} q={q} />)}
+      {/* **按大题分组，不逐小问渲染。** 第 13 题的 4 个小问共用同一段题干、
+          同一张原卷截图 —— 逐条渲染的话那张整页宽的截图会被重复贴 4 遍，
+          屏幕上翻半天还在同一道题里。标准答案和知识点是逐小问不同的，
+          那两样留在小问上（13(4) 挂的是「误差与有效数字」，13(1) 不是）。
+          `questions` 已经按题号排好（get_paper 的 ORDER BY q.n），
+          所以顺着扫一遍就能分组，不用先排序 */}
+      {groups.map(([main, parts]) => (
+        <AnswerQuestionCard key={main} main={main} parts={parts} />
+      ))}
 
       {/* 话术和解析试卷完全不同：这边的答案是老师给的，不是 AI 算的 */}
       <footer className="ai-note">
