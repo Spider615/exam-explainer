@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { deletePapers, getMe, getProgress, listPapers, logout, Unauthorized } from './api'
 import Login from './components/Login'
 import PaperList from './components/PaperList'
@@ -37,20 +37,37 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
 
+  // `go` 和 hashchange 都要知道「换模式前是哪个模式」，但只有 `go` 能在
+  // 同一次调用里同步拿到旧值——hashchange 触发时 `mode` 这个闭包变量可能是
+  // 装载时那份旧的（effect 依赖是 []）。用一个跟着 `mode` 走的 ref，两条路径
+  // 读同一份「当下真正的模式」，不用各自猜
+  const modeRef = useRef(mode)
+  useEffect(() => { modeRef.current = mode }, [mode])
+
+  /**
+   * 换模式要把上一屏的残留清掉。 不清的话，在解析试卷删完一份卷子再切到
+   * 答题卡诊断，那句「已删除 1 份」会跟着挂在答题卡库上面 —— 而那一屏什么都
+   * 没删过。`rows` 同理：`refresh` 是异步的，不清就有至少一帧拿上一个模式的
+   * 卷子去渲染这一屏的表格（PDF 卷子出现在答题卡库里，带着两列空的「带解答 /
+   * 挂知识点」）。「互相看不见对方的卷子」这句话得是真的，不能只写在注释里。
+   *
+   * **两条路径共用这一个函数，不许各写一份。** 以前这段清理只写在 `go` 里，
+   * 只覆盖点击路径——从答题卡按浏览器后退回解析试卷，hashchange 处理器
+   * 直接 `setRoute(readHash())`，什么都不清，会有至少一帧用答题卡的
+   * `rows` 去渲染解析试卷的表格。「互相看不见」那句注释于是只写在注释里，
+   * 这条路径上从没兑现过。
+   *
+   * 清空写在这里而不是 `setRoute` 的更新函数里：更新函数必须是纯的，
+   * StrictMode 下会跑两遍，把副作用塞进去等于让它执行两次。
+   */
+  const clearModeResidue = useCallback(() => { setRows([]); setNote(null) }, [])
+
   const go = useCallback((next: Mode, name: string | null) => {
     window.location.hash = name
       ? `/${next}/${encodeURIComponent(name)}` : `/${next}`
-    // **换模式要把上一屏的残留清掉。** 不清的话，在解析试卷删完一份卷子再切到
-    // 答题卡诊断，那句「已删除 1 份」会跟着挂在答题卡库上面 —— 而那一屏什么都
-    // 没删过。`rows` 同理：`refresh` 是异步的，不清就有至少一帧拿上一个模式的
-    // 卷子去渲染这一屏的表格（PDF 卷子出现在答题卡库里，带着两列空的「带解答 /
-    // 挂知识点」）。「互相看不见对方的卷子」这句话得是真的，不能只写在注释里。
-    //
-    // 清空写在这里而不是 setRoute 的更新函数里：更新函数必须是纯的，
-    // StrictMode 下会跑两遍，把副作用塞进去等于让它执行两次。
-    if (next !== mode) { setRows([]); setNote(null) }
+    if (next !== modeRef.current) clearModeResidue()
     setRoute({ mode: next, open: name, legacy: false })
-  }, [mode])
+  }, [clearModeResidue])
 
   /**
    * 登录态。三个值不能合并成一个布尔：`undefined` 是「还没问过后端」。
@@ -88,11 +105,16 @@ export default function App() {
     return () => { alive = false }
   }, [route.legacy, route.open, me, go])
 
+  // 浏览器前进/后退也要走上面那段模式清理，不能只在 `go()` 里做一遍
   useEffect(() => {
-    const h = () => setRoute(readHash())
+    const h = () => {
+      const next = readHash()
+      if (next.mode !== modeRef.current) clearModeResidue()
+      setRoute(next)
+    }
     window.addEventListener('hashchange', h)
     return () => window.removeEventListener('hashchange', h)
-  }, [])
+  }, [clearModeResidue])
 
   // 任何一次请求撞上 401 都退回登录页（api.ts 里广播）。会话是 30 天，
   // 但它可能在一次长任务跑到一半时过期 —— 那时候页面正开着试卷页
