@@ -49,8 +49,9 @@ import kp               # 知识点词表：标签的名字与所属章由后端
 import grade            # 判等的口径只写一份，阅卷和「AI vs 卷子」共用
 import mailer           # 验证码信；没配 SMTP 时退化成打日志
 import modes            # 「一共有哪几步、每步叫什么」只有这一份，stage_of 只负责分发
+import pages            # IMG_EXT：答题卡上传收哪些文件，口径要和 pages.normalize 一致
 
-from fastapi import Body, Depends, FastAPI, Request, UploadFile, File, HTTPException
+from fastapi import Body, Depends, FastAPI, Form, Request, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -137,6 +138,52 @@ def safe_name(fn):
     if not base.lower().endswith(".pdf"):
         base += ".pdf"
     return (base or "upload.pdf")[:120]
+
+
+# 收哪些文件。**口径必须和 pages.normalize 一致** —— 那边不认识的类型会抛，
+# 而那时候文件已经落盘、任务已经起来了，用户看到的是一条管线失败
+ANSWER_EXT = (".pdf",) + pages.IMG_EXT
+
+
+def safe_image_name(fn):
+    """
+    参考答案的文件名。**保留扩展名** —— `pages.normalize` 按它分图片还是 PDF。
+
+    `safe_name` 不能拿来用：它会无脑给所有东西加 `.pdf`，于是一张 PNG 会被
+    当成 PDF 送进 pdftoppm，报一句和真实原因毫无关系的错。
+    """
+    base = os.path.basename((fn or "").replace("\\", "/"))
+    stem, ext = os.path.splitext(base)
+    if ext.lower() not in ANSWER_EXT:
+        raise HTTPException(400, "不收这种文件：%s（只收图片和 PDF）" % (base or "空文件名"))
+    stem = re.sub(r"[^\w一-鿿.\-（）()]+", "_", stem).lstrip(".")
+    return ((stem or "page") + ext)[:120]
+
+
+def answer_paper_name(raw, user_id, claimed):
+    """
+    答题卡模式的卷名。返回真正要用的那个（可能被改过）。
+
+    三种情况要**改名**，一种是**重跑**：
+      · 撞上别人的卷子            → 改名（也不告诉他被谁占了）
+      · 撞上自己的一份**解析试卷** → 改名。不覆盖、不转模式 ——
+        那份跑了一小时的卷子不能被就地改掉，而且它的解法和动画还在库里
+      · 撞上正在跑但还没入库的名字 → 改名
+      · 撞上自己的一份答题卡卷子   → **不改**，这就是「重跑这份卷子」
+    """
+    name = re.sub(r"[^\w一-鿿.\-（）()\s]+", "_", (raw or "").strip()).strip()
+    name = re.sub(r"\s+", "_", name)[:120]
+    if not name or name.strip("._-") == "":
+        raise HTTPException(400, "卷名不能是空的")
+    check_name(name)
+    exists, owner = store.paper_owner(name)
+    taken_by_other = (exists and owner != user_id) or \
+                     claimed.get(name, user_id) != user_id
+    wrong_mode = exists and owner == user_id and \
+        modes.of(store.source_kind_of(name)).code != "sheet"
+    if taken_by_other or wrong_mode:
+        return store.free_name(name, also_taken=claimed)
+    return name
 
 
 def check_name(name):
@@ -716,6 +763,108 @@ async def upload(file: UploadFile = File(...), user=Depends(current_user)):
     threading.Thread(target=run_pipeline, args=(jid, path, name, user["id"]),
                      daemon=True).start()
     return {"job": jid, "name": name}
+
+
+def run_answer_pipeline(jid, paths, name, owner_id, created):
+    """
+    答题卡模式的整条链：Ⓐ 读参考答案 → ③c 挂知识点。
+
+    **只有这一次新建的空壳才在失败时删掉。** 重跑一份已有卷子失败时不能删 ——
+    `sheet_answers` 以 ON DELETE CASCADE 挂在 `questions` 上，删一次会把
+    学生的作答一起带走。
+    """
+    def log(s):
+        job_log(jid, s)
+
+    step_code = {"Ⓐ 读参考答案": "refread", "③c 知识点": "kpmark"}
+    try:
+        # Ⓐ 一页要一分钟上下，四页就是好几分钟；给足超时，别拿默认的 900 秒去砍它
+        if not run_step(jid, "Ⓐ 读参考答案",
+                        step_path("refread.py") + [name] + list(paths),
+                        timeout=3600):
+            with LOCK:
+                JOBS[jid].update(state="error", err="Ⓐ 读参考答案 失败",
+                                 err_code=step_code["Ⓐ 读参考答案"])
+            if created:
+                # 一道题都没读出来。空壳留着的话，页面上会冒出一份 0 题的卷子，
+                # 而没有任何东西说明它是怎么来的
+                store.delete_papers([name], owner_id)
+                log("   这次新建的空卷子已经删掉了 —— 一道题都没读出来")
+            return
+        n_q = len((store.get_paper(name) or {"questions": []})["questions"])
+        with LOCK:
+            JOBS[jid].update(state="solving", name=name, n=n_q,
+                             warnings=[], solved=n_q, total=n_q)
+        log("✓ 读出 %d 题，可以开始看了。知识点在后台继续挂" % n_q)
+        # ③c 挂不上知识点不算失败：页面逐题写「没挂上知识点」，不塞占位标签
+        run_step(jid, "③c 知识点", step_path("kpmark.py") + [name], timeout=1800)
+        with LOCK:
+            JOBS[jid].update(state="done")
+        log("✓ 完成")
+    except Exception as e:
+        with LOCK:
+            JOBS[jid].update(state="error", err=str(e))
+        log("✗ " + str(e))
+    finally:
+        with LOCK:
+            CLAIMS.pop(name, None)
+        for p in paths:
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+
+
+@app.post("/api/answer-papers")
+async def answer_upload(name: str = Form(...),
+                        files: list[UploadFile] = File(...),
+                        user=Depends(current_user)):
+    """
+    答题卡模式的上传：卷名 + 一到多张参考答案（照片 / 扫描图 / PDF）。
+
+    和 `/api/upload` 是两条独立的入口，故意不合并 —— 合并的话「收 PDF 还是收
+    一批图」「卷名从文件名推还是让人填」这两件事会缠成一堆 if，
+    而这次改动的整个目的就是把它们分开。
+    """
+    if not files:
+        raise HTTPException(400, "一个文件都没有")
+    saved_names = [safe_image_name(f.filename) for f in files]   # 先校验，再落盘
+    blobs = [await f.read() for f in files]
+    total = sum(len(b) for b in blobs)
+    if total > 80 * 1024 * 1024:
+        raise HTTPException(413, "这一批加起来超过 80 MB")
+
+    with LOCK:
+        claimed = dict(CLAIMS)
+    paper = answer_paper_name(name, user["id"], claimed)
+    created = not store.paper_owner(paper)[0]
+
+    # 同一份卷子不能同时跑两条：两条链写同一个 `work/<卷名>/page/`，
+    # pages.normalize 会原地覆写 p01.png，而另一条链正在读它
+    if active_job_for(paper) or pipeline_running(paper):
+        raise HTTPException(409, "这份卷子正在跑，等它跑完再重传 —— 答题卡库里能看到它到哪一步了")
+
+    jid = uuid.uuid4().hex[:12]
+    # 落盘在闸门之后，路径按任务分开 —— 被 409 挡掉的那次不该已经把文件写下去
+    os.makedirs(UPLOADS, exist_ok=True)
+    paths = []
+    for i, (fn, data) in enumerate(zip(saved_names, blobs), 1):
+        p = os.path.join(UPLOADS, "%s_%02d_%s" % (jid, i, fn))
+        with open(p, "wb") as f:
+            f.write(data)
+        paths.append(p)
+
+    if created:
+        store.create_answers_paper(paper, owner_id=user["id"])
+    with LOCK:
+        CLAIMS[paper] = user["id"]
+        JOBS[jid] = {"state": "running", "step": "排队中", "name": paper,
+                     "owner_id": user["id"],
+                     "log": ["收到 %d 个文件（%.1f MB）" % (len(paths), total / 1048576)]}
+    threading.Thread(target=run_answer_pipeline,
+                     args=(jid, paths, paper, user["id"], created),
+                     daemon=True).start()
+    return {"job": jid, "name": paper}
 
 
 def active_job_for(name):
