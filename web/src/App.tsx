@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { deletePapers, getMe, listPapers, logout, Unauthorized } from './api'
+import { deletePapers, getMe, getProgress, listPapers, logout, Unauthorized } from './api'
 import Login from './components/Login'
 import PaperList from './components/PaperList'
 import PaperView from './components/PaperView'
@@ -50,6 +50,31 @@ export default function App() {
     getMe().then((u) => setMe(u.email)).catch(() => setMe(null))
   }, [])
   useEffect(checkMe, [checkMe])
+
+  /**
+   * 老地址 `#/p/<卷名>` 落地后，把它换到这份卷子真正属于的那个模式去。
+   *
+   * **不换的话，一份答案卷会用解析试卷那套页面打开** —— 答案速览、动画开关、
+   * 「解题步骤与动画均由 AI 生成」的页脚，全是错的话。那正是这轮要消灭的
+   * 「两套话术缠在一起」。
+   *
+   * 问的是 `/progress` 而不是整卷：它是那个轻量端点（只有计数），而且已经带着
+   * `mode.code` —— 模式的判定留在后端，前端不再自己从 sourceKind 映射一遍。
+   * 问不到（卷子不在了、会话过期）就留在解析试卷模式，让详情页自己把
+   * 「打不开」说出来 —— 这里不该替它编一句话。
+   */
+  useEffect(() => {
+    if (!route.legacy || !route.open || !me) return
+    let alive = true
+    getProgress(route.open)
+      .then((p) => {
+        if (!alive) return
+        const m = p.mode?.code === 'sheet' ? 'sheet' : 'paper'
+        go(m, route.open)
+      })
+      .catch(() => { if (alive) setRoute((r) => ({ ...r, legacy: false })) })
+    return () => { alive = false }
+  }, [route.legacy, route.open, me, go])
 
   useEffect(() => {
     const h = () => setRoute(readHash())
