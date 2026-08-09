@@ -34,11 +34,23 @@ export default function App() {
   const [route, setRoute] = useState(readHash)
   const { mode, open } = route
 
-  const go = useCallback((mode: Mode, name: string | null) => {
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
+
+  const go = useCallback((next: Mode, name: string | null) => {
     window.location.hash = name
-      ? `/${mode}/${encodeURIComponent(name)}` : `/${mode}`
-    setRoute({ mode, open: name, legacy: false })
-  }, [])
+      ? `/${next}/${encodeURIComponent(name)}` : `/${next}`
+    // **换模式要把上一屏的残留清掉。** 不清的话，在解析试卷删完一份卷子再切到
+    // 答题卡诊断，那句「已删除 1 份」会跟着挂在答题卡库上面 —— 而那一屏什么都
+    // 没删过。`rows` 同理：`refresh` 是异步的，不清就有至少一帧拿上一个模式的
+    // 卷子去渲染这一屏的表格（PDF 卷子出现在答题卡库里，带着两列空的「带解答 /
+    // 挂知识点」）。「互相看不见对方的卷子」这句话得是真的，不能只写在注释里。
+    //
+    // 清空写在这里而不是 setRoute 的更新函数里：更新函数必须是纯的，
+    // StrictMode 下会跑两遍，把副作用塞进去等于让它执行两次。
+    if (next !== mode) { setRows([]); setNote(null) }
+    setRoute({ mode: next, open: name, legacy: false })
+  }, [mode])
 
   /**
    * 登录态。三个值不能合并成一个布尔：`undefined` 是「还没问过后端」。
@@ -112,8 +124,7 @@ export default function App() {
     return () => window.clearInterval(t)
   }, [open, me, refresh])
 
-  const [busy, setBusy] = useState(false)
-  const [note, setNote] = useState<string | null>(null)
+  // busy / note 的声明挪到了 `go` 上面 —— `go` 换模式时要清掉它们
 
   const remove = useCallback((names: string[]) => {
     setBusy(true)
