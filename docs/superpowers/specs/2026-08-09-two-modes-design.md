@@ -128,18 +128,33 @@ Mode(
 每行多两个数供答题卡模式的列头用：`withSolution`（带官方解答的题数）、`kps`（挂上知识点的题数）。
 `store.list_papers` 相应多返回 `source_kind` 与这两个计数。
 
-**`GET /api/papers/{name}` 与 `/progress`** 多带一块 `mode`：
+**`GET /api/papers/{name}` 与 `/progress`** 多带一块 `mode`，**每一格连状态一起给**：
 
 ```json
 "mode": {
   "code": "sheet", "label": "答题卡诊断",
-  "stages": [{"code":"refread","label":"Ⓐ 读参考答案"},
-             {"code":"kpmark","label":"③c 知识点"}],
-  "needsArtifact": []
-},
-"stageCell": "refread",     // 当前落在哪一格（后端查表，前端不再自己映射）
-"failedCell": null          // 失败落在哪一格；说不清就是 null，一格都不画
+  "stages": [{"code":"refread", "label":"Ⓐ 读参考答案", "state":"done"},
+             {"code":"kpmark",  "label":"③c 知识点",   "state":"now"}]
+}
 ```
+
+`state` 的五个值沿用现在前端那五种：`done` / `now` / `todo` / `fail` / `empty`
+（跑过去了但没产物）。
+
+**为什么连状态一起算，而不是只给清单让前端自己判**：`web/` 里**一个测试都没有**
+（`package.json` 没有测试框架，436 条测试全是 Python）。而「哪一格什么状态」正是
+历史上出过两次错的那段逻辑 —— 三段切分、`NEEDS_ARTIFACT` 两处例外、失败只画在
+它自己那一格。把它留在前端等于把最容易错的一段放在唯一没有测试的地方。
+
+搬到后端之后 `PaperView.tsx` 里 `STAGE_LABEL`、`STAGE_OF_CODE`、`NEEDS_ARTIFACT`、
+`stageStates` **四个东西一起删掉**，前端只剩 `map` 一遍照着画。
+
+`/progress` 也要给这一块（它是每 3 秒轮询的那个），所以「产物在不在」的两条事实
+（⑤ 有没有通过门禁的动画、⑦ 的 out.html 还在不在磁盘上）也要在 `/progress` 里算 ——
+多一次 `os.path.exists`，可以忽略。
+
+**不在这一轮引入前端测试框架。** 那是另一个决定，不该顺手夹带；这里选的是把逻辑
+挪到已经有测试的那一侧。
 
 **`POST /api/answer-papers`**（新）—— multipart：
 
@@ -271,14 +286,15 @@ hash 路由分两支：`#/paper`、`#/paper/<卷名>`、`#/sheet`、`#/sheet/<�
 |---|---|
 | 模式清单门禁 | 遍历所有模式：`stage_of` 里的代号 ⊆ `cell_of` 键；`cell_of` 值 ⊆ `stages` 代号；每个模式都能到 `done` |
 | `paper` 模式 `stage_of` 不回归 | 现有 `test_stage_of.py` / `test_progress.py` **一个字不改**就要绿 |
-| `sheet` 模式 `stage_of` | 现有 `test_stage_answers_only.py` 改走 `modes`，用例不变 |
+| `sheet` 模式 `stage_of` | 现有 `test_stage_answers_only.py` **一个字不改**就要绿 —— `api.stage_of` 保留原签名，只是变成一行分发 |
+| 每一格的状态 | `modes.cell_states()` 纯函数：三段切分、`empty`（跑过没产物）、失败只落在自己那一格、轮询还没回来时的兜底 |
 | 上传入口 | 卷名校验、格式校验、撞名改名、409 闸门、Ⓐ 全失败时删空壳、重跑失败时**不**删 |
 | `refread --create` | 新卷名能建起来；不给 `--create` 时对不存在的卷名仍然明确报错 |
 | **不许就地转模式** | `create_answers_paper` 撞上一份 `pdf` 卷子时抛，且那份卷子的 `source_kind` / 题目 / 解法一个字没动 |
 | `PIPE_RE` 认得出 refread | 拿一条真实命令行字符串断言 |
 | `refSolution` 真的到得了前端 | 打 `/api/papers/{name}`，断言字段在 |
 | 列表按模式过滤 | `?mode=sheet` 只回 `answers_only` 的卷子，且带 `withSolution` / `kps` |
-| 前端阶段带 | `stageStates` 改成吃后端下发的清单，两个模式各一组用例 |
+| 前端 | **没有测试框架，本轮也不引入**。验收靠 `npm run build`（tsc 类型检查）+ 在真页面上看见结果 |
 
 **端到端**：手上那 4 张参考答案图，从页面上传一次，验到「页面上逐题看得见标准答案
 和官方解答」为止。只做到库/接口不算完成。
@@ -290,7 +306,7 @@ hash 路由分两支：`#/paper`、`#/paper/<卷名>`、`#/sheet`、`#/sheet/<�
 | # | 做什么 | 验收 |
 |---|---|---|
 | 1 | `modes.py` + 门禁测试；`stage_of` 改成分发 | 现有 436 条测试全绿（2026-08-09 实测基线），页面无变化 |
-| 2 | 后端下发 `mode` / `stageCell` / `failedCell`；前端删掉两张写死的表 | 页面画出来的东西一模一样 |
+| 2 | 后端下发 `mode.stages`（连状态）；前端删掉 `STAGE_LABEL` / `STAGE_OF_CODE` / `NEEDS_ARTIFACT` / `stageStates` 四样 | 页面画出来的东西一模一样 |
 | 3 | `list_papers` 带 `source_kind` 与两个计数；`/api/papers?mode=` | 老调用不带 `mode` 时行为不变 |
 | 4 | 顶部两个 tab + hash 路由分支 + 旧 `#/p/` 兼容 | 解析试卷那一屏与现在完全一致 |
 | 5 | `refSolution` 接到接口；`SheetView` + `AnswerQuestionCard` | 库里那份 26 题的卷子在页面上能看见答案与官方解答 |
