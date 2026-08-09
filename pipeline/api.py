@@ -612,28 +612,51 @@ def resume_gate(name, busy, done, exists=None):
     return None
 
 
-def resume_paper(jid, name):
+# 「继续执行」每个模式各走各的。**顺序必须和各自那条整链一致** ——
+# 两条入口跑出来的东西得一样，否则「上传的卷子」和「续跑的卷子」会长得不一样。
+#
+# 第二项是**怎么跑**，不是显示名：`@solve` / `@finish` 走 api 里那两个多步函数
+# （③ 和收尾各自还有子步骤，不是一条命令），`@skip` 是明确的「这一步续跑不做」，
+# 其余是脚本名。**不许靠显示名去 startswith 判分支** —— 显示名是给人看的，
+# 改一个字就会把分发改坏，而那种坏法一声不响
+_RESUME = {
+    "paper": [("②d 标准答案", "refans.py", 120),
+              ("③ 解题", "@solve", None),
+              ("收尾", "@finish", None)],
+    "sheet": [("Ⓐ 读参考答案", "@skip", None),
+              ("③c 知识点", "kpmark.py", 1800)],
+}
+
+
+def resume_steps_for(source_kind):
+    """这个模式续跑要走哪几步。返回 [(显示名, 怎么跑, 超时秒数或 None)]。"""
+    return _RESUME[modes.of(source_kind).code]
+
+
+def resume_paper(jid, name, source_kind=None):
     """
     从停下的地方接着跑。
 
-    **不是重跑，是接着跑。** 每一步都跳过已经做完的活：
-      ②d 纯代码几十毫秒，重跑无所谓
-      ③  按 `solution_fresh` 跳过题面没变的题
-      ③b/③c/④c/④ 各自跳过已有产出的题
-      ⑤  跳过已经有通过门禁的动画的题（见 `scene.plan`）
-    所以在一份几乎跑完的卷子上，这个按钮应该几分钟就结束，而不是重来一遍 ——
-    重做整卷 ⑤ 是几个小时和一大笔额度。
+    **不是重跑，是接着跑。** 每一步都跳过已经做完的活（③ 按 `solution_fresh`
+    跳过题面没变的题，⑤ 跳过已经有通过门禁的动画的题）。所以在一份几乎跑完的
+    卷子上，这个按钮应该几分钟就结束，而不是重来一遍。
 
-    为什么需要它：`JOBS` 是进程内的 dict，驱动整条链的是一个线程。后端一重启
-    那个线程就没了，而 `run_step` 起的子进程用了 `start_new_session`，反而活着
-    把手上那一步跑完写进库，然后没有人接着启动下一步 —— 页面上停在
-    「④b 自检 已停止 5/6」。断掉的是驱动链条，不是数据。
+    **按模式走。** 不分模式的话，对一份答案卷点下去会去跑 solve/spec/scene ——
+    那条链根本没有题干，跑出来的东西没有意义，还要烧一份额度。
     """
     try:
         job_log(jid, "▸ 继续执行：从库里的进度接着跑，已经做完的会跳过")
-        run_step(jid, "②d 标准答案", step_path("refans.py") + [name], timeout=120)
-        solve_paper(jid, name)
-        finish_paper(jid, name)
+        for label, how, timeout in resume_steps_for(source_kind):
+            if how == "@solve":
+                solve_paper(jid, name)
+            elif how == "@finish":
+                finish_paper(jid, name)
+            elif how == "@skip":
+                # Ⓐ 续跑不重新读图 —— 上传的原件跑完就收掉了，这里根本没有图可读。
+                # 「卷子建了但一题都没读出来」那种情况该重传，不该在这里假装能接上
+                job_log(jid, "   %s 跳过 —— 要重读请重新上传参考答案" % label)
+            else:
+                run_step(jid, label, step_path(how) + [name], timeout=timeout)
     except Exception as e:
         with LOCK:
             JOBS[jid].update(state="error", err=str(e))
@@ -1516,7 +1539,8 @@ def resume(name: str, user=Depends(current_user)):
         JOBS[jid] = {"state": "running", "step": "排队中", "kind": "resume",
                      "name": name, "owner_id": user["id"],
                      "log": ["继续执行「%s」，停在 %s" % (name, label)]}
-    threading.Thread(target=resume_paper, args=(jid, name), daemon=True).start()
+    threading.Thread(target=resume_paper, args=(jid, name, pg.get("sourceKind")),
+                     daemon=True).start()
     return {"job": jid, "name": name, "from": label}
 
 
