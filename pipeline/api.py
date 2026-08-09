@@ -1194,15 +1194,20 @@ def paper(name: str, user=Depends(current_user)):
         asm_note = "out.html 已生成，且不比库里的数据旧"
     # 这份卷子属于哪个模式，以及那排格子现在什么样。状态在后端算完再下发 ——
     # 前端没有测试框架，这段判断不能留在那边。
-    # 这里的产物事实直接用刚算好的 stages，不再查第二遍
-    pg = store.progress(name)
+    #
+    # **这里不查进度，`stage_code` 传 None。** 两个理由：
+    #   · 这个端点是整卷数据（一两兆），不该为了画一排标志再打一次计数查询；
+    #     「跑到哪一步」本来就是 /progress 每 3 秒轮询在答的问题
+    #   · 传 None 走的正是 cell_states 里「轮询还没回来」那条分支，而它的行为
+    #     与改动前前端 `pg == null` 时的兜底**完全一致**（有产物画 done、
+    #     没有画 todo）。所以这不是将就，这是照搬
     stages = {"ingest": True, "segment": True,
               "solve": len(sols) > 0,
               "spec": any(v["spec_status"] for v in sols.values()),
               "scene": len(sc) > 0,
               "assemble": asm_exists and asm["fresh"]}
-    mode = mode_block(pg or {"sourceKind": q.get("sourceKind")}, name,
-                      stage_of(pg)[0] if pg else None, None, artifacts=stages)
+    mode = mode_block({"sourceKind": q.get("sourceKind")}, name,
+                      None, None, artifacts=stages)
     # sourceKind 页面要用来分开「解析试卷」和「答题卡诊断」两个功能。
     # 进度里也有一份，但那是轮询回来的、带延迟，拿它决定一句话显不显示会闪
     return {"name": name, "sourceKind": q.get("sourceKind") or "pdf",

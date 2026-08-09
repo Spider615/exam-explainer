@@ -55,3 +55,31 @@ def test_答题卡模式不去查产物():
     with patch.object(api.store, "assembled") as asm:
         api.mode_block(SHEET, "某答案卷", "done", None)
     asm.assert_not_called()
+
+
+def test_整卷端点不为了画标志再查一次进度():
+    """
+    /api/papers/{name} 已经是一两兆的整卷数据，不该再打一次计数查询；
+    「跑到哪一步」是 /progress 每 3 秒在答的问题。
+
+    这条同时挡住一个更阴的后果：`paper()` 里加一句 store.progress，会给
+    test_progress.py 那条零 DB 依赖的用例塞进库依赖 —— 单独跑红、全量跑绿
+    （fixture 顺序碰巧先建了库）。**只有整套跑才绿是假绿。**
+    """
+    with (
+        patch.object(api, "mine", return_value="某卷"),
+        patch.object(api.store, "get_paper",
+                     return_value={"sections": [], "warnings": [],
+                                   "sourceKind": "pdf", "questions": []}),
+        patch.object(api, "scenes_for", return_value={}),
+        patch.object(api.store, "paper_solutions", return_value={}),
+        patch.object(api.store, "paper_solution_failures", return_value={}),
+        patch.object(api.store, "assembled",
+                     return_value={"path": None, "at": None, "fresh": False}),
+        patch.object(api, "active_job_for", return_value=None),
+        patch.object(api.os.path, "exists", return_value=False),
+        patch.object(api.store, "progress") as prog,
+    ):
+        got = api.paper("某卷", user={"id": 7})
+    prog.assert_not_called()
+    assert got["mode"]["code"] == "paper"
