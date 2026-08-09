@@ -458,3 +458,16 @@ td.prg{white-space:nowrap}
 .fieldrow>span{color:var(--ink3);font-size:14px}
 .fieldrow input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:4px;
   background:var(--panel);color:var(--ink);font:inherit;font-size:15px}
+
+.acard{border:1px solid var(--hair);border-radius:4px;background:var(--panel);
+  padding:14px 16px;margin:0 0 12px}
+.acard h3{margin:0 0 10px;font-family:var(--song);font-size:16px}
+.acard dl{display:grid;grid-template-columns:84px 1fr;gap:6px 14px;margin:0}
+.acard dt{color:var(--ink3);font-size:13px}
+.acard dd{margin:0}
+.acard .ans{font-weight:600;font-family:var(--math)}
+/* 「没有」要看得出是「没有」，但不能弱到读不见 —— 它是一句话，不是留白 */
+.acard .dim{color:var(--ink3);font-size:14px}
+.acard .kp{display:inline-block;background:var(--stem);border:1px solid var(--hair);
+  border-radius:3px;padding:2px 8px;margin:0 6px 4px 0;font-size:13px}
+.acard .kp i{color:var(--ink3);font-style:normal;margin-left:6px}
