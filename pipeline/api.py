@@ -812,19 +812,23 @@ def run_answer_pipeline(jid, paths, name, owner_id, created):
         job_log(jid, s)
 
     # (显示名, 代号, 脚本名, 超时秒数)。显示名和代号绑在同一个元组里一起走，
-    # **不再有「按显示名去一张表里查代号」这个动作** —— 原来是
-    # `step_code = {"Ⓐ 读参考答案": "refread", ...}` 再拿字符串字面量去
-    # `step_code["Ⓐ 读参考答案"]` 查，显示名要打两遍字、还要跟 run_step 那句
-    # 里的第三份拷贝保持一致。三份里改动其中一份、漏改另一份，字典查找会抛
-    # KeyError，被下面整段的 try/except 吞掉：那次 `.update(..., err_code=...)`
-    # 根本没跑到，`err_code` 这个键压根不存在，`failed_job_for` 读到的就是
-    # None，失败时对应那一格不会红 —— 这种坏法一声不响，见 _RESUME 上面那段注释。
-    STEPS = (
+    # **不再有「按显示名去一张表里查代号」这个动作** —— 原来这里是一张以显示名
+    # 为键、代号为值的字典，还要再拿一份显示名的字符串字面量去查它。显示名于是
+    # 要打三遍（字典键、run_step 的 label 参数、查表用的那份字面量），改动其中
+    # 一份、漏改另一份，字典查找会抛 KeyError，被下面整段的 try/except 吞掉：
+    # 那次 `.update(..., err_code=...)` 根本没跑到，`err_code` 这个键压根不
+    # 存在，`failed_job_for` 读到的就是 None，失败时对应那一格不会红 ——
+    # 这种坏法一声不响，见 _RESUME 上面那段注释。
+    #
+    # 仍然叫 `step_code`（不是随便起的新名字）：`tests/test_modes.py` 的门禁
+    # 靠源码里搜 `step_code = ` 找到所有「失败代号」表去核对每个代号都落得进
+    # 某个模式的格子，改名字会让这张表对那条门禁隐身。
+    step_code = (
         ("Ⓐ 读参考答案", "refread", "refread.py", 3600),
         ("③c 知识点", "kpmark", "kpmark.py", 1800),
     )
     try:
-        label, code, script, timeout = STEPS[0]
+        label, code, script, timeout = step_code[0]
         # Ⓐ 一页要一分钟上下，四页就是好几分钟；给足超时，别拿默认的 900 秒去砍它
         if not run_step(jid, label, step_path(script) + [name] + list(paths),
                         timeout=timeout):
@@ -850,7 +854,7 @@ def run_answer_pipeline(jid, paths, name, owner_id, created):
                              warnings=[], solved=n_q, total=n_q)
         log("✓ 读出 %d 题，可以开始看了。知识点在后台继续挂" % n_q)
         # ③c 挂不上知识点不算失败：页面逐题写「没挂上知识点」，不塞占位标签
-        label, code, script, timeout = STEPS[1]
+        label, code, script, timeout = step_code[1]
         run_step(jid, label, step_path(script) + [name], timeout=timeout)
         with LOCK:
             JOBS[jid].update(state="done")

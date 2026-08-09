@@ -178,25 +178,75 @@ _API = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                     "pipeline", "api.py")
 
 
-def _step_code_values():
+def _step_code_tables():
     """
-    `run_pipeline` 里那张 `step_code` 表的值。
+    api.py 里所有 `step_code = ...` 赋值右边那个括号里的源码区间。
 
-    这些代号 `stage_of` **永远不会返回**（它是从库里的计数反推的，而卷子入了库
-    就意味着 ①② 已经过去了），只有 `failedStage` 会给。
+    **扫全部，不是只扫第一张。** 原来是 `src.split("step_code = {", 1)` —— 只切
+    第一次出现，`run_pipeline` 那张 `{ingest, segment}` 排在前面，恰好被切到；
+    `run_answer_pipeline` 自己那张（答题卡两步的失败代号）排在后面，对这条门禁
+    完全不可见，改错了也不会红。
+
+    这里改成扫描每一次 `step_code = ` 之后跟的那个括号，用括号深度计数找到它
+    配对的收括号为止（不能只找「下一个 `}`」—— `run_answer_pipeline` 那张改成
+    `(标签, 代号, 脚本名, 超时)` 的元组序列之后是**嵌套**括号，`(( ... ), ( ... ))`，
+    找第一个右括号会在第一个内层元组处就截断）。开括号可以是 `{`、`(`、`[`
+    中任意一种，各自认自己的收括号，这样字典表和元组表两种写法都认得。
     """
     src = open(_API, encoding="utf-8").read()
-    tbl = src.split("step_code = {", 1)[1].split("}", 1)[0]
-    return {m.group(1) for m in re.finditer(r':\s*"([a-z_]+)"', tbl)}
+    pairs = {"{": "}", "(": ")", "[": "]"}
+    tables = []
+    for m in re.finditer(r"step_code\s*=\s*([{(\[])", src):
+        open_ch = m.group(1)
+        close_ch = pairs[open_ch]
+        depth = 1
+        i = m.end()
+        while depth and i < len(src):
+            if src[i] == open_ch:
+                depth += 1
+            elif src[i] == close_ch:
+                depth -= 1
+            i += 1
+        tables.append(src[m.end():i])
+    return tables
+
+
+def _step_code_values():
+    """
+    这些表里出现过的所有「代号」值。
+
+    不管表是字典（`"① 摄入": "ingest"`）还是元组序列
+    （`("Ⓐ 读参考答案", "refread", "refread.py", 3600)`），代号本身都是一个
+    纯 ASCII 小写字母加下划线的引号字符串，`"([a-z_]+)"` 这个模式天然筛得出
+    它：中文显示名带着非 ASCII 字符匹配不上，脚本名（`"refread.py"`）带一个
+    点号也匹配不上，超时秒数根本没加引号。不需要区分表是字典还是元组，
+    也就不需要为两种形状各写一套解析。
+
+    这些代号 `stage_of` **永远不会返回**（都是管线挂掉时才会给的 `failedStage`，
+    ①②/Ⓐ 这几步要么在卷子入库之前挂、要么读完就完事，`stage_of` 是从库里的
+    计数反推的，轮不到它们）。
+    """
+    out = set()
+    for tbl in _step_code_tables():
+        out |= {m.group(1) for m in re.finditer(r'"([a-z_]+)"', tbl)}
+    return out
 
 
 def test_失败阶段代号解析得出来():
     """判据本身要先站得住 —— 解析不出来的话下面那条会假绿"""
-    assert _step_code_values() == {"ingest", "segment"}
+    assert _step_code_values() == {"ingest", "segment", "refread", "kpmark"}
 
 
-def test_失败阶段代号都落得进解析试卷的格子():
-    missing = sorted(_step_code_values() - set(modes.PAPER.cell_of))
+def test_失败阶段代号都落得进某个模式的格子():
+    """
+    用 `modes.ALL` 的并集,不是只对 `PAPER.cell_of` —— `run_answer_pipeline`
+    那张表里的代号（refread/kpmark）是答题卡链自己的失败阶段，落的是
+    `SHEET.cell_of`，不是 `PAPER.cell_of`。
+    """
+    all_cells = set()
+    for m in modes.ALL:
+        all_cells |= set(m.cell_of)
+    missing = sorted(_step_code_values() - all_cells)
     assert not missing, (
-        "这些代号管线挂掉时会给，但 PAPER.cell_of 里没有：%s。\n"
+        "这些代号管线挂掉时会给，但没有任何模式的 cell_of 里有它：%s。\n"
         "后果不是报错，是那一步失败时一格都不红。" % "、".join(missing))
