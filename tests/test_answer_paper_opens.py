@@ -36,7 +36,18 @@ def 一份答案卷(db):
     # 共用一个库、不回滚 —— 留在这里的 users 行会让 store.create_user 里
     # 「第一个账号认领所有无主卷子」那段（判据是 count(*) FROM users == 1）
     # 在将来某条用例上**静默跳过**，不报错、不好查。
+    #
+    # 卷子也要一起删，不能只删 users 那一行。papers.owner_id 是
+    # `ON DELETE SET NULL`，删掉 users 里的 7 号之后，这份卷子不会跟着消失，
+    # 只会变成**无主**——而这正是本函数注释上面那句话担心的场景：
+    # 「第一个账号认领所有无主卷子」。留一份无主卷子在 session 级共享库里，
+    # 就是把这段逻辑最需要盯防的那种数据亲手喂给了下一个用到它的测试。
+    # 2026-08-09 复审实测踩过一次：加了归属闸门（create_answers_paper 的
+    # ON CONFLICT 挡「撞别人的答案卷」）之后，这份无主卷子会让 fixture 重建
+    # 同名卷子时，因为 owner_id 从 NULL 变成 7 被判成「别人的答题卡卷子」而抛出。
     with store.connect() as c:
+        c.cursor().execute("DELETE FROM papers WHERE name = %s",
+                           ("能不能打开的答案卷",))
         c.cursor().execute("DELETE FROM users WHERE id = 7")
         c.commit()
 
