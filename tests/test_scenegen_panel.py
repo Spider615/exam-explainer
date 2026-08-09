@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import json, re, subprocess
 import scenegen
-from test_scenegen_table import SPEC
+from tests.test_scenegen_table import SPEC
 
 FULL = {**SPEC, "title": "演示位移随进度变化",
         "units": "位移x：m；u为无量纲进度",

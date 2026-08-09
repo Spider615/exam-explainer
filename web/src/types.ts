@@ -59,6 +59,16 @@ export interface Question {
   sceneFigure: string | null
   /** 阶段③ 的解题结果。没解过就是 null，前端必须显式呈现「未生成」 */
   solution: Solution | null
+  /** 阶段③ 已结束但没有产出解法时，保留最后一次失败的安全摘要。 */
+  solutionFailure: SolutionFailure | null
+}
+
+export interface SolutionFailure {
+  kind: 'timeout' | 'network' | 'provider' | 'invalid_response' | 'configuration' | 'internal'
+  reason: string
+  attempts: number
+  stage: string
+  updatedAt: string
 }
 
 /**
@@ -122,7 +132,7 @@ export interface Paper {
   stageNotes: Record<string, string>
   /** 这份卷子此刻在不在跑。非空时试卷页顶部画进度带 */
   job?: JobBrief | null
-  coverage: { solved: number; total: number }
+  coverage: { solved: number; failed: number; total: number }
 }
 
 /** 从库里算出来的进度。谁跑的都算得出来——命令行跑的、服务重启过的，一样可见 */
@@ -156,6 +166,7 @@ export interface Progress {
   /** 挂上知识点的题数（③c）。分母是题数，不是解出来的题数 */
   kps: number
   solutions: number
+  solutionFailures: number
   specs: number
   approved: number
   judged: number
@@ -170,6 +181,8 @@ export interface Progress {
   sceneTried: number
   assembled: boolean
   assembledFresh: boolean
+  /** 最近一次阶段产物或终态失败写入的 Unix 时间戳（秒）。 */
+  lastChange: number
   elapsedSeconds: number | null
   /** 网页上传的任务才有的细节（正在解哪道题）；命令行跑的是 null */
   step?: string | null
@@ -198,7 +211,7 @@ export interface PaperSummary {
     stage: string; short: string; code: string
     cur: number; total: number
     busy: boolean; done: boolean; failed: string | null
-    solved: number; questions: number; elapsedSeconds: number | null
+    solved: number; solutionFailures: number; questions: number; elapsedSeconds: number | null
   }
 }
 

@@ -100,7 +100,7 @@ export default function QuestionCard({ q, paper, sourceKind, onRescened }: {
   for (let p = q.pages[0]; p <= q.pages[1]; p++) pages.push(p)
 
   return (
-    <article className="q" id={`q${q.n}`}>
+    <article className="q" id={`q${q.n}`} tabIndex={-1} aria-label={`第 ${q.n} 题`}>
       <div className="qhd">
         <span className="qnum">{String(q.n).padStart(2, '0')}</span>
         <span className="pill">{q.type}</span>
@@ -244,7 +244,16 @@ export default function QuestionCard({ q, paper, sourceKind, onRescened }: {
         )}
 
         <h2 className="lbl">解题思路</h2>
-        {q.solution ? <SolutionBody s={q.solution} /> : (
+        {q.solution ? <SolutionBody s={q.solution} />
+          : q.solutionFailure ? (
+            <div className="solve-fail">
+              <b>生成失败</b>
+              <span>{q.solutionFailure.reason}</span>
+              <small>
+                {q.solutionFailure.stage} · 已尝试 {q.solutionFailure.attempts} 次
+              </small>
+            </div>
+          ) : (
           <div className="missing">
             <b>尚未生成</b><br />
             这道题还没跑过阶段③（解题）。

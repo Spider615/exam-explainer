@@ -4,7 +4,7 @@ import os, re, subprocess, sys
 sys.path.insert(0, os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "harness"))
 import build
-from test_scenegen_table import SPEC
+from tests.test_scenegen_table import SPEC
 
 FULL = {**SPEC, "title": "演示", "invariants": [{"report": "x[0]"}],
         "disclosures": [{"why": "w", "must_contain": "当前位移x的数值"}]}

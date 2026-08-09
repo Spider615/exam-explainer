@@ -34,13 +34,14 @@ solve.py —— 阶段③ 解题
 三个环节三个进程三份上下文。「写代码的那一方不能写断言」靠进程边界保证，
 不靠提示词里的一句嘱咐。
 """
-import argparse, base64, concurrent.futures as cf, hashlib, json, os, re
-import subprocess, sys, tempfile, threading, time, urllib.request
+import argparse, base64, concurrent.futures as cf, hashlib, http.client, json, os, re
+import socket, ssl, subprocess, sys, tempfile, threading, time, urllib.error, urllib.parse, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import store
 import cliask   # 订阅只能经 claude CLI 用
+import solve_attempt
 
 for _l in (open(os.path.join(ROOT, ".env"), encoding="utf-8")
            if os.path.exists(os.path.join(ROOT, ".env")) else []):
@@ -221,46 +222,142 @@ def loads_json(txt):
         return json.loads(re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', m.group(0)))
 
 
+ANSWER_LIST_FIELDS = (
+    "figure_reading", "steps", "key_facts", "assumptions", "unreadable"
+)
+
+
+def validate_answer(value, stage):
+    """Validate the shared model-answer contract before any backend reports success."""
+    valid = isinstance(value, dict)
+    if valid:
+        answer = value.get("answer")
+        valid = isinstance(answer, str) and bool(answer.strip())
+    if valid:
+        valid = all(
+            field not in value
+            or (isinstance(value[field], list)
+                and all(isinstance(item, str) for item in value[field]))
+            for field in ANSWER_LIST_FIELDS
+        )
+    if valid and "confidence" in value:
+        valid = value["confidence"] in ("high", "medium", "low")
+    if not valid:
+        raise solve_attempt.SolveFailure(
+            "invalid_response", "模型返回内容无法解析为答案", stage, True
+        )
+    return value
+
+
+def env_int(name, default, minimum, maximum=None, env=None):
+    """Read an integer setting without allowing invalid values to disable work."""
+    fallback = min(default, maximum) if maximum is not None else default
+    try:
+        value = int((env if env is not None else os.environ).get(name, str(default)))
+    except (TypeError, ValueError):
+        return fallback
+    if value < minimum:
+        return fallback
+    return min(value, maximum) if maximum is not None else value
+
+
+def timeout_span(seconds):
+    return ("%d 分钟" % (seconds // 60)
+            if seconds % 60 == 0 else "%d 秒" % seconds)
+
+
 # 一次调用的上限。正常几秒到一两分钟，**5 分钟不回基本就是卡死而不是在算** ——
 # 实测两次都是请求挂在本机代理（127.0.0.1:7897）上，连接还在、CPU 0%、永远等不到响应。
 # 原来给 900 秒，等于一道题白白堵掉 15 分钟；重试一条新连接通常几秒就出结果。
 def timeout_from(env, name, default):
-    return int(env.get(name) or default)
+    """薄封装，给测试用。真正的取值经 env_int，那边有上下界。"""
+    return env_int(name, default, 1, env=env)
 
 
-HTTP_TIMEOUT = timeout_from(os.environ, "EXAM_HTTP_TIMEOUT", 300)
-HTTP_TRIES = timeout_from(os.environ, "EXAM_HTTP_TRIES", 2)
+# 盲试那一级：纯文本，中位数几十秒。300 秒不回基本就是卡死而不是在算
+# （实测两次都是请求挂在本机代理 127.0.0.1:7897 上，连接还在、CPU 0%）。
+HTTP_TIMEOUT = env_int("EXAM_HTTP_TIMEOUT", 300, 1, 3600)
 
 # **读图那条路不能共用上面这个 300 秒。**
 #
-# 300 是按盲试定的（纯文本，中位数几十秒），而读图是把图 base64 内联进 payload，
-# 一道题几分钟。实测黑吉辽卷第 5、9、15 题**一直没解出来**、库里 12/15 挂了很久；
-# 重跑三道全部 `read operation timed out`，放到 900 秒后**三道一次全过**。
-# 它们不是难题，是被超时砍掉的 —— 而且 solution_failures 表里一条记录都没有，
-# 是静默消失。
-#
-# 盲试那边不动：没有证据说 300 不够，而放宽它会让「挂在本机代理上」那类死锁
-# 每次多堵好几分钟（就是上面注释里记的那两次）。
-VISION_TIMEOUT = timeout_from(os.environ, "EXAM_VISION_TIMEOUT", 900)
+# 读图是把图 base64 内联进 payload，一道题几分钟。实测黑吉辽卷第 5、9、15 题
+# **一直没解出来**、库里 12/15 挂了很久；重跑三道全部 `read operation timed out`，
+# 放到 900 秒后**三道一次全过**。它们不是难题，是被超时砍掉的。
+VISION_TIMEOUT = env_int("EXAM_VISION_TIMEOUT", 900, 1, 3600)
+
+# 每次尝试的**进程级硬死线**，比任何一次 HTTP 超时都要宽 —— 否则读图那条路
+# 会在 HTTP 还没超时之前先被整个进程砍掉，表现成「超时」而查不出是谁砍的。
+# 上限给到 3600 而不是 300：原来那个 300 的上限**连环境变量都调不上去**，
+# 正是上面那三道题静默消失的原因。
+ATTEMPT_TIMEOUT = env_int("EXAM_SOLVE_ATTEMPT_TIMEOUT",
+                          VISION_TIMEOUT + 300, 1, 3600)
+MAX_ATTEMPTS = 3
+RETRY_DELAY = env_int("EXAM_SOLVE_RETRY_DELAY", 3, 0)
 
 
-def post(base, key, payload, timeout=None):
-    last = None
-    for k in range(HTTP_TRIES):
-        try:
-            r = urllib.request.Request(base + "/chat/completions",
-                                       json.dumps(payload).encode(),
-                                       {"Authorization": "Bearer " + key,
-                                        "Content-Type": "application/json"})
-            d = json.loads(urllib.request.urlopen(
-                r, timeout=timeout or HTTP_TIMEOUT).read())
-            return loads_json(d["choices"][0]["message"]["content"])
-        except Exception as e:
-            last = e
-            if k == HTTP_TRIES - 1:
-                raise
-            time.sleep(3)
-    raise last
+def post(base, key, payload, stage, timeout=None):
+    try:
+        parsed = urllib.parse.urlsplit(base)
+        parsed.port  # 端口格式也在真正发请求前校验，避免底层异常带出原 URL
+        valid_base = (isinstance(base, str) and parsed.scheme in ("http", "https")
+                      and bool(parsed.netloc) and bool(parsed.hostname)
+                      and not parsed.query and not parsed.fragment
+                      and not any(char.isspace() for char in base))
+    except (TypeError, ValueError):
+        valid_base = False
+    valid_key = (isinstance(key, str) and bool(key.strip())
+                 and not any(ord(char) < 32 or ord(char) == 127 for char in key))
+    if not valid_base or not valid_key:
+        raise solve_attempt.SolveFailure(
+            "configuration", "模型服务地址或密钥配置无效", stage, False
+        )
+    try:
+        r = urllib.request.Request(
+            base.rstrip("/") + "/chat/completions",
+            json.dumps(payload).encode(),
+            {"Authorization": "Bearer " + key,
+             "Content-Type": "application/json"},
+        )
+    except (TypeError, ValueError):
+        raise solve_attempt.SolveFailure(
+            "configuration", "模型请求配置无效", stage, False
+        ) from None
+    try:
+        raw = urllib.request.urlopen(r, timeout=timeout or HTTP_TIMEOUT).read()
+    except urllib.error.HTTPError as e:
+        retryable = e.code == 429 or e.code >= 500
+        raise solve_attempt.SolveFailure(
+            "provider" if retryable else "configuration",
+            "模型服务返回 HTTP %d" % e.code,
+            stage,
+            retryable,
+        ) from None
+    except (TimeoutError, socket.timeout):
+        raise solve_attempt.SolveFailure(
+            "timeout", "模型请求超过 %s" % timeout_span(timeout or HTTP_TIMEOUT),
+            stage, True
+        ) from None
+    except urllib.error.URLError:
+        raise solve_attempt.SolveFailure(
+            "network", "无法连接模型服务", stage, True
+        ) from None
+    except (TypeError, ValueError):
+        raise solve_attempt.SolveFailure(
+            "configuration", "模型服务地址或密钥配置无效", stage, False
+        ) from None
+    except (ConnectionError, OSError, http.client.HTTPException, ssl.SSLError):
+        raise solve_attempt.SolveFailure(
+            "network", "无法连接模型服务", stage, True
+        ) from None
+
+    try:
+        d = json.loads(raw)
+        answer = loads_json(d["choices"][0]["message"]["content"])
+    except (json.JSONDecodeError, KeyError, IndexError, TypeError, RuntimeError, ValueError):
+        raise solve_attempt.SolveFailure(
+            "invalid_response", "模型返回内容无法解析为答案", stage, True
+        ) from None
+    return validate_answer(answer, stage)
 
 
 def blind_banner(base, model):
@@ -277,7 +374,8 @@ def ask_deepseek(text):
     """纯文本试解。看不到图就返回 None，交给上一层升级。"""
     d = post(DS_BASE, DS_KEY, {"model": DS_MODEL, "temperature": 0,
                                "messages": [{"role": "user",
-                                             "content": PROMPT + BLIND + "\n\n" + text}]})
+                                             "content": PROMPT + BLIND + "\n\n" + text}]},
+             "文本模型")
     return None if str(d.get("answer", "")).strip() == NEED_FIGURE else d
 
 
@@ -294,7 +392,7 @@ def vision_payload(text, imgs):
 def ask_doubao(text, imgs):
     return post(ARK_BASE, ARK_KEY, {"model": ARK_MODEL, "temperature": 0,
                                     "messages": vision_payload(text, imgs)},
-                timeout=VISION_TIMEOUT)
+                "视觉模型", timeout=VISION_TIMEOUT)
 
 
 def ask_claude(text, imgs):
@@ -306,7 +404,33 @@ def ask_claude(text, imgs):
     """
     return post(CL_BASE, CL_KEY, {"model": CL_MODEL, "max_tokens": 32000,
                                   "messages": vision_payload(text, imgs)},
-                timeout=VISION_TIMEOUT)
+                "视觉模型", timeout=VISION_TIMEOUT)
+
+
+CLI_CONFIGURATION_MARKERS = (
+    "insufficient account balance", "余额不足", "failed to authenticate",
+    "invalid api key", "authentication_error",
+    "credit balance is too low", "not logged in", "login required",
+    "unauthorized", "forbidden", "permission", "invalid model",
+    "model not found", "billing", "balance", "credit", "api key",
+    "authentication",
+)
+
+
+def cli_configuration_error(text):
+    low = (text or "").casefold()
+    return (any(marker.casefold() in low for marker in CLI_CONFIGURATION_MARKERS)
+            or re.search(r"\b(?:http\s*)?(?:401|403)\b", low) is not None)
+
+
+def raise_cli_failure(text):
+    if cli_configuration_error(text):
+        raise solve_attempt.SolveFailure(
+            "configuration", "模型配置、认证或额度不可用", "视觉模型", False
+        ) from None
+    raise solve_attempt.SolveFailure(
+        "provider", "视觉模型调用失败", "视觉模型", True
+    ) from None
 
 
 def ask_subscription(text, imgs):
@@ -327,28 +451,59 @@ def ask_subscription(text, imgs):
             paths.append(p)
             lines.append("%s：%s" % (lab, p))
         prompt = PROMPT + "\n\n" + text + "\n\n【原卷插图】\n" + "\n".join(lines)
-        return loads_json(cliask.ask(prompt, images=paths, model=CL_MODEL, timeout=1800))
+        try:
+            answer = cliask.ask(prompt, images=paths, model=CL_MODEL, timeout=1800)
+        except subprocess.TimeoutExpired:
+            raise solve_attempt.SolveFailure(
+                "timeout", "视觉模型请求超时", "视觉模型", True
+            ) from None
+        except (FileNotFoundError, PermissionError):
+            raise solve_attempt.SolveFailure(
+                "configuration", "找不到或无法执行视觉模型命令", "视觉模型", False
+            ) from None
+        except RuntimeError as error:
+            raise_cli_failure(str(error))
+        except Exception:
+            raise_cli_failure("")
+        try:
+            parsed = loads_json(answer)
+        except (json.JSONDecodeError, KeyError, IndexError, TypeError, RuntimeError, ValueError):
+            raise solve_attempt.SolveFailure(
+                "invalid_response", "模型返回内容无法解析为答案", "视觉模型", True
+            ) from None
+        return validate_answer(parsed, "视觉模型")
 
 
 def ask_vision(text, imgs):
     """读图那一级。默认订阅 —— 读图错了是「看不出来的错」，不该在这里省钱。"""
     if VISION == "doubao":
-        if not ARK_KEY:
-            raise RuntimeError("EXAM_VISION=doubao 但没有 ARK_API_KEY")
+        if not ARK_KEY or not ARK_BASE:
+            raise solve_attempt.SolveFailure(
+                "configuration", "视觉模型缺少 ARK_API_KEY 或 ARK_BASE_URL 配置", "视觉模型", False
+            )
         return ask_doubao(text, imgs), ARK_MODEL
     if VISION == "http":
         if not CL_KEY or not CL_BASE:
-            raise RuntimeError("EXAM_VISION=http 但缺 EXAM_VISION_KEY / EXAM_VISION_BASE")
+            raise solve_attempt.SolveFailure(
+                "configuration",
+                "视觉模型缺少 EXAM_VISION_KEY 或 EXAM_VISION_BASE 配置",
+                "视觉模型",
+                False,
+            )
         return ask_claude(text, imgs), CL_MODEL
     if not cliask.available():
-        raise RuntimeError("找不到 claude 可执行文件，订阅视觉通道不可用")
+        raise solve_attempt.SolveFailure(
+            "configuration", "找不到 claude 可执行文件，订阅视觉通道不可用", "视觉模型", False
+        )
     return ask_subscription(text, imgs), CL_MODEL + "（订阅）"
 
 
 def ask(text, imgs):
     """imgs 是 [(标签, 路径)]。标签必须带，否则模型分不清哪张是选项 A 的图。"""
     if not CLI:
-        raise RuntimeError("找不到 claude 可执行文件")
+        raise solve_attempt.SolveFailure(
+            "configuration", "找不到 claude 可执行文件，模型通道不可用", "视觉模型", False
+        )
     prompt = PROMPT + "\n\n" + text
     if imgs:
         prompt += "\n\n【原卷插图】请直接读这些图：\n" + \
@@ -356,17 +511,28 @@ def ask(text, imgs):
     # claude -p 是 agent 不是一次 API 调用：每张图都要一次 Read 工具调用，
     # 也就是多一轮。限定只给 Read，省掉它在项目里乱翻的那些轮。
     # 压轴题实测十几分钟，600s 会被自己的客户端超时打断。
-    r = subprocess.run([CLI, "-p", "--model", MODEL, "--allowed-tools", "Read"],
-                       input=prompt, capture_output=True, text=True, timeout=1800)
-    if r.returncode != 0:
-        raise RuntimeError("模型调用失败：%s" % (r.stderr or "")[-200:])
-    m = re.search(r"\{.*\}", r.stdout, re.S)
-    if not m:
-        raise RuntimeError("没有返回 JSON：%s" % r.stdout[:200])
     try:
-        return json.loads(m.group(0))
-    except json.JSONDecodeError:
-        return json.loads(re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', m.group(0)))
+        r = subprocess.run([CLI, "-p", "--model", MODEL, "--allowed-tools", "Read"],
+                           input=prompt, capture_output=True, text=True, timeout=1800)
+    except subprocess.TimeoutExpired:
+        raise solve_attempt.SolveFailure(
+            "timeout", "视觉模型请求超时", "视觉模型", True
+        ) from None
+    except (FileNotFoundError, PermissionError):
+        raise solve_attempt.SolveFailure(
+            "configuration", "找不到或无法执行视觉模型命令", "视觉模型", False
+        ) from None
+    except Exception:
+        raise_cli_failure("")
+    if r.returncode != 0:
+        raise_cli_failure("%s\n%s" % (r.stdout or "", r.stderr or ""))
+    try:
+        parsed = loads_json(r.stdout)
+    except (json.JSONDecodeError, KeyError, IndexError, TypeError, RuntimeError, ValueError):
+        raise solve_attempt.SolveFailure(
+            "invalid_response", "模型返回内容无法解析为答案", "视觉模型", True
+        ) from None
+    return validate_answer(parsed, "视觉模型")
 
 
 def key_answer(a):
@@ -458,6 +624,61 @@ def solve_one(name, q, tmp, force=False, crosscheck=False):
         "，⚠复核不一致" if disagree else "")
 
 
+def _safe_attempt_result(result):
+    """把进程边界的通用错误换成可直接给用户看的中文。"""
+    if result.ok:
+        return result
+    failure = result.failure
+    if failure and failure.kind == "timeout" and failure.stage == "process":
+        failure = solve_attempt.Failure(
+            "timeout", "完整解题超过 %s" % timeout_span(ATTEMPT_TIMEOUT), "完整解题", True
+        )
+    elif failure and failure.kind == "internal" and failure.stage in ("process", "retry"):
+        failure = solve_attempt.Failure(
+            "internal", "完整解题发生内部错误", "完整解题", failure.retryable
+        )
+    return solve_attempt.ProcessResult(False, failure=failure)
+
+
+def attempt_question(name, q, force, crosscheck, on_retry=None):
+    """在独立进程中最多尝试三次完整解题。"""
+    with store.question_generation_lock(q["id"]):
+        store.clear_solution_failure(q["id"])
+
+        def attempt(_number):
+            try:
+                with tempfile.TemporaryDirectory() as tmp:
+                    result = solve_attempt.run_process(
+                        "solve",
+                        "solve_one",
+                        (name, q, tmp, force, crosscheck),
+                        timeout_s=ATTEMPT_TIMEOUT,
+                    )
+            except Exception:
+                return solve_attempt.ProcessResult(
+                    False,
+                    failure=solve_attempt.Failure(
+                        "internal", "完整解题发生内部错误", "完整解题", False
+                    ),
+                )
+            return _safe_attempt_result(result)
+
+        result = solve_attempt.retry(
+            attempt,
+            max_attempts=MAX_ATTEMPTS,
+            delay_s=RETRY_DELAY,
+            on_retry=on_retry,
+        )
+        if not result.ok:
+            failure = result.failure or solve_attempt.Failure(
+                "internal", "完整解题发生内部错误", "完整解题", False
+            )
+            store.put_solution_failure(
+                q["id"], failure.kind, failure.reason, result.attempts, failure.stage
+            )
+        return result
+
+
 # ③ 跑到一半时回头刷一次 ③b 目录，每 N 题一次。0 = 关掉。
 #
 # 为什么放在这儿而不是编排层：网页上传（api.py 直接调 solve_many）和命令行
@@ -504,7 +725,7 @@ class _Outliner:
 
 
 def solve_many(name, qs, jobs=4, force=False, on_done=None, on_start=None,
-               crosscheck=False):
+               crosscheck=False, on_retry=None):
     """
     并行解一批题。
 
@@ -528,12 +749,24 @@ def solve_many(name, qs, jobs=4, force=False, on_done=None, on_start=None,
         if on_start:
             with lock:
                 on_start(q)
-        with tempfile.TemporaryDirectory() as tmp:
-            try:
-                fresh, note = solve_one(name, q, tmp, force, crosscheck)
-                r = (q["n"], "ok" if fresh else "skip", note)
-            except Exception as e:
-                r = (q["n"], "fail", str(e)[:160])
+        def retrying(number, failure):
+            with lock:
+                if on_retry:
+                    on_retry(q, number, failure)
+                else:
+                    print("   → 第%d题第%d次失败：%s；准备第%d次"
+                          % (q["n"], number, failure.reason, number + 1), flush=True)
+
+        result = attempt_question(name, q, force, crosscheck, retrying)
+        if result.ok:
+            fresh, note = result.value
+            r = (q["n"], "ok" if fresh else "skip", note)
+        else:
+            failure = result.failure or solve_attempt.Failure(
+                "internal", "完整解题发生内部错误", "完整解题", False
+            )
+            r = (q["n"], "fail", "%s（已尝试 %d 次）"
+                 % (failure.reason, result.attempts))
         with lock:
             out.append(r)
             if on_done:

@@ -45,6 +45,17 @@ def test_两个都能用环境变量单独调(monkeypatch):
     assert solve.timeout_from({"EXAM_VISION_TIMEOUT": "1200"}, "EXAM_VISION_TIMEOUT", 900) == 1200
 
 
+def test_进程硬死线要宽于任何一次_http_超时():
+    """
+    否则读图那条路会在 HTTP 还没超时之前先被整个进程砍掉，表现成「超时」
+    而查不出是谁砍的。上限也不能封在 300 —— 原来那个封顶连环境变量都调不上去，
+    正是三道题静默消失的原因。
+    """
+    assert solve.ATTEMPT_TIMEOUT > solve.VISION_TIMEOUT
+    assert solve.env_int("EXAM_VISION_TIMEOUT", 900, 1, 3600,
+                         env={"EXAM_VISION_TIMEOUT": "1800"}) == 1800
+
+
 def test_post_默认用盲试的超时_可以显式覆盖(monkeypatch):
     seen = {}
 
@@ -63,16 +74,18 @@ def test_post_默认用盲试的超时_可以显式覆盖(monkeypatch):
         return FakeResp()
 
     monkeypatch.setattr(solve.urllib.request, "urlopen", fake_open)
-    solve.post("https://x", "k", {"model": "m"})
+    solve.post("https://x.test", "k", {"model": "m"}, "盲试")
     assert seen["timeout"] == solve.HTTP_TIMEOUT
-    solve.post("https://x", "k", {"model": "m"}, timeout=solve.VISION_TIMEOUT)
+    solve.post("https://x.test", "k", {"model": "m"}, "视觉模型",
+               timeout=solve.VISION_TIMEOUT)
     assert seen["timeout"] == solve.VISION_TIMEOUT
 
 
 def test_读图那三条路都用长超时(monkeypatch):
     """ask_doubao / ask_claude 走的是同一个 post，别漏掉哪一条。"""
     seen = []
-    monkeypatch.setattr(solve, "post", lambda b, k, p, timeout=None: seen.append(timeout) or {})
+    monkeypatch.setattr(solve, "post",
+                        lambda b, k, p, stage, timeout=None: seen.append(timeout) or {})
     solve.ask_doubao("题", [])
     solve.ask_claude("题", [])
     assert seen == [solve.VISION_TIMEOUT, solve.VISION_TIMEOUT]

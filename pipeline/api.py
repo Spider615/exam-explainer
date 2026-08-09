@@ -403,7 +403,15 @@ def solve_paper(jid, name):
             JOBS[jid]["step"] = "解题 %d/%d" % (i, total)
             JOBS[jid]["solved"] = i
 
-    res = solver.solve_many(name, qs, on_done=on_done, on_start=on_start)
+    def on_retry(q, number, failure):
+        log("  第%d题 第%d/3次失败：%s；准备第%d次"
+            % (q["n"], number, failure.reason, number + 1))
+        with LOCK:
+            JOBS[jid]["step"] = "解题 第%d题重试 %d/3" % (q["n"], number)
+
+    res = solver.solve_many(
+        name, qs, on_done=on_done, on_start=on_start, on_retry=on_retry
+    )
     ok = sum(1 for r in res if r[1] != "fail")
     fail = len(res) - ok
     log("✓ 解题结束：%d 题成功，%d 题失败" % (ok, fail))
@@ -882,10 +890,15 @@ def stage_of(pg):
             return "kpmark", "③c 知识点", "标知识点", pg.get("kps", 0), q
         return "done", "完成", "已完成", 1, 1
 
-    if sol < q:
-        return "solve", "③ 解题", "解题中", sol, q
-    if pg["labels"] < q:
-        return "outline", "③b 目录", "生成目录", pg["labels"], q
+    # **终态失败也算「③ 走完了」。** 只数 solutions 的话，一道重试到底仍然失败的题
+    # 会让进度永远停在「解题中 14/15」—— 而它已经不会再有解法了，等下去没有意义。
+    terminal = sol + pg.get("solutionFailures", 0)
+    if terminal < q:
+        return "solve", "③ 解题", "解题中", terminal, q
+    # ③b 的分母是**解出来的题数**：失败的题不会有解法，也就不会有短答案，
+    # 拿题数当分母会永远差那几道
+    if pg["labels"] < sol:
+        return "outline", "③b 目录", "生成目录", pg["labels"], sol
     # ③c 知识点。分母是题数不是解出来的题数 —— 没解出来的题也该有知识点
     # （只看题干也判得出个大概），而诊断报告要拿它做聚合
     if pg.get("kps", 0) < q:
@@ -970,6 +983,7 @@ def papers(user=Depends(current_user)):
                              "done": code == "done",
                              "failed": failed,
                              "solved": pg["solutions"], "questions": pg["questions"],
+                             "solutionFailures": pg["solutionFailures"],
                              "elapsedSeconds": pg["elapsedSeconds"]}
     return out
 
@@ -1066,6 +1080,7 @@ def paper(name: str, user=Depends(current_user)):
         raise HTTPException(404, "没有这份试卷")
     sc = scenes_for(name)
     sols = store.paper_solutions(name)
+    failures = store.paper_solution_failures(name)
     # 插图的原始尺寸只在 doc.json 里，而 doc.json 是构建产物、不入库
     # （117 KB/卷 的逐字符坐标，只有管线自己读）。取不到就按满宽渲染。
     geo = {}
@@ -1087,6 +1102,7 @@ def paper(name: str, user=Depends(current_user)):
     for x in q["questions"]:
         s = sc.get(x["n"])
         sol = sols.get(x["n"])
+        failure = failures.get(x["n"])
         qs.append({
             "n": x["n"], "type": x["type"], "points": x["points"],
             "section": x["section"], "pages": x["pages"],
@@ -1167,6 +1183,13 @@ def paper(name: str, user=Depends(current_user)):
                 "scenePassed": sol["scene_passed"],
                 "sceneRounds": sol["scene_rounds"],
             },
+            "solutionFailure": failure and {
+                "kind": failure["kind"],
+                "reason": failure["reason"],
+                "attempts": failure["attempts"],
+                "stage": failure["stage"],
+                "updatedAt": failure["updated_at"],
+            },
         })
     # ⑦ 的状态从库里读，不再硬编码 true —— 网页上传那条链以前根本没跑到 ⑦，
     # 标志却一直亮着绿灯。三种「不算数」都要分开说清楚：没跑过、产物被删了、
@@ -1196,7 +1219,8 @@ def paper(name: str, user=Depends(current_user)):
             # 这份卷子此刻在不在跑。有的话试卷页顶部画进度带
             "job": active_job_for(name),
             # 覆盖率要如实报：只解了 6/359 题时页面不能给人「已经做完」的印象
-            "coverage": {"solved": len(sols), "total": len(qs)}}
+            "coverage": {"solved": len(sols), "failed": len(failures),
+                         "total": len(qs)}}
 
 
 @app.get("/api/papers/{name}/scene.js")

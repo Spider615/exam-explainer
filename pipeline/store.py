@@ -29,6 +29,7 @@ harness 那套无头 Chrome 门禁也要本地文件。让它们改说 SQL 只�
 管线搅乱，收益却只是少一步 publish。
 """
 import hashlib, json, mimetypes, os, sys
+from contextlib import contextmanager
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORK = os.path.join(ROOT, "work")
@@ -81,6 +82,19 @@ def connect():
         c.execute("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
         c.autocommit = False
     return c
+
+
+@contextmanager
+def question_generation_lock(qid):
+    """Serialize complete solve generations for one question across processes."""
+    with connect() as c:
+        c.execute("SELECT pg_advisory_lock(%s)", (qid,))
+        c.commit()
+        try:
+            yield
+        finally:
+            c.execute("SELECT pg_advisory_unlock(%s)", (qid,))
+            c.commit()
 
 
 _s3 = None
@@ -784,6 +798,7 @@ def progress(name):
     断言，所以「specs 少于 solutions」是常态而不是没跑完 —— 按旧口径算，
     一份跑完的卷子会永远停在「④ 写断言 6/16」。所以这里多给四个数，
     每个都对着管线里真正的那道闸门：
+      labels      已成功解出的题里有几道生成了目录标题（失败题即使残留标题也不算）
       specsWorth  选中的题里写了几份 spec        （④ 的分母是 worth，不是题数）
       drafts      还没过 ④b 自检的 spec          （animatable=false 的不算，
                                                   speccheck 根本不看它们）
@@ -796,10 +811,17 @@ def progress(name):
         cur.execute("""
             SELECT p.id, p.n_questions, p.assembled_at, p.run_started_at, p.source_kind,
                    (SELECT count(*) FROM questions q WHERE q.paper_id=p.id),
-                   (SELECT count(*) FROM questions q WHERE q.paper_id=p.id AND q.label IS NOT NULL),
+                   -- ③c 的分母是**题数**，不是解出来的题数：没解出来的题也该有
+                   -- 知识点（只看题干就判得出个大概），诊断报告要拿它做聚合
                    (SELECT count(*) FROM questions q
                      WHERE q.paper_id=p.id AND jsonb_array_length(q.kps) > 0),
+                   -- ③b 的分母只数**已经有解法**的题。否则一道终态失败的题留下的
+                   -- 标题会冒充成进度，而它永远等不到解法
                    (SELECT count(*) FROM solutions s JOIN questions q ON q.id=s.question_id
+                     WHERE q.paper_id=p.id AND q.label IS NOT NULL),
+                   (SELECT count(*) FROM solutions s JOIN questions q ON q.id=s.question_id
+                     WHERE q.paper_id=p.id),
+                   (SELECT count(*) FROM solution_failures f JOIN questions q ON q.id=f.question_id
                      WHERE q.paper_id=p.id),
                    (SELECT count(*) FROM specs sp JOIN questions q ON q.id=sp.question_id
                      WHERE q.paper_id=p.id),
@@ -826,6 +848,9 @@ def progress(name):
                      COALESCE((SELECT max(s.created_at) FROM solutions s
                                  JOIN questions q ON q.id=s.question_id
                                 WHERE q.paper_id=p.id), p.updated_at),
+                     COALESCE((SELECT max(f.updated_at) FROM solution_failures f
+                                 JOIN questions q ON q.id=f.question_id
+                                WHERE q.paper_id=p.id), p.updated_at),
                      COALESCE((SELECT max(sp.created_at) FROM specs sp
                                  JOIN questions q ON q.id=sp.question_id
                                 WHERE q.paper_id=p.id), p.updated_at),
@@ -838,13 +863,14 @@ def progress(name):
     if not r:
         return None
     (_pid, _nq, asm_at, started, src_kind,
-     n_q, n_label, n_kps, n_sol, n_spec, n_appr, n_judged,
+     n_q, n_kps, n_label, n_sol, n_failure, n_spec, n_appr, n_judged,
      n_worth, n_scene, n_spec_worth, n_draft, n_ready, n_scene_try, last, now) = r
     idle = (now - last).total_seconds()
     # 总时长：跑完了就是 起点→装配完成，还在跑就是 起点→现在
     elapsed = ((asm_at or now) - started).total_seconds() if started else None
     return {"sourceKind": src_kind,
             "questions": n_q, "labels": n_label, "kps": n_kps, "solutions": n_sol,
+            "solutionFailures": n_failure,
             "startedAt": started.timestamp() if started else None,
             "elapsedSeconds": elapsed,
             "specs": n_spec, "approved": n_appr, "judged": n_judged,
@@ -891,6 +917,9 @@ def assembled(name):
                      p.updated_at,
                      COALESCE((SELECT max(s.created_at) FROM solutions s
                                  JOIN questions q ON q.id = s.question_id
+                                WHERE q.paper_id = p.id), p.updated_at),
+                     COALESCE((SELECT max(f.updated_at) FROM solution_failures f
+                                 JOIN questions q ON q.id = f.question_id
                                 WHERE q.paper_id = p.id), p.updated_at),
                      COALESCE((SELECT max(sp.created_at) FROM specs sp
                                  JOIN questions q ON q.id = sp.question_id
@@ -961,6 +990,7 @@ def solution_fresh(qid, sha):
 
 def put_solution(qid, d, sha, model):
     with connect() as c:
+        c.execute("SELECT id FROM questions WHERE id=%s FOR UPDATE", (qid,))
         c.execute("""
             INSERT INTO solutions (question_id, answer, steps, key_facts, assumptions,
                                    confidence, src_sha256, model)
@@ -975,6 +1005,37 @@ def put_solution(qid, d, sha, model):
              json.dumps(d["key_facts"], ensure_ascii=False),
              json.dumps(d["assumptions"], ensure_ascii=False),
              d["confidence"], sha, model))
+        c.execute("DELETE FROM solution_failures WHERE question_id=%s", (qid,))
+        c.commit()
+
+
+def clear_solution_failure(qid):
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT p.id FROM papers p
+                         JOIN questions q ON q.paper_id=p.id
+                        WHERE q.id=%s
+                        FOR UPDATE OF p""", (qid,))
+        cur.execute("SELECT id FROM questions WHERE id=%s FOR UPDATE", (qid,))
+        cur.execute("DELETE FROM solution_failures WHERE question_id=%s RETURNING question_id", (qid,))
+        if cur.fetchone() is not None:
+            cur.execute("""UPDATE papers SET updated_at=clock_timestamp()
+                           WHERE id=(SELECT paper_id FROM questions WHERE id=%s)""", (qid,))
+        c.commit()
+
+
+def put_solution_failure(qid, kind, reason, attempts, stage):
+    """Persist the terminal solve result, replacing any successful solution."""
+    with connect() as c:
+        c.execute("SELECT id FROM questions WHERE id=%s FOR UPDATE", (qid,))
+        c.execute("DELETE FROM solutions WHERE question_id=%s", (qid,))
+        c.execute("""INSERT INTO solution_failures (question_id, kind, reason, attempts, stage)
+                     VALUES (%s,%s,%s,%s,%s)
+                     ON CONFLICT (question_id) DO UPDATE SET
+                       kind=EXCLUDED.kind, reason=EXCLUDED.reason,
+                       attempts=EXCLUDED.attempts, stage=EXCLUDED.stage,
+                       updated_at=now()""",
+                  (qid, kind, str(reason)[:240], attempts, stage))
         c.commit()
 
 
@@ -1015,6 +1076,22 @@ def paper_solutions(name):
                        "spec_status": r[8], "why_not": r[9],
                        "scene_passed": r[10], "scene_rounds": r[11],
                        "short_answer": r[12], "worth": r[13], "worth_why": r[14]}
+                for r in cur.fetchall()}
+
+
+def paper_solution_failures(name):
+    """Terminal solve failures for one paper, fetched in one query."""
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT q.n, f.kind, f.reason, f.attempts, f.stage, f.updated_at
+                         FROM questions q
+                         JOIN papers p ON p.id=q.paper_id
+                         JOIN solution_failures f ON f.question_id=q.id
+                        WHERE p.name=%s
+                        ORDER BY q.n""", (name,))
+        return {r[0]: {"kind": r[1], "reason": r[2], "attempts": r[3],
+                       "stage": r[4], "updated_at": (r[5].isoformat()
+                                                        if hasattr(r[5], "isoformat") else str(r[5]))}
                 for r in cur.fetchall()}
 
 
