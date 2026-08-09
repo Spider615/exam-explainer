@@ -383,3 +383,40 @@ UPDATE questions q SET kps_at = now()
 ALTER TABLE sheet_answers DROP CONSTRAINT IF EXISTS sheet_answers_question_id_fkey;
 ALTER TABLE sheet_answers ADD CONSTRAINT sheet_answers_question_id_fkey
   FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE SET NULL;
+
+-- ---------------------------------------------------------------- 步二：分数
+-- 卷子上**印着**的分数。系统一分不算，只是把它转写下来（见设计文档「非目标」）。
+--
+-- **numeric 不是 int**：实测有「7.5分(满分12分)」、总分 58.5。
+-- 存整数会静默截断成 7 和 58，而薄弱知识点是按丢分率排的 —— 分母错了整个榜单都错。
+ALTER TABLE sheet_answers ADD COLUMN IF NOT EXISTS score_got   numeric;
+ALTER TABLE sheet_answers ADD COLUMN IF NOT EXISTS score_full  numeric;
+-- 模型读到的批改符号原文。判定用的是归一化后的 verdict，这一列留原文好对账
+ALTER TABLE sheet_answers ADD COLUMN IF NOT EXISTS mark_raw    text;
+-- 老师用红笔**写在旁边**的正确答案（实测题 6 写了 BC、题 8 写了 AC）。
+-- 白捡的第三份对照：它跟参考答案对不上，说明 Ⓐ 那一栏抽错了。只报，不改数据
+ALTER TABLE sheet_answers ADD COLUMN IF NOT EXISTS teacher_red text;
+
+-- Ⓑb **判过这一行**的时间。和 score_got 是两件事：score_got 为空只说明
+-- 「这一行没有分数」，说不出到底是「还没跑过 Ⓑb」还是「跑过了，卷子上就没印」。
+-- 与 questions.kps_at 完全同构 —— 那一列不加的时候，答案卷永远到不了「已完成」，
+-- 用户两次问「为啥停止了」。
+ALTER TABLE sheet_answers ADD COLUMN IF NOT EXISTS scored_at   timestamptz;
+
+-- 卷子上印的总分（实测 58.5）。Ⓑc 单独一次调用、单独一块裁图读它，
+-- 用来对 Σscore_got。**必须和逐题得分不同源**，同源的话这条校验就是自证。
+ALTER TABLE answer_sheets ADD COLUMN IF NOT EXISTS total_score numeric;
+
+-- 回填：已经有分数的行，整卡标成判过。
+--
+-- **不回填的话已经跑完的卡会退回「没判过」** —— 和 kps_at 那次一样的道理
+-- （STATUS「踩过的坑」第 1 条：加一格必须同时改分支和回填，踩过两次）。
+--
+-- 判据是「这份答题卡里有任何一行有分数」：Ⓑb 是整卡跑的，有一行有分就说明它在
+-- 这份卡上跑过，那么同一份里没分的那些也是判过的（卷子上就没印）。一行分数都
+-- 没有的卡留空 —— 那种情况分不出「跑过但全没印分」和「压根没跑」，宁可当成没跑
+-- （代价是多跑一次；反过来会把没跑过的说成跑完了）。
+UPDATE sheet_answers a SET scored_at = now()
+ WHERE a.scored_at IS NULL
+   AND EXISTS (SELECT 1 FROM sheet_answers x
+                WHERE x.sheet_id = a.sheet_id AND x.score_got IS NOT NULL);

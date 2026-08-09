@@ -31,6 +31,10 @@ harness 那套无头 Chrome 门禁也要本地文件。让它们改说 SQL 只�
 import hashlib, json, mimetypes, os, sys
 from contextlib import contextmanager
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 判定的值域只有一份，在这里 —— 这个文件不许再抄一遍（见 verdicts.py 的说明）
+import verdicts
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORK = os.path.join(ROOT, "work")
 
@@ -770,9 +774,9 @@ def put_page_asset(paper_name, local_path, rel_path):
 # 拼错一个列名会静默写不进去，而阅卷结果错了页面上看不出来
 _SHEET_COLS = ("question_id", "raw_text", "norm", "crop_rel", "box", "page",
                "read_conf", "reread", "reread_raw",
-               "verdict", "verdict_by", "verdict_why")
-
-_VERDICTS = ("right", "wrong", "blank", "unsure")
+               "verdict", "verdict_by", "verdict_why",
+               # 步二：卷子上印着的分数与批改原文
+               "score_got", "score_full", "mark_raw", "teacher_red")
 
 
 def create_sheet(paper_name, student_label, owner_id, n_pages=0):
@@ -796,26 +800,56 @@ def set_sheet_pages(sheet_id, n):
         c.commit()
 
 
-def put_sheet_answer(sheet_id, n, **fields):
+def set_sheet_total(sheet_id, total):
+    """
+    卷子上印的总分（实测 58.5）。Ⓑc 单独读，用来对 Σscore_got。
+
+    **和逐题得分必须不同源** —— 同源的话「Σ 对总分」这条校验就是自证，
+    一分钱的价值都没有。见设计文档 Ⓑ 那节。
+    """
+    with connect() as c:
+        c.execute("UPDATE answer_sheets SET total_score=%s, updated_at=now() "
+                  "WHERE id=%s", (total, sheet_id))
+        c.commit()
+
+
+def put_sheet_answer(sheet_id, n, scored=False, **fields):
     """
     写一题的作答与判定。**按 (sheet_id, n) 覆盖，不追加** —— 复读会把同一题
     再写一次，追加的话页面上会出现两行。
 
     **只更新这次给了的列。** 复读那一步只写 reread_raw 和 verdict，不该顺手
     把 crop_rel 抹成 NULL —— 原图切片没了，这个功能唯一的红绿灯就废了。
+    Ⓒ 判定那一步同理：它只写 verdict，不该把 Ⓑb 读出来的分数抹掉。
+
+    `scored=True` 表示「Ⓑb **判过**这一行」，写 `scored_at`。它和 `score_got`
+    是两件事：`score_got` 为空只说明这一行没有分数，说不出到底是「还没跑过」
+    还是「跑过了，卷子上就没印」。同 `questions.kps_at`。
+
+    `verdict` / `verdict_by` 的取值在这里校验，判据来自 `verdicts` 那一份清单 ——
+    **写入端不校验的话，拼错一个值会静默写进去**，而页面上分不出来。
     """
     bad = set(fields) - set(_SHEET_COLS)
     if bad:
         raise ValueError("不认识的列：%s" % ", ".join(sorted(bad)))
+    if fields.get("verdict") is not None:
+        verdicts.check(fields["verdict"])
+    if fields.get("verdict_by") is not None:
+        verdicts.check_by(fields["verdict_by"])
     cols = [k for k in _SHEET_COLS if k in fields]
     vals = [json.dumps(fields[k], ensure_ascii=False) if k == "box" else fields[k]
             for k in cols]
+    extra = ", scored_at=now()" if scored else ""
     sets = ", ".join("%s=EXCLUDED.%s" % (k, k) for k in cols) or "n=EXCLUDED.n"
-    sql = ("INSERT INTO sheet_answers (sheet_id, n%s) VALUES (%%s, %%s%s) "
-           "ON CONFLICT (sheet_id, n) DO UPDATE SET %s"
-           % ("".join(", " + k for k in cols), ", %s" * len(cols), sets))
+    sql = ("INSERT INTO sheet_answers (sheet_id, n%s%s) VALUES (%%s, %%s%s%s) "
+           "ON CONFLICT (sheet_id, n) DO UPDATE SET %s%s"
+           % ("".join(", " + k for k in cols), ", scored_at" if scored else "",
+              ", %s" * len(cols), ", now()" if scored else "",
+              sets, extra))
     with connect() as c:
         c.execute(sql, [sheet_id, n] + vals)
+        # 卷子的 lastChange / busy 要跟着答题卡动，否则 Ⓑ 跑十分钟页面上没动静
+        c.execute("UPDATE answer_sheets SET updated_at=now() WHERE id=%s", (sheet_id,))
         c.commit()
 
 
@@ -832,6 +866,7 @@ def sheet_answers(sheet_id):
         cur.execute("""SELECT id, question_id, n, raw_text, norm, crop_rel, box, page,
                               read_conf, reread, reread_raw,
                               verdict, verdict_by, verdict_why, teacher_verdict,
+                              score_got, score_full, mark_raw, teacher_red, scored_at,
                               COALESCE(teacher_verdict, verdict) AS final_verdict
                          FROM sheet_answers WHERE sheet_id=%s ORDER BY n""",
                     (sheet_id,))
@@ -845,9 +880,10 @@ def set_teacher_verdict(sheet_id, n, verdict):
 
     **不碰 verdict 那一列。** 留着原判才看得出系统错在哪，也才撤得回来。
     """
-    if verdict is not None and verdict not in _VERDICTS:
-        raise ValueError("verdict 只能是 right/wrong/blank/unsure 或 None，"
-                         "给的是 %r" % verdict)
+    # 报错文案由 verdicts 那份清单拼出来，**不在这里抄第二遍** ——
+    # 抄一份的话，加值时必然漏改它，而那时候报错本身会说谎
+    if verdict is not None:
+        verdicts.check(verdict)
     with connect() as c:
         c.execute("UPDATE sheet_answers SET teacher_verdict=%s WHERE sheet_id=%s AND n=%s",
                   (verdict, sheet_id, n))
@@ -857,18 +893,42 @@ def set_teacher_verdict(sheet_id, n, verdict):
 
 
 def list_sheets(paper_name):
-    """这份卷子下面的所有答题卡，新的在前。错题数按**改判后**的算。"""
+    """
+    这份卷子下面的所有答题卡，新的在前。三个汇总数都按**改判后**的算
+    （`COALESCE(teacher_verdict, verdict)`，和 `final_verdict` 一个口径）。
+
+    **`wrong` 和 `partial` 分两个数出，还要给 `lost`。** 原来只数 `='wrong'`，
+    加了 `partial` 之后，一张 8 道半对、2 道全错的卡会显示「错 2 道」——
+    而它其实有 10 道没拿满分。而薄弱知识点是按丢分排的，所以 `lost`
+    （丢了多少分）才是那个真正该显示在卡片上的数。
+
+    `lost` 只算 `right/partial/wrong` 三档（`verdicts.COUNTED`）：
+    `blank` 和 `unsure` 不是「答错了」，把它们的满分算进丢分，
+    一张读得不好的卡会看起来像考砸了。
+    """
+    counted = ", ".join("'%s'" % v for v in verdicts.COUNTED)
     with connect() as c:
         cur = c.cursor()
         cur.execute("""SELECT s.id, s.student_label, s.n_pages, s.created_at, s.updated_at,
+                              s.total_score,
                               (SELECT count(*) FROM sheet_answers a WHERE a.sheet_id=s.id),
                               (SELECT count(*) FROM sheet_answers a WHERE a.sheet_id=s.id
-                                AND COALESCE(a.teacher_verdict, a.verdict)='wrong')
+                                AND COALESCE(a.teacher_verdict, a.verdict)='wrong'),
+                              (SELECT count(*) FROM sheet_answers a WHERE a.sheet_id=s.id
+                                AND COALESCE(a.teacher_verdict, a.verdict)='partial'),
+                              (SELECT COALESCE(sum(
+                                 CASE WHEN COALESCE(a.teacher_verdict, a.verdict)='right'
+                                      THEN 0 ELSE a.score_full - a.score_got END), 0)
+                                 FROM sheet_answers a WHERE a.sheet_id=s.id
+                                  AND a.score_full IS NOT NULL AND a.score_got IS NOT NULL
+                                  AND COALESCE(a.teacher_verdict, a.verdict) IN (%s))
                          FROM answer_sheets s JOIN papers p ON p.id=s.paper_id
-                        WHERE p.name=%s ORDER BY s.created_at DESC""", (paper_name,))
+                        WHERE p.name=%%s ORDER BY s.created_at DESC""" % counted,
+                    (paper_name,))
         return [{"id": r[0], "student": r[1], "nPages": r[2],
-                 "created_at": r[3], "updated_at": r[4],
-                 "answers": r[5], "wrong": r[6]} for r in cur.fetchall()]
+                 "created_at": r[3], "updated_at": r[4], "total": r[5],
+                 "answers": r[6], "wrong": r[7], "partial": r[8], "lost": r[9]}
+                for r in cur.fetchall()]
 
 
 def sheet_owner(sheet_id):

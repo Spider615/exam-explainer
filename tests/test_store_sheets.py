@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import store
+import verdicts
 
 
 def _paper(tmp_path, name, ns=(1, 2, 3)):
@@ -66,9 +67,13 @@ def test_野的verdict当场拒绝(db, tmp_path):
     try:
         store.set_teacher_verdict(sid, 1, "对")
     except ValueError as e:
-        assert "right/wrong/blank/unsure" in str(e)
+        # **从 verdicts 那份清单推，不在这里抄第二遍。**
+        # 原来这里写死的是「right/wrong/blank/unsure」，加 partial 那次它当场变红 ——
+        # 而它红的原因不是行为错了，只是文案里多了一个值。测试自己成了第五份抄本。
+        for v in verdicts.VERDICTS:
+            assert v in str(e)
     else:
-        raise AssertionError("第五个值应该当场抛，不能悄悄写进库")
+        raise AssertionError("野的值应该当场抛，不能悄悄写进库")
 
 
 def test_题号挂不上卷子也存得下(db, tmp_path):
