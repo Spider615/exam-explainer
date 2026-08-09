@@ -446,3 +446,15 @@ td.prg{white-space:nowrap}
   height:22px}
 .ctl-num{font-family:var(--mono);font-size:11px;color:var(--ink3);min-width:34px}
 .ctl-lab{font-size:11px;color:var(--ink3)}
+
+/* 两个模式的 tab。选中的那个下方一条实线，没选中的只有文字 ——
+   它们是两件事，视觉上要比一个下拉筛选器重 */
+.modes{display:flex;gap:4px;margin:0 0 18px;border-bottom:1px solid var(--hair)}
+.modes button{background:none;border:0;border-bottom:2px solid transparent;
+  padding:8px 14px;font:inherit;font-size:15px;color:var(--ink3);cursor:pointer}
+.modes button:hover{color:var(--ink2)}
+.modes button.on{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
+.fieldrow{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+.fieldrow>span{color:var(--ink3);font-size:14px}
+.fieldrow input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:4px;
+  background:var(--panel);color:var(--ink);font:inherit;font-size:15px}

@@ -244,6 +244,12 @@ export interface PaperSummary {
     busy: boolean; done: boolean; failed: string | null
     solved: number; solutionFailures: number; questions: number; elapsedSeconds: number | null
   }
+  /** 'pdf' | 'answers_only'。两种模式的列表列头不一样 */
+  sourceKind?: string
+  /** 有官方解答过程的题数。参考答案的版式就是只有大题给详解，天生小于题数 */
+  withSolution?: number
+  /** 挂上知识点的题数（③c） */
+  kps?: number
 }
 
 export interface Job {
