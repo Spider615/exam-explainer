@@ -289,8 +289,14 @@ CREATE TABLE IF NOT EXISTS sheet_answers (
   id          bigserial PRIMARY KEY,
   sheet_id    bigint NOT NULL REFERENCES answer_sheets(id) ON DELETE CASCADE,
   -- **可空**：认出了题号但卷子里没这道题（串号、学生多写一道）。
-  -- 挂不上就是挂不上，页面明说，不许猜一个最近的题号安上去
-  question_id bigint REFERENCES questions(id) ON DELETE CASCADE,
+  -- 挂不上就是挂不上，页面明说，不许猜一个最近的题号安上去。
+  -- 实测这真会发生：答题卡第 13 题印的小问编号是 (1)(2)(4)(5)，参考答案是 (1)(2)(3)(4)。
+  --
+  -- **ON DELETE SET NULL，不是 CASCADE。** 既然「挂不上」是设计内的正常状态，
+  -- 删掉一道题就该是**解绑**、不是把这一行连根删掉 —— 行里装着学生的作答、
+  -- 原图切片和老师的改判，那些东西不可再生（参考答案能重读，那张已批改的
+  -- 答题卡老师未必还留着，上传的原件跑完就清了）
+  question_id bigint REFERENCES questions(id) ON DELETE SET NULL,
   n           int  NOT NULL,
   raw_text    text,        -- 模型认出的最终作答，**原样**，不加工
   norm        text,        -- 归一化后的形式，判定拿它比
@@ -360,3 +366,20 @@ UPDATE questions q SET kps_at = now()
  WHERE q.kps_at IS NULL
    AND EXISTS (SELECT 1 FROM questions x
                 WHERE x.paper_id = q.paper_id AND jsonb_array_length(x.kps) > 0);
+
+-- ---------------------------------------------------------------- 老库补：解绑而不是删行
+-- `sheet_answers.question_id` 的外键从 ON DELETE CASCADE 改成 ON DELETE SET NULL。
+-- 上面 CREATE TABLE 里已经是新的了，但 `IF NOT EXISTS` 对已经存在的表不生效，
+-- 老库还挂着旧约束，所以这里显式换一次。
+--
+-- 为什么改：「挂不上题」是这个设计里的**正常状态**，不是异常 —— 实测答题卡
+-- 第 13 题印的小问编号是 (1)(2)(4)(5)，参考答案是 (1)(2)(3)(4)。既然挂不上正常，
+-- 删掉一道题就该是解绑；CASCADE 会把整行连根删掉，而行里装着学生的作答、
+-- 原图切片和老师的改判。那三样**不可再生**：参考答案能重读，那张已批改的
+-- 答题卡老师未必还留着，上传的原件跑完就从 _uploads 清了。
+--
+-- 触发路径是现成的：refread.py 读完参考答案时，日志里直接教人跑
+-- `store.drop_questions` 去收拾读错的题号。
+ALTER TABLE sheet_answers DROP CONSTRAINT IF EXISTS sheet_answers_question_id_fkey;
+ALTER TABLE sheet_answers ADD CONSTRAINT sheet_answers_question_id_fkey
+  FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE SET NULL;

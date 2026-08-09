@@ -239,14 +239,22 @@ def read(paper_name, page_files, verbose=True):
         log("   ⚠ %s" % p)
 
     # 上一次跑留下、这一次没再读到的题。**不自动删** —— 这一次可能有页失败，
-    # 删就会误伤；而且 sheet_answers 以 ON DELETE CASCADE 挂在 questions 上，
-    # 删一道题会连学生的作答一起删掉。所以只报出来，由人决定
+    # 删就会误伤。所以只报出来，由人决定。
+    #
+    # 删题不会再带走学生的作答（`sheet_answers.question_id` 是 ON DELETE SET NULL，
+    # 见 schema.sql），但会**解绑**：那几条作答从此挂不上题，页面上要单独列。
+    # 这句提示必须自己把话说全 —— 看日志的人不会去读 store.py 的 docstring，
+    # 而这条日志是在**教他动手**。
     old = store.get_paper(paper_name)
     if old:
         gone = sorted({q["n"] for q in old["questions"]} - {r["n"] for r in rows})
         if gone:
             log("   ⚠ 库里还留着 %d 道这次没读到的题：%s"
                 % (len(gone), "、".join(show_qnum(n) for n in gone)))
+            hit = store.answers_bound_to(paper_name, gone)
+            if hit:
+                log("     ⚠ 这几道题上挂着 %d 条学生作答。删题不会删掉它们，"
+                    "但会解绑 —— 那几条从此挂不上题。" % hit)
             log("     （多半是上一次读错的题号。确认之后手动删："
                 "store.drop_questions(%r, %s)）" % (paper_name, gone))
 

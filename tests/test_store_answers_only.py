@@ -108,7 +108,7 @@ def test_能手动删读错的题号(db):
     store.create_answers_paper("答案卷F", None)
     for n in (15, 1501, 1502):
         store.put_answer_question("答案卷F", n, "x", None)
-    assert store.drop_questions("答案卷F", [15]) == 1
+    assert store.drop_questions("答案卷F", [15]) == {"questions": 1, "unbound_answers": 0}
     ns = [q["n"] for q in store.get_paper("答案卷F")["questions"]]
     assert ns == [1501, 1502]
     assert store.progress("答案卷F")["questions"] == 2, "题数要跟着降"
@@ -117,4 +117,4 @@ def test_能手动删读错的题号(db):
 def test_删不存在的题号不炸(db):
     store.create_answers_paper("答案卷G", None)
     store.put_answer_question("答案卷G", 1, "D", None)
-    assert store.drop_questions("答案卷G", [99]) == 0
+    assert store.drop_questions("答案卷G", [99]) == {"questions": 0, "unbound_answers": 0}

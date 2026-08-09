@@ -206,6 +206,20 @@ def publish(workdir, name=None, conn=None, owner_id=None):
     c = conn or connect()
     try:
         cur = c.cursor()
+        # **不许往一份答题卡卷子上发布。** 这一段是整卷替换（下面那句
+        # `DELETE ... WHERE n <> ALL(...)`），而答案卷的小问题号是 1201/1301 这种，
+        # PDF 链永远不会产出 —— 一次 publish 会把它的标准答案、官方解答、知识点
+        # 全删掉，学生的作答也跟着解绑。
+        #
+        # 这是 `create_answers_paper` 那道护栏的反方向。API 层已经会给同名上传
+        # 改名了（`api.upload_name_for`），但命令行那条链直接调 publish、绕过 API，
+        # 所以底闸必须在这里。**只有一边等于没有。**
+        cur.execute("SELECT source_kind FROM papers WHERE name=%s", (name,))
+        row = cur.fetchone()
+        if row and row[0] == "answers_only":
+            raise ValueError(
+                "「%s」是一份答题卡卷子，不能往它上面发布解析试卷的产物 —— "
+                "那会删掉它的标准答案、官方解答和学生作答。换个卷名。" % name)
         cur.execute("""
             INSERT INTO papers (name, source_pdf, n_questions, sections, warnings,
                                 dropped_boilerplate, updated_at, run_started_at,
@@ -693,23 +707,45 @@ def put_stem(paper_name, n, stem):
         c.commit()
 
 
+def answers_bound_to(paper_name, ns):
+    """这几道题上挂着多少条学生作答。**删题之前问一句**，见 `drop_questions`。"""
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT count(*) FROM sheet_answers a
+                        JOIN questions q ON q.id = a.question_id
+                        JOIN papers p ON p.id = q.paper_id
+                       WHERE p.name=%s AND q.n = ANY(%s)""",
+                    (paper_name, list(ns)))
+        return cur.fetchone()[0]
+
+
 def drop_questions(paper_name, ns):
     """
     删掉指定题号的题。**给人手动收拾读错的题号用，管线自己不调。**
 
-    不让 refread 自动删的两个理由：这一次可能有页失败，删就会误伤；
-    而且 sheet_answers 以 ON DELETE CASCADE 挂在 questions 上，
-    删一道题会连学生的作答一起删掉。
+    回 `{"questions": 删了几题, "unbound_answers": 解绑了几条学生作答}`。
+
+    不让 refread 自动删的理由：这一次可能有页失败，删就会误伤。
+
+    **学生的作答不跟着删，只解绑。** `sheet_answers.question_id` 的外键是
+    `ON DELETE SET NULL`（不是 CASCADE）—— 「挂不上题」在这个设计里本来就是
+    正常状态（实测答题卡第 13 题印的小问编号是 (1)(2)(4)(5)，参考答案是
+    (1)(2)(3)(4)），既然挂不上正常，删题就该是解绑。行里装着学生的作答、
+    原图切片和老师的改判，那三样不可再生。
+
+    **解绑了多少条要说出来。** 静默解绑和静默删除一样糟：跑这个函数的人是来
+    收拾读错的题号的，他得知道这一刀碰到了多少条学生数据。
     """
     with connect() as c:
         cur = c.cursor()
+        unbound = answers_bound_to(paper_name, ns)
         cur.execute("""DELETE FROM questions q USING papers p
                         WHERE p.id=q.paper_id AND p.name=%s AND q.n = ANY(%s)""",
                     (paper_name, list(ns)))
         n = cur.rowcount
         _bump_qcount(cur, paper_name)
         c.commit()
-        return n
+        return {"questions": n, "unbound_answers": unbound}
 
 
 def put_page_asset(paper_name, local_path, rel_path):
