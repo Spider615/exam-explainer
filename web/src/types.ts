@@ -114,6 +114,27 @@ export interface FigMark { id: number; url: string; widthPct: number }
 
 export interface Section { label: string; title: string; declared: number }
 
+/** 一格阶段标志。state 由后端算好，前端只管画 */
+export interface StageCell {
+  code: string
+  label: string
+  /** done 做完了 / now 在跑 / todo 还没轮到 / fail 挂在这一格 / empty 跑过了没产物 */
+  state: 'done' | 'now' | 'todo' | 'fail' | 'empty'
+}
+
+/**
+ * 这份卷子属于哪个模式，以及那排格子现在什么样。
+ *
+ * **格子清单和每格状态都由后端给。** 前端曾经自己写死一份 6 格清单加一张
+ * 代号映射表，加阶段时漏改就会「一步全程一格都不亮」——踩过。
+ * 而且 web/ 没有测试框架，那段判断放在这边没有任何东西看得住。
+ */
+export interface ModeInfo {
+  code: string
+  label: string
+  stages: StageCell[]
+}
+
 export interface Paper {
   name: string
   /**
@@ -124,6 +145,8 @@ export interface Paper {
    * 所以整卷自己也带一份。
    */
   sourceKind?: string
+  /** 模式与阶段格子，由后端下发 */
+  mode?: ModeInfo
   sections: Section[]
   warnings: string[]
   questions: Question[]
@@ -161,6 +184,8 @@ export interface Progress {
    * 阶段条要按它收缩 —— 否则那几格永远灭着，看起来像卡住了
    */
   sourceKind?: string
+  /** 模式与阶段格子，由后端下发 */
+  mode?: ModeInfo
   questions: number
   labels: number
   /** 挂上知识点的题数（③c）。分母是题数，不是解出来的题数 */

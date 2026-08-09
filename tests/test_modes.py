@@ -6,6 +6,9 @@
 前端 STAGE_OF_CODE），两次事故都是抄漏了一份。这里的门禁在**加阶段那一刻**
 触发 —— 加一格必然要改 stage_of，改完跑测试就红。
 """
+import os
+import re
+
 import modes
 
 
@@ -162,3 +165,38 @@ def test_挂掉的格子不许被产物覆盖():
     s = _states(modes.PAPER, failed_stage="scene", artifacts={"scene": True})
     assert s["scene"] == "fail", (
         "挂掉的格子 scene 有产物时不应该被覆盖成 done，应该保持 fail")
+
+
+# ---------------------------------------------------------------- 失败阶段代号
+#
+# 这一条是从 tests/test_stage_code_covered.py 搬过来的。那条门禁原来跨语言查
+# 「后端的代号前端那张表里都有吗」；前端那张表删掉之后它没有对象可查了，
+# 但它守的**第二条**不变量还在：①/② 挂掉时给的失败代号必须落得进那排格子，
+# 否则那两步失败时一格都不红，只剩下面一条横幅。
+
+_API = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                    "pipeline", "api.py")
+
+
+def _step_code_values():
+    """
+    `run_pipeline` 里那张 `step_code` 表的值。
+
+    这些代号 `stage_of` **永远不会返回**（它是从库里的计数反推的，而卷子入了库
+    就意味着 ①② 已经过去了），只有 `failedStage` 会给。
+    """
+    src = open(_API, encoding="utf-8").read()
+    tbl = src.split("step_code = {", 1)[1].split("}", 1)[0]
+    return {m.group(1) for m in re.finditer(r':\s*"([a-z_]+)"', tbl)}
+
+
+def test_失败阶段代号解析得出来():
+    """判据本身要先站得住 —— 解析不出来的话下面那条会假绿"""
+    assert _step_code_values() == {"ingest", "segment"}
+
+
+def test_失败阶段代号都落得进解析试卷的格子():
+    missing = sorted(_step_code_values() - set(modes.PAPER.cell_of))
+    assert not missing, (
+        "这些代号管线挂掉时会给，但 PAPER.cell_of 里没有：%s。\n"
+        "后果不是报错，是那一步失败时一格都不红。" % "、".join(missing))
