@@ -1497,11 +1497,17 @@ def paper(name: str, user=Depends(current_user)):
                          # 阶段②b 视觉模型识别的 LaTeX；有它就优先用它渲染
                          "latex": o.get("latex"),
                          "figure": fig(o["figure"])["url"] if o.get("figure") else None}
-                        for o in x["options"]],
-            "figures": [fig(f) for f in x["figures"]],
+                        for o in (x.get("options") or [])],
+            # `or []` 不是多余的：`publish` 把 questions.json 里没有的键原样写成
+            # `layout.figures = null`，于是这里拿到的是 **None 而不是缺键** ——
+            # `get_paper` 那句 `setdefault("figures", [])` 只补缺键，补不了 None。
+            # 硬取的后果是整个端点 500，而答案卷详情页就是这么坏了很久的
+            # （那次修的是缺键那一半，这次补上 None 这一半）
+            "figures": [fig(f) for f in (x.get("figures") or [])],
             # 图在正文中的位置：占位符 〔图N〕 → 图片 URL
+            # 同上：`fig_marks` 也会是 None 而不是缺键，`.get(k, [])` 挡不住
             "figMarks": [{"id": f["id"], **fig(f["file"])}
-                         for f in x.get("fig_marks", [])],
+                         for f in (x.get("fig_marks") or [])],
             "textQuality": x.get("text_quality", "ok"),
             "qualityReason": x.get("quality_reason", ""),
             # 选项区原卷截图：兜底 + 「对照原卷」
@@ -1603,6 +1609,17 @@ def paper(name: str, user=Depends(current_user)):
         artifacts = stages
     mode = mode_block({"sourceKind": q.get("sourceKind")}, name,
                       None, None, artifacts=artifacts)
+    # 这份卷子下面的答题卡。**只对答题卡模式查** —— 解析试卷压根没有这回事，
+    # 不必为它多打一次库。
+    #
+    # 为什么答题卡的进度挂在这里、而不是进 `mode` 那排格子：那排格子是**按卷子**
+    # 算的，而一份卷子可以挂多份答题卡（一个学生一份）。给它一格的话，
+    # 「哪一份卡读到第几题」根本没地方放；更糟的是没传答题卡的卷子会永远走不到
+    # 「已完成」—— 而答题卡是选填的。详见 `modes._stage_of_sheet` 的说明。
+    #
+    # 页面按**卡**画进度和失败，数据就是这一份。
+    sheets = (store.list_sheets(name)
+              if modes.of(q.get("sourceKind")) is modes.SHEET else None)
     # sourceKind 页面要用来分开「解析试卷」和「答题卡诊断」两个功能。
     # 进度里也有一份，但那是轮询回来的、带延迟，拿它决定一句话显不显示会闪
     return {"name": name, "sourceKind": q.get("sourceKind") or "pdf",
@@ -1610,6 +1627,7 @@ def paper(name: str, user=Depends(current_user)):
             "warnings": q.get("warnings") or [], "questions": qs,
             "stages": stages,
             "mode": mode,
+            **({"sheets": sheets} if sheets is not None else {}),
             # 灭着的标志要能说出为什么灭 —— 光是灰掉，人无从知道是没跑还是跑旧了
             "stageNotes": {"assemble": asm_note},
             # 这份卷子此刻在不在跑。有的话试卷页顶部画进度带

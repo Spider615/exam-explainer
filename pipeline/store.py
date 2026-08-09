@@ -1037,7 +1037,17 @@ def progress(name):
                                 WHERE q.paper_id=p.id), p.updated_at),
                      COALESCE((SELECT max(sc.created_at) FROM scenes sc
                                  JOIN questions q ON q.id=sc.question_id
-                                WHERE q.paper_id=p.id), p.updated_at)),
+                                WHERE q.paper_id=p.id), p.updated_at),
+                     -- 答题卡侧也要算进来。不算的话 Ⓑ 边读边落库，`lastChange`
+                     -- 纹丝不动：前端拿它当重载 key，逐题结果落了库页面一条都
+                     -- 不出现；而 `busy` 是 `idle < 180`，Ⓑa 实测一页要 235 秒，
+                     -- 跑到第二页时 busy 已经翻假，整块进度区消失 ——
+                     -- 人恰好在最容易以为卡死的那几分钟里什么都看不到。
+                     --
+                     -- **建卡本身也算动过**：建卡到读出第一题之间隔着 Ⓢ 和 Ⓑa
+                     -- 的第一次调用（四分钟往上），那一段静着是最糟的。
+                     COALESCE((SELECT max(sh.updated_at) FROM answer_sheets sh
+                                WHERE sh.paper_id=p.id), p.updated_at)),
                    now()
               FROM papers p WHERE p.name=%s""", (name,))
         r = cur.fetchone()
