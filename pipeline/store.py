@@ -455,8 +455,10 @@ def get_paper(name):
         qs = [dict(zip(cols, r)) for r in cur.fetchall()]
         by_id = {q["id"]: q for q in qs}
         # `layout` 是版面信息（插图、图在正文里的落位、选项区截图……），
-        # 由 ②切分 写进去。**答案卷这一列是 NULL** —— 它那条链根本不过 ②，
-        # 所以这里要把缺的键补成空的。
+        # 由 ②切分 写进去。**答案卷这一列是空对象 `{}`**（schema.sql 里
+        # `layout jsonb NOT NULL DEFAULT '{}'`，而答案卷走的 put_answer_question
+        # 的 INSERT 列表里没有 layout，所以拿到的是默认值，不是 NULL）——
+        # 它那条链根本不过 ②，所以这里要把缺的键补成空的。
         #
         # 不补的话，缺的不是「值是 None」而是「键根本不存在」，
         # 而下游 `api.paper` 那句 `x["figures"]` 是硬取 —— 整个端点 500，
