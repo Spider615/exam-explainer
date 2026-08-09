@@ -194,7 +194,13 @@ export default function PaperView({ name }: { name: string }) {
               : stalled ? '停在这一步，还没做完'
                 : c.state === 'now' ? '正在跑这一步'
                   : c.state === 'done' ? '已完成'
-                    : '还没跑到这一步'
+                    // 「还没轮到」有两种，话不一样。库里明明有这一步的产出、
+                    // 而推断说还没走到，那不是「还没跑」—— 管线不是单调跑一遍的，
+                    // 实测九份卷子有三份是这个样子（见 modes.cell_states 的说明）。
+                    // 说成「还没跑到」会让人以为库里是空的
+                    : paper.stages?.[c.code]
+                      ? '这一轮还没跑到这一步（库里已经有一些产出）'
+                      : '还没跑到这一步'
           return (
             <span key={c.code}
                   className={`stage st-${c.state}${stalled ? ' idle' : ''}`}
