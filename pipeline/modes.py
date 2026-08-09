@@ -141,7 +141,7 @@ def of(source_kind):
     return PAPER
 
 
-_RETURN_CODE = re.compile(r'return\s+"([a-z_]+)"')
+_RETURN_CODE = re.compile(r'return\s+"([a-z_]+)",')
 
 
 def codes_returned_by(fn):
@@ -149,6 +149,23 @@ def codes_returned_by(fn):
     这个 `stage_of` 会返回哪些代号 —— **从源码里扫**，不靠人手抄第二遍。
 
     手抄的话这份清单自己就成了第四份抄本，而这个文件存在的理由正是消掉抄本。
+
+    这是这一轮唯一的自动门禁，判据被污染 = 防线失效：将来有人在注释或
+    docstring 里写了一句 `return "foo"`（举例、写笔记都可能），`findall` 连
+    注释一起扫，要么假红挂上一个从没真的返回过的代号，要么在一堆噪声里把
+    真正漏登记的代号盖过去，没人注意到。
+
+    两种止血办法：扫之前把注释剥掉（`re.sub(r"#.*", "", src)`），或者把匹配
+    本身收紧。**这里选收紧**，不选剥注释 —— 剥注释只是把「文本里长得像
+    `return "xxx"` 的噪声」从注释挪到了别处，不管剥不剥，`return "xxx"` 这个
+    形状本身还是太宽；而这个文件里 `stage_of` 的每一条 `return` 分支实际上
+    永远是 `return 代号, 显示名, 短状态词, 已完成, 总数` 这样的五元组（`modes.py`
+    模块 docstring 的类文档已经写明 `stage_of` 的返回形状），也就是说真正的
+    `return` 后面必然紧跟一个逗号。要求这个逗号，就把「散落在注释、docstring
+    里、恰好也写成 `return "xxx"` 但后面没有紧跟逗号的句子」天然排除掉了 ——
+    比事后再去猜哪些 `#` 后面的文字要剥掉更贴合这份源码已知的结构。旧的
+    `test_stage_code_covered.py`（这份清单和这条门禁的上一处落脚点）用的正是
+    带逗号的写法，这次搬家改成不要逗号反而放宽了口径，这里改回去。
     """
     return set(_RETURN_CODE.findall(inspect.getsource(fn)))
 
