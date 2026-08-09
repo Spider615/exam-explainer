@@ -25,7 +25,14 @@ export default function AnswerQuestionCard({ q }: { q: Question }) {
           产出的 MathML 区间，这条链根本没有那个东西，传它只会原样打出反斜杠 */}
       <dl>
         <dt>标准答案</dt>
-        <dd className="ans"><RichText text={q.refAnswer ?? ''} /></dd>
+        <dd className="ans">
+          {q.refAnswer
+            ? <RichText text={q.refAnswer} />
+            /* 留白会被读成「这道题本来就没有」——这是全页面最要紧的一格，
+               唯独它之前没说话。「读取失败」是替后端下结论，「暂无」等于没说，
+               所以老老实实说清楚是哪一步没认出来 */
+            : <span className="dim">这道题没有标准答案 —— Ⓐ 读参考答案时没认出来</span>}
+        </dd>
 
         <dt>官方解答</dt>
         <dd>

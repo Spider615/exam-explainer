@@ -50,13 +50,29 @@ export default function SheetView({ name }: { name: string }) {
 
   return (
     <div>
+      {/* 停下来的「在跑」格子不能继续闪 —— 呼吸点是「正在动」的信号，一份已经
+          停在这一步的卷子那格还在闪会被当成还在跑。逻辑抄自 PaperView（那边的
+          注释写了完整理由）；这条链只有两格、没有「产物」这一说，所以 why 比
+          那边少一档「库里已经有一些产出」——但为了不撒谎，其余分支照样要覆盖到，
+          不能图省事写死成「已完成」 */}
       <div className="stages">
-        {cells.map((c) => (
-          <span key={c.code} className={`stage st-${c.state}`}>
-            {c.state === 'now' && <i className="stage-dot" />}
-            {c.label}
-          </span>
-        ))}
+        {cells.map((c) => {
+          const stalled = c.state === 'now' && pg != null && !pg.busy
+          const why = c.state === 'fail' ? `失败：${pg?.failed}`
+            : c.state === 'empty' ? '这一步跑过了，但没有产出'
+              : stalled ? '停在这一步，还没做完'
+                : c.state === 'now' ? '正在跑这一步'
+                  : c.state === 'done' ? '已完成'
+                    : '还没跑到这一步'
+          return (
+            <span key={c.code}
+                  className={`stage st-${c.state}${stalled ? ' idle' : ''}`}
+                  title={why}>
+              {c.state === 'now' && <i className="stage-dot" />}
+              {c.label}
+            </span>
+          )
+        })}
       </div>
 
       {pg?.failed && (
