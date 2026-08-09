@@ -657,6 +657,18 @@ def resume_paper(jid, name, source_kind=None):
                 job_log(jid, "   %s 跳过 —— 要重读请重新上传参考答案" % label)
             else:
                 run_step(jid, label, step_path(how) + [name], timeout=timeout)
+        # sheet 模式没有 @finish 收尾 —— 循环正常走完了，得在这里把 state 从
+        # /resume 端点写下的 "running" 改过来。不改的话 active_job_for 永远判它
+        # 在跑：busy 永远 true → 列表/详情页永远画「正在跑」，failure_note 被
+        # busy 挡住不报错，resume_gate 永远 409，answer_upload 的闸门也就把这份
+        # 卷子焊死，重传不了，只能重启后端。
+        #
+        # paper 模式最后一步是 @finish，finish_paper 早就把 state 设成了 done
+        # 或 error（见上面那个函数末尾）—— 这里只在它还停在 "running" 时才补一次，
+        # 不去覆盖 finish_paper 自己的判定；对 paper 模式这个分支永远不会命中。
+        with LOCK:
+            if JOBS[jid].get("state") == "running":
+                JOBS[jid].update(state="done", step="完成")
     except Exception as e:
         with LOCK:
             JOBS[jid].update(state="error", err=str(e))

@@ -122,3 +122,67 @@ def test_答题卡续跑不会真的把读参考答案那步交给run_step():
         assert not any("refread.py" in str(c.args[2]) for c in calls), calls
     finally:
         del api.JOBS[jid]
+
+
+# ---------------------------------------------------------------- 任务收尾状态
+#
+# 复审发现：sheet 模式最后一步是普通脚本（kpmark.py），走的是上面 if/elif 的
+# else 分支，那个分支只调 run_step、不碰 JOBS[jid]["state"]。循环正常走完之后
+# 没有任何代码把 state 从 /resume 端点写下的 "running" 改过来 —— 于是
+# active_job_for 永远判这份卷子在跑：busy 永远 true（列表/详情页永远画「正在
+# 跑」）、failure_note 被 busy 挡住不报错、resume_gate 永远 409、
+# answer_upload 的闸门把这份答案卷焊死重传不了，只能重启后端。
+
+def test_答题卡续跑完成后state不再停在running():
+    jid = "resume-sheet-state-done"
+    api.JOBS[jid] = {"log": [], "state": "running"}
+    try:
+        with patch.object(api, "run_step", return_value=True), \
+             patch.object(api, "job_log"):
+            api.resume_paper(jid, "卷子", "answers_only")
+        assert api.JOBS[jid]["state"] != "running", (
+            "循环走完了任务还是 running，active_job_for 会一直判它在跑")
+    finally:
+        del api.JOBS[jid]
+
+
+def test_答题卡续跑就算kpmark没跑成也要收尾():
+    """
+    ③c 挂不上知识点不算整条任务失败（页面逐题写「没挂上知识点」）——
+    run_step 返回 False 时这个分支照样要把 state 收成 done，不能因为
+    kpmark 失败就让任务卡在 running。
+    """
+    jid = "resume-sheet-state-done-kpmark-fail"
+    api.JOBS[jid] = {"log": [], "state": "running"}
+    try:
+        with patch.object(api, "run_step", return_value=False), \
+             patch.object(api, "job_log"):
+            api.resume_paper(jid, "卷子", "answers_only")
+        assert api.JOBS[jid]["state"] == "done"
+    finally:
+        del api.JOBS[jid]
+
+
+def test_解析试卷续跑不覆盖finish_paper自己设的状态():
+    """
+    paper 模式最后一步是 @finish，finish_paper 自己会把 state 设成 done 或
+    error（比如 ⑦ 装配失败）。这里补的「循环跑完就设 done」不许把
+    finish_paper 已经设成的 error 盖掉。
+    """
+    jid = "resume-paper-state-not-overridden"
+    api.JOBS[jid] = {"log": [], "state": "running"}
+
+    def fake_finish(jid_, name_):
+        with api.LOCK:
+            api.JOBS[jid_].update(state="error", err="⑦ 装配失败")
+
+    try:
+        with patch.object(api, "run_step", return_value=True), \
+             patch.object(api, "solve_paper"), \
+             patch.object(api, "finish_paper", side_effect=fake_finish), \
+             patch.object(api, "job_log"):
+            api.resume_paper(jid, "卷子", "pdf")
+        assert api.JOBS[jid]["state"] == "error"
+        assert api.JOBS[jid]["err"] == "⑦ 装配失败"
+    finally:
+        del api.JOBS[jid]
