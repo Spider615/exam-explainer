@@ -75,6 +75,11 @@ def _carry_text(last):
     main = main_of(last)
     return CARRY % (show_qnum(last), show_qnum(last), main, main, main, main)
 
+# 开头连着几页一条答案都读不出来就停。3 页把「喂错材料」的代价从十几分钟
+# 压到 3 分钟，同时留够余量：真参考答案第 1 页就该读出十几二十条（实测 20 条），
+# 不会误伤。中间某页空是正常的（整页都是上一小问推导的续写），所以只卡开头。
+BLANK_PAGES_LIMIT = 3
+
 _QN = re.compile(r"^\s*(\d{1,2})\s*(?:[（(]\s*(\d{1,2})\s*[）)])?\s*$")
 
 
@@ -170,7 +175,7 @@ def read(paper_name, page_files, verbose=True):
     work = os.path.join(ROOT, "work", paper_name)
     pgs = pages.normalize(page_files, os.path.join(work, "page"), prefix="p")
 
-    raw, failed, last_q = [], [], None
+    raw, failed, last_q, blank = [], [], None, 0
     for pg in pgs:
         # 送 hires 而不是 web：实测 1080×1441 比 540×720 还快，而且更清楚。
         # 但**绝不放大**（见 mathvlm.ask_raw 的说明）
@@ -190,6 +195,34 @@ def read(paper_name, page_files, verbose=True):
         log("   第%d页 读到 %d 条%s" % (pg["page"], len(got),
                                       "" if last_q is None else
                                       "（到第%s题）" % show_qnum(last_q)))
+
+        # 开头连着几页一条都读不出来 —— 别再往下啃了，多半是喂错了材料。
+        #
+        # 2026-08-09 实测踩到的：老师把手上**全部**资料一起拖了进来 ——
+        # 一份 8 页的题目 PDF、2 张答题卡截图、4 张参考答案。而 `pages.normalize`
+        # 按文件名排序，`高二期末.pdf` 里没有数字（排序键 `(0, '高二期末.pdf')`）
+        # 反而排到了那些 `20260807-*.jpeg` 前面 —— 于是 Ⓐ 从第 1 页开始啃的是
+        # 整份**题目**，一页一分钟，读到第 11 页才轮到真正的参考答案。
+        #
+        # 更要紧的是**顺序**：答题卡截图（学生手写、带红勾红叉）排在真参考答案
+        # **前面**，而 `keep()` 对同一题号是先到先得 —— 学生写错的答案会被当成
+        # 标准答案存下来，真的那个反而被丢掉。「错的标准答案会让做对的学生被
+        # 判错，凭空造出一个假的薄弱知识点」，正是设计文档里最怕的那件事。
+        #
+        # 所以判据是「**到现在为止一条有用的都没有**，且已经连着空了这么多页」：
+        # 真参考答案第 1 页就该读出十几二十条（实测 20 条）。中间某一页空是正常的
+        # （整页都是上一小问推导的续写），所以只在**开头**这一段卡。
+        if not keep(raw):
+            blank += 1
+            if blank >= BLANK_PAGES_LIMIT:
+                raise RuntimeError(
+                    "前 %d 页一条答案都没读出来，停下来了 —— 再往下读也是白花时间。\n"
+                    "   这一栏只要**参考答案**那几页（印着「参考答案」、一题一题"
+                    "给出答案的那种）。\n"
+                    "   题目和答题卡这一轮还用不上，混在一起传的话：题目会排在"
+                    "前面被一页页啃掉，\n"
+                    "   而答题卡上学生手写的答案还可能被当成标准答案存下来。"
+                    % blank)
 
     rows = keep(raw)
     if not rows:

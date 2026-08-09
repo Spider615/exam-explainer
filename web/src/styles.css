@@ -486,3 +486,4 @@ td.prg{white-space:nowrap}
 .picked-go{display:flex;align-items:center;gap:12px;margin-top:12px;
   border-top:1px solid var(--hair);padding-top:12px}
 .picked-go span{color:var(--ink3);font-size:13px}
+.drop-no{color:var(--red);font-size:12.5px;max-width:52em;margin:2px auto 0}
