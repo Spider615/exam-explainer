@@ -1148,6 +1148,10 @@ def paper(name: str, user=Depends(current_user)):
             # src='none' 表示跑过但这份卷子里没有答案 —— 两件事
             "refAnswer": x.get("ref_answer"),
             "refAnswerSrc": x.get("ref_answer_src"),
+            # 参考答案里的**官方解答过程**。这是「答题卡诊断」最值钱的产出 ——
+            # 官方的，比 AI 解出来的可信。None = 参考答案上这道题本来就没有过程
+            # （版式如此，只有大题给详解），**不是**读取失败
+            "refSolution": x.get("ref_solution"),
             # 白捡的红绿灯：卷子答案与 ③ 的 AI 答案比一次。不一致意味着
             # 要么 AI 解错了、要么那份答案有误，两种都必须让人看见。
             # None = 比不了（有一边没有），**不是**对不上

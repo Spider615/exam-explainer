@@ -53,6 +53,12 @@ export interface Question {
   refAnswer?: string | null
   /** null = 还没跑过 ②d；'none' = 跑过但卷子里没有答案。两件事 */
   refAnswerSrc?: string | null
+  /**
+   * 参考答案里的官方解答过程。
+   * null = 参考答案上这道题本来就没有过程（只有大题给详解），**不是**没读出来。
+   * 页面上这两件事必须是两句不同的话
+   */
+  refSolution?: string | null
   /** 卷子答案与 AI 答案是否一致。**null = 比不了，不是对不上** */
   refAnswerAgrees?: boolean | null
   sceneId: string | null

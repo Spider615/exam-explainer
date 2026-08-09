@@ -454,8 +454,18 @@ def get_paper(name):
         cols = [d[0] for d in cur.description]
         qs = [dict(zip(cols, r)) for r in cur.fetchall()]
         by_id = {q["id"]: q for q in qs}
+        # `layout` 是版面信息（插图、图在正文里的落位、选项区截图……），
+        # 由 ②切分 写进去。**答案卷这一列是 NULL** —— 它那条链根本不过 ②，
+        # 所以这里要把缺的键补成空的。
+        #
+        # 不补的话，缺的不是「值是 None」而是「键根本不存在」，
+        # 而下游 `api.paper` 那句 `x["figures"]` 是硬取 —— 整个端点 500，
+        # 答案卷的详情页从来就打不开。这个函数的契约是「形状与旧的
+        # questions.json 一致」，那就得对两条链都一致。
         for q in qs:
             q.update(q.pop("layout") or {})
+            q.setdefault("figures", [])
+            q.setdefault("fig_marks", [])
             q["options"], q["tables"] = [], []
         if qs:
             ids = list(by_id)
