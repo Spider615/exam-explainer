@@ -142,3 +142,23 @@ def test_答题卡模式没有产物那一说():
     """它没有 ⑤ 和 ⑦，empty 这个状态在这个模式里根本不该出现"""
     s = _states(modes.SHEET, stage_code="done", done=True)
     assert set(s.values()) == {"done"}
+
+
+def test_在跑的格子不许被产物覆盖():
+    """
+    ⑤ 正在重试，而上一次部分尝试留下的产物还在磁盘上 ——
+    这时候画成「做完了」是骗人的
+    """
+    s = _states(modes.PAPER, stage_code="scene", artifacts={"scene": True})
+    assert s["scene"] == "now", (
+        "在跑的格子 scene 有产物时不应该被覆盖成 done，应该保持 now")
+
+
+def test_挂掉的格子不许被产物覆盖():
+    """
+    ② 挂掉了，但上一次的部分处理结果（产物）还在磁盘上 ——
+    不能让产物的存在掩盖了这次失败
+    """
+    s = _states(modes.PAPER, failed_stage="scene", artifacts={"scene": True})
+    assert s["scene"] == "fail", (
+        "挂掉的格子 scene 有产物时不应该被覆盖成 done，应该保持 fail")
