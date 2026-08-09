@@ -752,6 +752,38 @@ def run_pipeline(jid, pdf_path, name, owner_id=None):
             pass
 
 
+def upload_name_for(base, uid, claimed):
+    """
+    这次 PDF 上传该用哪个卷名。撞车就加后缀，不撞就原样。
+
+    卷名同时是 `work/<卷名>/` 的目录名，而且 `papers.name` 上有唯一约束。
+    自己重传同一份 PDF 是「重跑」，名字不变；撞上**别人**的卷子就自动加后缀，
+    两条管线不会写进同一个目录。
+
+    占用要连 `CLAIMS` 一起看。只查库的话有个几分钟宽的窗口：卷子要跑完 ①②②b
+    才 publish，在那之前 `paper_owner` 一直回「不存在」，于是两个账号先后传
+    同名 PDF（高考真题的文件名本来就长得一样），`free_name` 一次都不会触发，
+    两条管线拿到同一个卷名、同一个构建目录、抢同一行 papers。
+
+    **撞上一份答题卡卷子时一律改名，哪怕是自己的。**
+    「自己重传就是重跑」这条对 PDF 链成立，对答案卷**不成立** —— PDF 链根本
+    不是它的上游，跑一遍不是重跑，是覆盖：`store.publish` 是整卷替换，
+    删光 `questions` 再插，而答案卷值钱的东西全挂在 `questions` 上
+    （`ref_answer` / `ref_solution` / `kps`），学生的作答更是以
+    `ON DELETE CASCADE` 挂在它下面、**不可再生**（参考答案可以重读，
+    老师未必还留着那张已批改的答题卡）。
+
+    这是 `store.create_answers_paper` 那道护栏的反方向。那一道挡住了
+    「答题卡链把解析试卷就地改成答案卷」，这一道挡住「解析试卷链把答案卷
+    整卷覆盖掉」—— 两个方向都要有，只有一边等于没有。
+    """
+    exists, owner = store.paper_owner(base)
+    taken = ((exists and owner != uid)
+             or (exists and store.source_kind_of(base) == "answers_only")
+             or claimed.get(base, uid) != uid)
+    return store.free_name(base, also_taken=claimed) if taken else base
+
+
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...), user=Depends(current_user)):
     data = await file.read()
@@ -761,18 +793,9 @@ async def upload(file: UploadFile = File(...), user=Depends(current_user)):
         raise HTTPException(400, "不是有效的 PDF（当前只接受有文字层的 PDF，不支持扫描件）")
     fn = safe_name(file.filename)
     name = re.sub(r"-?题目版$", "", fn[:-4]) or fn[:-4]
-    # 卷名同时是 `work/<卷名>/` 的目录名，全局唯一。自己重传同一份是「重跑」，
-    # 名字不变；撞上**别人**的卷子就自动加后缀，两条管线不会写进同一个目录。
-    #
-    # 占用要连 CLAIMS 一起看。只查库的话有个几分钟宽的窗口：卷子要跑完 ①②②b
-    # 才 publish，在那之前 `paper_owner` 一直回「不存在」，于是两个账号先后传
-    # 同名 PDF（高考真题的文件名本来就长得一样），free_name 一次都不会触发，
-    # 两条管线拿到同一个卷名、同一个构建目录、抢同一行 papers。
     with LOCK:
         claimed = dict(CLAIMS)
-    exists, owner = store.paper_owner(name)
-    if (exists and owner != user["id"]) or claimed.get(name, user["id"]) != user["id"]:
-        name = store.free_name(name, also_taken=claimed)
+    name = upload_name_for(name, user["id"], claimed)
 
     # 同一份卷子不能同时跑两条链。两条 run_pipeline 写同一个 `work/<卷名>/`：
     # ingest 原地覆写 doc.json 和页面 PNG，而另一条链正在读它们（页面上会冒出
