@@ -48,8 +48,10 @@ import store            # 库与资产存储；API 只经过它
 import kp               # 知识点词表：标签的名字与所属章由后端给，前端不再存一份
 import grade            # 判等的口径只写一份，阅卷和「AI vs 卷子」共用
 import mailer           # 验证码信；没配 SMTP 时退化成打日志
+import modes            # 「一共有哪几步、每步叫什么」只有这一份，stage_of 只负责分发
+import pages            # IMG_EXT：答题卡上传收哪些文件，口径要和 pages.normalize 一致
 
-from fastapi import Body, Depends, FastAPI, Request, UploadFile, File, HTTPException
+from fastapi import Body, Depends, FastAPI, Form, Request, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -136,6 +138,52 @@ def safe_name(fn):
     if not base.lower().endswith(".pdf"):
         base += ".pdf"
     return (base or "upload.pdf")[:120]
+
+
+# 收哪些文件。**口径必须和 pages.normalize 一致** —— 那边不认识的类型会抛，
+# 而那时候文件已经落盘、任务已经起来了，用户看到的是一条管线失败
+ANSWER_EXT = (".pdf",) + pages.IMG_EXT
+
+
+def safe_image_name(fn):
+    """
+    参考答案的文件名。**保留扩展名** —— `pages.normalize` 按它分图片还是 PDF。
+
+    `safe_name` 不能拿来用：它会无脑给所有东西加 `.pdf`，于是一张 PNG 会被
+    当成 PDF 送进 pdftoppm，报一句和真实原因毫无关系的错。
+    """
+    base = os.path.basename((fn or "").replace("\\", "/"))
+    stem, ext = os.path.splitext(base)
+    if ext.lower() not in ANSWER_EXT:
+        raise HTTPException(400, "不收这种文件：%s（只收图片和 PDF）" % (base or "空文件名"))
+    stem = re.sub(r"[^\w一-鿿.\-（）()]+", "_", stem).lstrip(".")
+    return ((stem or "page") + ext)[:120]
+
+
+def answer_paper_name(raw, user_id, claimed):
+    """
+    答题卡模式的卷名。返回真正要用的那个（可能被改过）。
+
+    三种情况要**改名**，一种是**重跑**：
+      · 撞上别人的卷子            → 改名（也不告诉他被谁占了）
+      · 撞上自己的一份**解析试卷** → 改名。不覆盖、不转模式 ——
+        那份跑了一小时的卷子不能被就地改掉，而且它的解法和动画还在库里
+      · 撞上正在跑但还没入库的名字 → 改名
+      · 撞上自己的一份答题卡卷子   → **不改**，这就是「重跑这份卷子」
+    """
+    name = re.sub(r"[^\w一-鿿.\-（）()\s]+", "_", (raw or "").strip()).strip()
+    name = re.sub(r"\s+", "_", name)[:120]
+    if not name or name.strip("._-") == "":
+        raise HTTPException(400, "卷名不能是空的")
+    check_name(name)
+    exists, owner = store.paper_owner(name)
+    taken_by_other = (exists and owner != user_id) or \
+                     claimed.get(name, user_id) != user_id
+    wrong_mode = exists and owner == user_id and \
+        modes.of(store.source_kind_of(name)).code != "sheet"
+    if taken_by_other or wrong_mode:
+        return store.free_name(name, also_taken=claimed)
+    return name
 
 
 def check_name(name):
@@ -564,28 +612,63 @@ def resume_gate(name, busy, done, exists=None):
     return None
 
 
-def resume_paper(jid, name):
+# 「继续执行」每个模式各走各的。**顺序必须和各自那条整链一致** ——
+# 两条入口跑出来的东西得一样，否则「上传的卷子」和「续跑的卷子」会长得不一样。
+#
+# 第二项是**怎么跑**，不是显示名：`@solve` / `@finish` 走 api 里那两个多步函数
+# （③ 和收尾各自还有子步骤，不是一条命令），`@skip` 是明确的「这一步续跑不做」，
+# 其余是脚本名。**不许靠显示名去 startswith 判分支** —— 显示名是给人看的，
+# 改一个字就会把分发改坏，而那种坏法一声不响
+_RESUME = {
+    "paper": [("②d 标准答案", "refans.py", 120),
+              ("③ 解题", "@solve", None),
+              ("收尾", "@finish", None)],
+    "sheet": [("Ⓐ 读参考答案", "@skip", None),
+              ("③c 知识点", "kpmark.py", 1800)],
+}
+
+
+def resume_steps_for(source_kind):
+    """这个模式续跑要走哪几步。返回 [(显示名, 怎么跑, 超时秒数或 None)]。"""
+    return _RESUME[modes.of(source_kind).code]
+
+
+def resume_paper(jid, name, source_kind=None):
     """
     从停下的地方接着跑。
 
-    **不是重跑，是接着跑。** 每一步都跳过已经做完的活：
-      ②d 纯代码几十毫秒，重跑无所谓
-      ③  按 `solution_fresh` 跳过题面没变的题
-      ③b/③c/④c/④ 各自跳过已有产出的题
-      ⑤  跳过已经有通过门禁的动画的题（见 `scene.plan`）
-    所以在一份几乎跑完的卷子上，这个按钮应该几分钟就结束，而不是重来一遍 ——
-    重做整卷 ⑤ 是几个小时和一大笔额度。
+    **不是重跑，是接着跑。** 每一步都跳过已经做完的活（③ 按 `solution_fresh`
+    跳过题面没变的题，⑤ 跳过已经有通过门禁的动画的题）。所以在一份几乎跑完的
+    卷子上，这个按钮应该几分钟就结束，而不是重来一遍。
 
-    为什么需要它：`JOBS` 是进程内的 dict，驱动整条链的是一个线程。后端一重启
-    那个线程就没了，而 `run_step` 起的子进程用了 `start_new_session`，反而活着
-    把手上那一步跑完写进库，然后没有人接着启动下一步 —— 页面上停在
-    「④b 自检 已停止 5/6」。断掉的是驱动链条，不是数据。
+    **按模式走。** 不分模式的话，对一份答案卷点下去会去跑 solve/spec/scene ——
+    那条链根本没有题干，跑出来的东西没有意义，还要烧一份额度。
     """
     try:
         job_log(jid, "▸ 继续执行：从库里的进度接着跑，已经做完的会跳过")
-        run_step(jid, "②d 标准答案", step_path("refans.py") + [name], timeout=120)
-        solve_paper(jid, name)
-        finish_paper(jid, name)
+        for label, how, timeout in resume_steps_for(source_kind):
+            if how == "@solve":
+                solve_paper(jid, name)
+            elif how == "@finish":
+                finish_paper(jid, name)
+            elif how == "@skip":
+                # Ⓐ 续跑不重新读图 —— 上传的原件跑完就收掉了，这里根本没有图可读。
+                # 「卷子建了但一题都没读出来」那种情况该重传，不该在这里假装能接上
+                job_log(jid, "   %s 跳过 —— 要重读请重新上传参考答案" % label)
+            else:
+                run_step(jid, label, step_path(how) + [name], timeout=timeout)
+        # sheet 模式没有 @finish 收尾 —— 循环正常走完了，得在这里把 state 从
+        # /resume 端点写下的 "running" 改过来。不改的话 active_job_for 永远判它
+        # 在跑：busy 永远 true → 列表/详情页永远画「正在跑」，failure_note 被
+        # busy 挡住不报错，resume_gate 永远 409，answer_upload 的闸门也就把这份
+        # 卷子焊死，重传不了，只能重启后端。
+        #
+        # paper 模式最后一步是 @finish，finish_paper 早就把 state 设成了 done
+        # 或 error（见上面那个函数末尾）—— 这里只在它还停在 "running" 时才补一次，
+        # 不去覆盖 finish_paper 自己的判定；对 paper 模式这个分支永远不会命中。
+        with LOCK:
+            if JOBS[jid].get("state") == "running":
+                JOBS[jid].update(state="done", step="完成")
     except Exception as e:
         with LOCK:
             JOBS[jid].update(state="error", err=str(e))
@@ -717,6 +800,131 @@ async def upload(file: UploadFile = File(...), user=Depends(current_user)):
     return {"job": jid, "name": name}
 
 
+def run_answer_pipeline(jid, paths, name, owner_id, created):
+    """
+    答题卡模式的整条链：Ⓐ 读参考答案 → ③c 挂知识点。
+
+    **只有这一次新建的空壳才在失败时删掉。** 重跑一份已有卷子失败时不能删 ——
+    `sheet_answers` 以 ON DELETE CASCADE 挂在 `questions` 上，删一次会把
+    学生的作答一起带走。
+    """
+    def log(s):
+        job_log(jid, s)
+
+    # (显示名, 代号, 脚本名, 超时秒数)。显示名和代号绑在同一个元组里一起走，
+    # **不再有「按显示名去一张表里查代号」这个动作** —— 原来这里是一张以显示名
+    # 为键、代号为值的字典，还要再拿一份显示名的字符串字面量去查它。显示名于是
+    # 要打三遍（字典键、run_step 的 label 参数、查表用的那份字面量），改动其中
+    # 一份、漏改另一份，字典查找会抛 KeyError，被下面整段的 try/except 吞掉：
+    # 那次 `.update(..., err_code=...)` 根本没跑到，`err_code` 这个键压根不
+    # 存在，`failed_job_for` 读到的就是 None，失败时对应那一格不会红 ——
+    # 这种坏法一声不响，见 _RESUME 上面那段注释。
+    #
+    # 仍然叫 `step_code`（不是随便起的新名字）：`tests/test_modes.py` 的门禁
+    # 靠源码里搜 `step_code = ` 找到所有「失败代号」表去核对每个代号都落得进
+    # 某个模式的格子，改名字会让这张表对那条门禁隐身。
+    step_code = (
+        ("Ⓐ 读参考答案", "refread", "refread.py", 3600),
+        ("③c 知识点", "kpmark", "kpmark.py", 1800),
+    )
+    try:
+        label, code, script, timeout = step_code[0]
+        # Ⓐ 一页要一分钟上下，四页就是好几分钟；给足超时，别拿默认的 900 秒去砍它
+        if not run_step(jid, label, step_path(script) + [name] + list(paths),
+                        timeout=timeout):
+            with LOCK:
+                JOBS[jid].update(state="error", err=label + " 失败", err_code=code)
+            if created:
+                # run_step 返回 False 不等于「一道题都没读出来」——超时被 killpg
+                # 时，refread 逐题落库的那些题可能已经写进去了。删之前先问一次
+                # 库里到底有几题，日志按实际数目说话，不能不分青红皂白地断言
+                #「一道都没有」
+                n_before_delete = len(
+                    (store.get_paper(name) or {"questions": []})["questions"])
+                store.delete_papers([name], owner_id)
+                if n_before_delete:
+                    log("   这次新建的空卷子已经删掉了 —— 读出了 %d 题，"
+                        "但这一步没跑完" % n_before_delete)
+                else:
+                    log("   这次新建的空卷子已经删掉了 —— 一道题都没读出来")
+            return
+        n_q = len((store.get_paper(name) or {"questions": []})["questions"])
+        with LOCK:
+            JOBS[jid].update(state="solving", name=name, n=n_q,
+                             warnings=[], solved=n_q, total=n_q)
+        log("✓ 读出 %d 题，可以开始看了。知识点在后台继续挂" % n_q)
+        # ③c 挂不上知识点不算失败：页面逐题写「没挂上知识点」，不塞占位标签
+        label, code, script, timeout = step_code[1]
+        run_step(jid, label, step_path(script) + [name], timeout=timeout)
+        with LOCK:
+            JOBS[jid].update(state="done")
+        log("✓ 完成")
+    except Exception as e:
+        with LOCK:
+            JOBS[jid].update(state="error", err=str(e))
+        log("✗ " + str(e))
+    finally:
+        with LOCK:
+            CLAIMS.pop(name, None)
+        for p in paths:
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+
+
+@app.post("/api/answer-papers")
+async def answer_upload(name: str = Form(...),
+                        files: list[UploadFile] = File(...),
+                        user=Depends(current_user)):
+    """
+    答题卡模式的上传：卷名 + 一到多张参考答案（照片 / 扫描图 / PDF）。
+
+    和 `/api/upload` 是两条独立的入口，故意不合并 —— 合并的话「收 PDF 还是收
+    一批图」「卷名从文件名推还是让人填」这两件事会缠成一堆 if，
+    而这次改动的整个目的就是把它们分开。
+    """
+    if not files:
+        raise HTTPException(400, "一个文件都没有")
+    saved_names = [safe_image_name(f.filename) for f in files]   # 先校验，再落盘
+    blobs = [await f.read() for f in files]
+    total = sum(len(b) for b in blobs)
+    if total > 80 * 1024 * 1024:
+        raise HTTPException(413, "这一批加起来超过 80 MB")
+
+    with LOCK:
+        claimed = dict(CLAIMS)
+    paper = answer_paper_name(name, user["id"], claimed)
+    created = not store.paper_owner(paper)[0]
+
+    # 同一份卷子不能同时跑两条：两条链写同一个 `work/<卷名>/page/`，
+    # pages.normalize 会原地覆写 p01.png，而另一条链正在读它
+    if active_job_for(paper) or pipeline_running(paper):
+        raise HTTPException(409, "这份卷子正在跑，等它跑完再重传 —— 答题卡库里能看到它到哪一步了")
+
+    jid = uuid.uuid4().hex[:12]
+    # 落盘在闸门之后，路径按任务分开 —— 被 409 挡掉的那次不该已经把文件写下去
+    os.makedirs(UPLOADS, exist_ok=True)
+    paths = []
+    for i, (fn, data) in enumerate(zip(saved_names, blobs), 1):
+        p = os.path.join(UPLOADS, "%s_%02d_%s" % (jid, i, fn))
+        with open(p, "wb") as f:
+            f.write(data)
+        paths.append(p)
+
+    if created:
+        store.create_answers_paper(paper, owner_id=user["id"])
+    with LOCK:
+        CLAIMS[paper] = user["id"]
+        JOBS[jid] = {"state": "running", "step": "排队中", "name": paper,
+                     "owner_id": user["id"],
+                     "log": ["收到 %d 个文件（%.1f MB）" % (len(paths), total / 1048576)]}
+    threading.Thread(target=run_answer_pipeline,
+                     args=(jid, paths, paper, user["id"], created),
+                     daemon=True).start()
+    return {"job": jid, "name": paper}
+
+
 def active_job_for(name):
     """
     这份卷子现在有没有在跑、跑到哪一步。
@@ -797,8 +1005,8 @@ def failure_note(name, code, busy):
 # 管线脚本名。判「在不在跑」用它，比「多久没落库」可靠 ——
 # ④ 一题六分钟、⑤ 一道十几分钟，按时间阈值判必然误报「已停止」。
 PIPE_RE = re.compile(
-    r"pipeline/(solve|spec|scene|outline|kpmark|refans|pick|speccheck|assemble"
-    r"|ingest|segment|mathvlm)\.py")
+    r"pipeline/(solve|spec|scene|outline|kpmark|refans|refread|pick|speccheck"
+    r"|assemble|ingest|segment|mathvlm)\.py")
 # 而且**跑它的得是个 python**。只按命令行里出没出现过脚本名来判的话，一条
 # 恰好提到了 `pipeline/solve.py` 的 shell 命令（编辑器、别的工具、甚至一次
 # 手敲的 grep）就会被算成「管线在跑」，整份卷子被标成解题中。
@@ -844,17 +1052,35 @@ def pipeline_running(name=None, cmds=None):
     「已停止」这个状态本来要说清的事。同一个形状还有一处：卷名由文件名推出，
     那条正则只剥「题目版」不剥「答案版」，于是「X」是「X-答案版」的前缀。
 
-    卷名在命令行里只有两种落位，后面跟的要么是行尾、要么是一个 `-x` 参数
-    （见 run_pipeline 与 finish_paper 里那几条命令），按这个卡边界就够。
+    卷名在命令行里有三种落位：裸卷名跟在行尾或一个 `-x` 参数后面（solve /
+    spec / scene / outline / pick / speccheck / assemble）；`work/<卷名>`
+    作为 `-o` 的值（ingest / segment / mathvlm）；卷名后面跟着一串图片文件名
+    （refread —— 位置参数，既不是行尾也不是 flag）。下面正则的三个分支各卡
+    一种：`\\s+-`（flag）、`$`（行尾）、`\\s+(?!\\()\\S`（后面还有别的东西、
+    但紧跟的不是 "("）。第三个分支里的 `\\S` 不能省：只要求「lookahead 处
+    不是 (」不够 —— 碰上两个以上连续空格，`\\s+` 会回溯少吃一个、把 lookahead
+    让给第二个空格（也不是 "("），照样匹配上；`\\S` 逼着 `\\s+` 吃到最长，
+    回溯让出的那一位就会撞上 `\\S` 而失败。
+
     卷名本身不会含空格 —— `safe_name` 把空白都换成了下划线，只有 `free_name`
-    加的「 (2)」带空格，所以 `\\s+-` 这个边界不会被卷名自己撞上。
+    加的「 (2)」带空格。真正要挡的就是这一种形状：卷名后面紧跟一个空格再跟
+    "("，是唯一会让短卷名撞上长卷名命令行的情况，其余落位（flag、行尾、图片
+    文件名……）都该放行。
     """
     cmds = running_cmds() if cmds is None else cmds
     if name is None:
         return bool(cmds)
-    # 裸卷名：solve / spec / scene / outline / pick / speccheck / assemble
-    # work/<卷名>：ingest（-o 的值）/ segment / mathvlm
-    pats = [re.compile(r"(?:^|\s)%s(?:\s+-|$)" % re.escape(s))
+    # 三个分支各卡一种落位，逐一对应 docstring 里那三种：
+    #   `\s+-`            裸卷名 + flag：solve / spec / scene / outline /
+    #                     pick / speccheck / assemble，以及 work/<卷名> 那几个
+    #                     （ingest 的 -o 值 / segment / mathvlm）
+    #   `$`               裸卷名在行尾
+    #   `\s+(?!\()\S`     卷名后面还跟着别的位置参数：refread 的「卷名 图1 图2…」
+    #
+    # 第三个分支里的 `\S` **不能省**，理由见 docstring：只写 `\s+(?!\()` 的话，
+    # 碰上两个以上连续空格，`\s+` 会回溯少吃一个、把 lookahead 让给第二个空格，
+    # 于是查「X」照样撞上属于「X (2)」的命令行 —— 正是这个边界当初要修的那个误判。
+    pats = [re.compile(r"(?:^|\s)%s(?:\s+-|\s+(?!\()\S|$)" % re.escape(s))
             for s in (name, os.path.join(WORK, name))]
     return any(p.search(ln) for ln in cmds for p in pats)
 
@@ -863,58 +1089,44 @@ def stage_of(pg):
     """
     从库里的计数反推「现在在哪一步」，返回 (代号, 带编号的阶段名, 短状态词, 已完成, 总数)。
 
-    没有谁上报状态 —— 这是**推断**出来的，所以按管线顺序找第一个没做完的环节。
-    好处是命令行跑的、服务重启过的、别的进程跑的，一律看得见。
+    没有谁上报状态 —— 这是**推断**出来的。好处是命令行跑的、服务重启过的、
+    别的进程跑的，一律看得见。
 
-    每一步的分母都要用**那一步自己的口径**
-    ------------------------------------
-    这里原来一律拿题数或上一步的行数当分母，于是 ④c 挪到 ④ 前面之后，
-    跑完的卷子在列表里永远显示「④ 写断言 6/16」—— ④ 只给 ④c 选中的 6 道题
-    写断言，剩下 10 道**本来就不该有** spec，可是分母写的是 16。
-    同样的坑还有两个：④b 自检的对象是 spec 不是题（而且 animatable=false 的
-    spec 根本不过自检），⑤ 的分子必须是「试过几道」而不是「绿灯几道」——
-    有一道怎么都过不了门禁的话，按绿灯数算就永远差一个，永远显示在跑。
+    **判据本身在 `pipeline/modes.py`**，一个模式一份，这里只负责分发。
+    签名和返回值一个字没变，所以 `test_stage_of.py` / `test_stage_answers_only.py` /
+    `test_progress.py` 不用改 —— 它们不变还绿，才证明这次搬家没碰坏东西。
 
-    两个短状态词是有区别的：`stage` 带编号，给试卷页的进度带用（和上面那排
-    ①②③ 标志对得上）；`short` 是给试卷库列表用的白话，那里没有编号可对照。
+    两个短状态词是有区别的：`stage` 带编号，给试卷页的进度带用；
+    `short` 是给试卷库列表用的白话，那里没有编号可对照。
     """
-    q, sol = pg["questions"], pg["solutions"]
+    return modes.of(pg.get("sourceKind")).stage_of(pg)
 
-    # 「参考答案 + 题目图」的卷子：没跑过 ①②③，进不了 ④⑤⑦。终点是 ③c 挂完知识点。
-    # **不分支的话 solutions/specs/scenes 恒为 0，进度带永远转、done 永远是 false。**
-    # 期一加 ③c 那一格已经踩过一次一模一样的坑
-    if pg.get("sourceKind") == "answers_only":
-        if not q:
-            return "refread", "Ⓐ 读参考答案", "读参考答案", 0, 1
-        if pg.get("kps", 0) < q:
-            return "kpmark", "③c 知识点", "标知识点", pg.get("kps", 0), q
-        return "done", "完成", "已完成", 1, 1
 
-    # **终态失败也算「③ 走完了」。** 只数 solutions 的话，一道重试到底仍然失败的题
-    # 会让进度永远停在「解题中 14/15」—— 而它已经不会再有解法了，等下去没有意义。
-    terminal = sol + pg.get("solutionFailures", 0)
-    if terminal < q:
-        return "solve", "③ 解题", "解题中", terminal, q
-    # ③b 的分母是**解出来的题数**：失败的题不会有解法，也就不会有短答案，
-    # 拿题数当分母会永远差那几道
-    if pg["labels"] < sol:
-        return "outline", "③b 目录", "生成目录", pg["labels"], sol
-    # ③c 知识点。分母是题数不是解出来的题数 —— 没解出来的题也该有知识点
-    # （只看题干也判得出个大概），而诊断报告要拿它做聚合
-    if pg.get("kps", 0) < q:
-        return "kpmark", "③c 知识点", "标知识点", pg.get("kps", 0), q
-    # ④c 的候选是「解出来的题」，不是全部题 —— 没解出来的它压根不判
-    if pg["judged"] < sol:
-        return "pick", "④c 选题", "动画选题", pg["judged"], sol
-    if pg["specsWorth"] < pg["worth"]:
-        return "spec", "④ 写断言", "写断言", pg["specsWorth"], pg["worth"]
-    if pg["drafts"]:
-        return "check", "④b 自检", "断言自检", pg["specs"] - pg["drafts"], pg["specs"]
-    if pg["sceneTried"] < pg["ready"]:
-        return "scene", "⑤ 生成场景", "生成动画", pg["sceneTried"], pg["ready"]
-    if not pg["assembledFresh"]:
-        return "assemble", "⑦ 装配成页", "装配成页", 0, 1
-    return "done", "完成", "已完成", 1, 1
+def mode_block(pg, name, code, failed_stage, artifacts=None):
+    """
+    「这是哪个模式、那排格子现在什么样」。两个进度端点都带它。
+
+    **状态在后端算完再下发。** 前端没有测试框架，而这段判断（三段切分、
+    跑过去了没产物、失败只画在自己那一格）恰恰是出过两次错的那段。
+
+    `artifacts=None` 时自己去查 —— `/progress` 那条路没有 `paper.stages` 可用。
+    只有 `needs_artifact` 非空的模式才查，答题卡模式没有 ⑤/⑦，白查一次库。
+    """
+    m = modes.of(pg.get("sourceKind"))
+    if artifacts is None:
+        if m.needs_artifact:
+            asm = store.assembled(name)
+            artifacts = {
+                "scene": pg.get("scenes", 0) > 0,
+                # 只比时间戳不够：out.html 可能已经不在磁盘上了
+                "assemble": bool(asm["path"]) and os.path.exists(asm["path"])
+                            and asm["fresh"],
+            }
+        else:
+            artifacts = {}
+    return {"code": m.code, "label": m.label,
+            "stages": modes.cell_states(m, code, code == "done",
+                                        failed_stage, artifacts)}
 
 
 @app.get("/api/papers/{name}/progress")
@@ -938,6 +1150,7 @@ def paper_progress(name: str, user=Depends(current_user)):
             "done": code == "done", "failed": failed, "failedStage": failed_stage,
             # 网页上传的任务还能给出更细的信息（正在解哪道题），命令行跑的没有
             "step": (live or {}).get("step"), "last": (live or {}).get("last"),
+            "mode": mode_block(pg, name, code, failed_stage),
             "busy": busy}
 
 
@@ -960,12 +1173,20 @@ def job(jid: str, user=Depends(current_user)):
 
 # ---------------------------------------------------------------- 试卷
 @app.get("/api/papers")
-def papers(user=Depends(current_user)):
+def papers(user=Depends(current_user), mode: str | None = None):
     """
     列表也带进度。**返回试卷库不等于任务停了** —— 后台照跑，
     所以列表这一屏也要能看出哪份还在跑、跑到哪一步，否则一退出详情页就等于瞎了。
+
+    `mode` 是页面上那两个 tab 各自要的那一半。不给就全给（命令行和运维用）。
+    **给了一个不认识的值要当场拒**，不能静默回空列表 ——
+    空列表会被读成「你一份卷子都没有」。
     """
+    if mode is not None and mode not in {m.code for m in modes.ALL}:
+        raise HTTPException(400, "没有这个模式：%s" % mode)
     out = store.list_papers(user["id"])
+    if mode is not None:
+        out = [r for r in out if modes.of(r.get("sourceKind")).code == mode]
     cmds = running_cmds()            # 一次就够，别对每份卷子都 fork 一个 pgrep
     for r in out:
         r["scenes"] = len(scenes_for(r["name"]))
@@ -1152,6 +1373,10 @@ def paper(name: str, user=Depends(current_user)):
             # src='none' 表示跑过但这份卷子里没有答案 —— 两件事
             "refAnswer": x.get("ref_answer"),
             "refAnswerSrc": x.get("ref_answer_src"),
+            # 参考答案里的**官方解答过程**。这是「答题卡诊断」最值钱的产出 ——
+            # 官方的，比 AI 解出来的可信。None = 参考答案上这道题本来就没有过程
+            # （版式如此，只有大题给详解），**不是**读取失败
+            "refSolution": x.get("ref_solution"),
             # 白捡的红绿灯：卷子答案与 ③ 的 AI 答案比一次。不一致意味着
             # 要么 AI 解错了、要么那份答案有误，两种都必须让人看见。
             # None = 比不了（有一边没有），**不是**对不上
@@ -1204,16 +1429,42 @@ def paper(name: str, user=Depends(current_user)):
         asm_note = "out.html 比库里的数据旧，重跑 ⑦ 才能把新的解法装进去"
     else:
         asm_note = "out.html 已生成，且不比库里的数据旧"
+    # 这份卷子属于哪个模式，以及那排格子现在什么样。状态在后端算完再下发 ——
+    # 前端没有测试框架，这段判断不能留在那边。
+    #
+    # **这里不查进度，`stage_code` 传 None。** 两个理由：
+    #   · 这个端点是整卷数据（一两兆），不该为了画一排标志再打一次计数查询；
+    #     「跑到哪一步」本来就是 /progress 每 3 秒轮询在答的问题
+    #   · 传 None 走的正是 cell_states 里「轮询还没回来」那条分支，而它的行为
+    #     与改动前前端 `pg == null` 时的兜底**完全一致**（有产物画 done、
+    #     没有画 todo）。所以这不是将就，这是照搬
+    stages = {"ingest": True, "segment": True,
+              "solve": len(sols) > 0,
+              "spec": any(v["spec_status"] for v in sols.values()),
+              "scene": len(sc) > 0,
+              "assemble": asm_exists and asm["fresh"]}
+    # **两个模式的「产物」不是同一批东西。** 上面那六个键是解析试卷那条链的；
+    # 答题卡那两格（Ⓐ / ③c）在这份字典里一个都找不到，直接复用的话
+    # `artifacts.get("refread")` 永远是 None —— 一份诊断完的卷子两格全画成
+    # 「还没轮到」，而且没有任何东西会报错。
+    #
+    # 答题卡这两格的产物就是它自己两步的产出，口径跟 `_stage_of_sheet` 一致：
+    # 分母是**题数**，26 题里挂上 3 题不叫「③c 做完了」，所以用 all 不用 any
+    if modes.of(q.get("sourceKind")) is modes.SHEET:
+        artifacts = {"refread": bool(q["questions"]),
+                     "kpmark": bool(q["questions"])
+                               and all(x.get("kps") for x in q["questions"])}
+    else:
+        artifacts = stages
+    mode = mode_block({"sourceKind": q.get("sourceKind")}, name,
+                      None, None, artifacts=artifacts)
     # sourceKind 页面要用来分开「解析试卷」和「答题卡诊断」两个功能。
     # 进度里也有一份，但那是轮询回来的、带延迟，拿它决定一句话显不显示会闪
     return {"name": name, "sourceKind": q.get("sourceKind") or "pdf",
             "sections": q.get("sections") or [],
             "warnings": q.get("warnings") or [], "questions": qs,
-            "stages": {"ingest": True, "segment": True,
-                       "solve": len(sols) > 0,
-                       "spec": any(v["spec_status"] for v in sols.values()),
-                       "scene": len(sc) > 0,
-                       "assemble": asm_exists and asm["fresh"]},
+            "stages": stages,
+            "mode": mode,
             # 灭着的标志要能说出为什么灭 —— 光是灰掉，人无从知道是没跑还是跑旧了
             "stageNotes": {"assemble": asm_note},
             # 这份卷子此刻在不在跑。有的话试卷页顶部画进度带
@@ -1323,7 +1574,8 @@ def resume(name: str, user=Depends(current_user)):
         JOBS[jid] = {"state": "running", "step": "排队中", "kind": "resume",
                      "name": name, "owner_id": user["id"],
                      "log": ["继续执行「%s」，停在 %s" % (name, label)]}
-    threading.Thread(target=resume_paper, args=(jid, name), daemon=True).start()
+    threading.Thread(target=resume_paper, args=(jid, name, pg.get("sourceKind")),
+                     daemon=True).start()
     return {"job": jid, "name": name, "from": label}
 
 

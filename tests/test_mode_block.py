@@ -1,0 +1,132 @@
+# -*- coding: utf-8 -*-
+"""
+两个进度端点都要带上「这是哪个模式、这排格子现在什么样」。
+
+/progress 是每 3 秒轮询的那个，所以「产物在不在」也要在这里算得出来 ——
+交给前端去凑的话，前端就又有逻辑了。
+"""
+from unittest.mock import patch
+
+from pipeline import api
+
+PDF = dict(questions=16, labels=16, kps=16, solutions=16, solutionFailures=0,
+           judged=16, worth=6, specs=6, specsWorth=6, approved=6, drafts=0,
+           ready=6, sceneTried=6, scenes=6, assembled=True, assembledFresh=True,
+           busy=False, elapsedSeconds=12, sourceKind="pdf")
+
+SHEET = dict(questions=26, labels=0, kps=26, solutions=0, solutionFailures=0,
+             judged=0, worth=0, specs=0, specsWorth=0, approved=0, drafts=0,
+             ready=0, sceneTried=0, scenes=0, assembled=False,
+             assembledFresh=False, busy=False, elapsedSeconds=9,
+             sourceKind="answers_only")
+
+
+def test_解析试卷给六格():
+    m = api.mode_block(PDF, "某卷", "done", None,
+                       artifacts={"scene": True, "assemble": True})
+    assert m["code"] == "paper" and m["label"] == "解析试卷"
+    assert [c["code"] for c in m["stages"]] == [
+        "ingest", "segment", "solve", "spec", "scene", "assemble"]
+    assert {c["state"] for c in m["stages"]} == {"done"}
+
+
+def test_答题卡给两格():
+    m = api.mode_block(SHEET, "某答案卷", "kpmark", None, artifacts={})
+    assert m["code"] == "sheet" and m["label"] == "答题卡诊断"
+    assert [c["code"] for c in m["stages"]] == ["refread", "kpmark"]
+    assert [c["state"] for c in m["stages"]] == ["done", "now"]
+
+
+def test_不给artifacts时自己去查产物():
+    """/progress 那条路没有 paper.stages 可用，得自己算"""
+    with (
+        patch.object(api.store, "assembled",
+                     return_value={"path": "/x/out.html", "at": 1, "fresh": True}),
+        patch.object(api.os.path, "exists", return_value=True),
+    ):
+        m = api.mode_block({**PDF, "scenes": 0}, "某卷", "done", None)
+    by = {c["code"]: c["state"] for c in m["stages"]}
+    assert by["scene"] == "empty", "一个动画都没做出来，不能画成「⑤ 做完了」"
+    assert by["assemble"] == "done"
+
+
+def test_答题卡模式不去查产物():
+    """它没有 ⑤ 和 ⑦，白查一次库"""
+    with patch.object(api.store, "assembled") as asm:
+        api.mode_block(SHEET, "某答案卷", "done", None)
+    asm.assert_not_called()
+
+
+def test_整卷端点不为了画标志再查一次进度():
+    """
+    /api/papers/{name} 已经是一两兆的整卷数据，不该再打一次计数查询；
+    「跑到哪一步」是 /progress 每 3 秒在答的问题。
+
+    这条同时挡住一个更阴的后果：`paper()` 里加一句 store.progress，会给
+    test_progress.py 那条零 DB 依赖的用例塞进库依赖 —— 单独跑红、全量跑绿
+    （fixture 顺序碰巧先建了库）。**只有整套跑才绿是假绿。**
+    """
+    with (
+        patch.object(api, "mine", return_value="某卷"),
+        patch.object(api.store, "get_paper",
+                     return_value={"sections": [], "warnings": [],
+                                   "sourceKind": "pdf", "questions": []}),
+        patch.object(api, "scenes_for", return_value={}),
+        patch.object(api.store, "paper_solutions", return_value={}),
+        patch.object(api.store, "paper_solution_failures", return_value={}),
+        patch.object(api.store, "assembled",
+                     return_value={"path": None, "at": None, "fresh": False}),
+        patch.object(api, "active_job_for", return_value=None),
+        patch.object(api.os.path, "exists", return_value=False),
+        patch.object(api.store, "progress") as prog,
+    ):
+        got = api.paper("某卷", user={"id": 7})
+    prog.assert_not_called()
+    assert got["mode"]["code"] == "paper"
+
+
+def _paper_call(questions, source_kind):
+    """把 `api.paper()` 那一圈依赖全 patch 掉，只留下我们要看的那段。"""
+    with (
+        patch.object(api, "mine", return_value="某卷"),
+        patch.object(api.store, "get_paper",
+                     return_value={"sections": [], "warnings": [],
+                                   "sourceKind": source_kind,
+                                   "questions": questions}),
+        patch.object(api, "scenes_for", return_value={}),
+        patch.object(api.store, "paper_solutions", return_value={}),
+        patch.object(api.store, "paper_solution_failures", return_value={}),
+        patch.object(api.store, "assembled",
+                     return_value={"path": None, "at": None, "fresh": False}),
+        patch.object(api, "active_job_for", return_value=None),
+        patch.object(api.os.path, "exists", return_value=False),
+        patch.object(api.store, "progress", return_value=None),
+    ):
+        return api.paper("某卷", user={"id": 7})
+
+
+def _aq(n, kps):
+    return {"n": n, "type": "", "points": None, "section": None, "pages": [1, 1],
+            "stem": "", "options": [], "figures": [], "kps": kps}
+
+
+def test_诊断完的答案卷两格都是done():
+    """
+    产物字典要按模式给。直接复用解析试卷那六个键的话，答题卡两格在里面一个都
+    找不到，一份**诊断完**的卷子会两格全画成「还没轮到」—— 而且没有任何东西报错
+    """
+    got = _paper_call([_aq(1, [{"code": "k1"}]), _aq(11, [{"code": "k2"}])],
+                      "answers_only")
+    assert [c["state"] for c in got["mode"]["stages"]] == ["done", "done"]
+
+
+def test_知识点没挂完的答案卷第二格还没做():
+    """口径跟 _stage_of_sheet 一致：分母是题数，挂上一半不叫做完"""
+    got = _paper_call([_aq(1, [{"code": "k1"}]), _aq(11, [])], "answers_only")
+    by = {c["code"]: c["state"] for c in got["mode"]["stages"]}
+    assert by == {"refread": "done", "kpmark": "todo"}
+
+
+def test_一题都没有的答案卷两格都没做():
+    got = _paper_call([], "answers_only")
+    assert [c["state"] for c in got["mode"]["stages"]] == ["todo", "todo"]

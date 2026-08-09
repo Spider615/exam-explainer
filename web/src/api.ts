@@ -47,7 +47,10 @@ export const verifyCode = (email: string, code: string) =>
   post('/api/auth/verify', { email, code }).then(j<{ email: string; isNew: boolean }>)
 export const logout = () => post('/api/auth/logout').then(j<{ ok: boolean }>)
 
-export const listPapers = () => fetch('/api/papers', CRED).then(j<PaperSummary[]>)
+export const listPapers = (mode?: string) =>
+  fetch(mode ? `/api/papers?mode=${mode}` : '/api/papers', CRED)
+    .then(j<PaperSummary[]>)
+
 export const getPaper = (name: string) =>
   fetch(`/api/papers/${encodeURIComponent(name)}`, CRED).then(j<Paper>)
 export const getJob = (id: string) => fetch(`/api/jobs/${id}`, CRED).then(j<Job>)
@@ -60,6 +63,20 @@ export function uploadPdf(file: File) {
   const fd = new FormData()
   fd.append('file', file)
   return fetch('/api/upload', { ...CRED, method: 'POST', body: fd })
+    .then(j<{ job: string; name: string }>)
+}
+
+/**
+ * 答题卡模式的上传：卷名 + 一到多张参考答案。
+ *
+ * 和 uploadPdf 是两条入口，故意不合并 —— 那边卷名从文件名推、只收一个 PDF，
+ * 这边卷名要人填、收一批图。
+ */
+export function uploadAnswerPaper(name: string, files: File[]) {
+  const fd = new FormData()
+  fd.append('name', name)
+  for (const f of files) fd.append('files', f)
+  return fetch('/api/answer-papers', { ...CRED, method: 'POST', body: fd })
     .then(j<{ job: string; name: string }>)
 }
 

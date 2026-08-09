@@ -73,17 +73,48 @@ PROMPT_HEAD = """给一份物理试卷的每道题挂知识点标签。
 
 
 def payload_for(paper, sols):
+    """
+    送给 ③c 的那段材料。**两条链的输入不一样。**
+
+    解析试卷：题干 + ③ 解出来的解法。这一支一个字不动。
+    答题卡  ：题干（Ⓔ，还没做）+ 参考答案给的标准答案与官方解答过程（Ⓐ）。
+              设计文档定的是「两样有一样就能挂」。
+
+    **不分开的话答题卡那条链是空跑**：它没有题干、也没有 ③ 的解法，
+    送过去的是 26 段只有题号的空白 —— 2026-08-09 端到端实跑，挂上 0 题。
+    而 `ref_answer` / `ref_solution` 就在手边，只是没人读。
+
+    分支按 `sourceKind` 判、不按「题干是不是空的」判：后者会让一份题干碰巧
+    没抽出来的 pdf 卷子悄悄换一条输入，而解析试卷那条链这一轮不许有任何变化。
+    """
+    sheet = paper.get("sourceKind") == "answers_only"
     parts = []
     for q in paper["questions"]:
         stem = re.sub(r"\s+", " ", (q.get("stem_latex") or q.get("stem") or "").strip())
-        bits = ["【第%d题】%s" % (q["n"], q.get("type") or ""), "题干：" + stem[:260]]
-        s = sols.get(q["n"])
-        if s and s.get("steps"):
-            bits.append("解法：" + re.sub(r"\s+", " ", " ".join(s["steps"]))[:400])
-        elif s and s.get("answer"):
-            bits.append("答案：" + re.sub(r"\s+", " ", s["answer"])[:200])
+        bits = ["【第%d题】%s" % (q["n"], q.get("type") or "")]
+        if stem:
+            bits.append("题干：" + stem[:260])
+        elif not sheet:
+            bits.append("题干：")
+        if sheet:
+            # 标准答案哪怕只有一个字母也要送 —— 参考答案的版式就是只有大题给
+            # 详解，18/26 题只有一个孤零零的答案，少送这一部分它们全挂不上
+            ans = re.sub(r"\s+", " ", (q.get("ref_answer") or "").strip())
+            sol = re.sub(r"\s+", " ", (q.get("ref_solution") or "").strip())
+            if ans:
+                bits.append("标准答案：" + ans[:200])
+            if sol:
+                bits.append("官方解答：" + sol[:400])
+            if not stem and not ans and not sol:
+                bits.append("（这道题只有题号，没有任何可判断的材料）")
         else:
-            bits.append("解法：（尚未解出，只能看题干判断）")
+            s = sols.get(q["n"])
+            if s and s.get("steps"):
+                bits.append("解法：" + re.sub(r"\s+", " ", " ".join(s["steps"]))[:400])
+            elif s and s.get("answer"):
+                bits.append("答案：" + re.sub(r"\s+", " ", s["answer"])[:200])
+            else:
+                bits.append("解法：（尚未解出，只能看题干判断）")
         parts.append("\n".join(bits))
     return "\n\n".join(parts)
 

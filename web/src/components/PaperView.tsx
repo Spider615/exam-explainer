@@ -3,103 +3,6 @@ import { getPaper, getProgress, resumePaper, sceneScriptUrl } from '../api'
 import QuestionCard from './QuestionCard'
 import type { Paper, Progress, Question } from '../types'
 
-export const STAGE_LABEL: [string, string][] = [
-  ['ingest', '① 摄入'], ['segment', '② 切分'], ['solve', '③ 解题'],
-  ['spec', '④ 断言'], ['scene', '⑤ 场景'], ['assemble', '⑦ 呈现'],
-]
-
-/**
- * 后端的阶段代号 → 上面这排标志里的哪一格。
- *
- * ③b 目录、③c 知识点、④b 自检、④c 选题都是子步骤，没有自己的标志位，
- * 归到所属的大阶段上。少了这张表，跑 ④c 选题的时候整排标志会一个都不亮，
- * 看着像卡死了 —— ③c 加进管线时忘了往这里加，就真这样了一回。
- *
- * **加新阶段必须同时改这里。** `stage_of` 里每 `return` 一个新代号，这张表就
- * 要多一行，否则那一步全程「一格都不亮」。`refread`（Ⓐ 读参考答案）同理，
- * 它是答案卷那条链的开头，归到 ① 摄入上。
- *
- * `ingest` / `segment` 这两条 **`stage_of` 永远不会返回**（它是从库里的计数反推的，
- * 而卷子入了库就意味着 ①② 已经过去了），但 `failedStage` 会 —— 管线在 ① 摄入或
- * ② 切分挂掉时给的正是它们。漏了这两条，那两步的失败查表得到 undefined，
- * 于是失败**一格都不红**，只剩下面那条横幅。
- */
-const STAGE_OF_CODE: Record<string, string> = {
-  ingest: 'ingest', segment: 'segment', refread: 'ingest',
-  solve: 'solve', outline: 'solve', kpmark: 'solve',
-  pick: 'spec', spec: 'spec', check: 'spec',
-  scene: 'scene', assemble: 'assemble',
-}
-
-type StageState = 'done' | 'now' | 'todo' | 'fail' | 'empty'
-
-/**
- * 这两格在库外还有一份「产物到底存不存在」的事实，**两个方向都由它说了算**。
- *
- * `stage_of` 推的是「按管线顺序，第一个没做完的环节」。它只能回答走没走过去，
- * 回答不了走过去之后有没有东西留下来 —— 而这两步恰恰两头都会错：
- *
- * **推断说做完了，其实什么都没留下**
- * - ⑤：`sceneTried` 数的是**试过几道**（数绿灯的话，有一道怎么都过不了门禁就
- *   永远差一个、永远显示在跑）。六道全试过、门禁一个都没过时计数照样往前走，
- *   于是「一个动画都没做出来」被画成「⑤ 做完了」。
- * - ⑦：`assembledFresh` 只比时间戳，不看 out.html 还在不在磁盘上。
- *
- * **推断说还没轮到，其实早就跑过了**（三段切分假设管线是单调跑一遍的，可它不是）
- * 实测库里九份卷子有三份是这个样子：2024 河北卷 `stage_of` 停在 ③（还有题没解
- * 出来），而 ⑤ 早跑过、两个动画正在这个页面上播着；2023 重庆卷停在 ④c，⑤ 有五
- * 个绿灯。照三段切分画出来，⑤ 是一个虚线框写着「还没跑到这一步」，而人眼前就有
- * 动画在动。
- *
- * `paper.stages` 这两格是查过产物的（scenes 只收门禁通过的，assemble 还带一次
- * os.path.exists），所以两边都听它的。**其余几格不能这么办**：`stages.solve` 是
- * 「解出过至少一题」、`stages.spec` 是「写过至少一份断言」，拿它们判完成正是这次
- * 要修掉的老毛病 —— 解了 5/15 和真做完长得一模一样。
- */
-const NEEDS_ARTIFACT = new Set(['scene', 'assemble'])
-
-/**
- * 每一格标志此刻是什么状态。
- *
- * **按管线位置推断，不看 `paper.stages` 那个布尔。** 那个布尔的口径是「有没有
- * 产物」：解出一题 `solve` 就是 true —— 于是一份只解了 5/15 的卷子，③ 和真做完了
- * 的 ①② 长得一模一样，「亮着」被读成「做完了」。
- *
- * 后端的 `stage_of` 已经按管线顺序推出了「第一个没做完的环节」，拿它把这排标志切
- * 三段就够了：它之前的做完了，它本身在跑，它之后的还没轮到。轮询还没回来时才退回
- * 布尔兜底 —— 那时候只知道有没有产物，也只能说这么多。
- *
- * 两处例外见 `NEEDS_ARTIFACT`（跑过去了但没产物）和 `failAt`（失败只画在它自己
- * 那一格上，而不是画在「当前这一格」上）。
- */
-export function stageStates(paper: Paper, pg: Progress | null): Record<string, StageState> {
-  const cur = pg && !pg.done ? STAGE_OF_CODE[pg.stageCode] : null
-  const at = cur ? STAGE_LABEL.findIndex(([k]) => k === cur) : -1
-  // 失败画在**它自己那一格**上。原来是画在「当前阶段」那一格，而后端那条失败
-  // 记录既没有时间窗也不带阶段（JOBS 不清理、命令行补跑又进不去），于是 ⑤ 正在
-  // 正常出动画时那格也是红的、写着「②b 公式识别 失败」。
-  // 后端给不出阶段代号时一格都不画 —— 那条信息改由下面的横幅整条说出来。
-  const failAt = pg?.failed && pg.failedStage ? STAGE_OF_CODE[pg.failedStage] : null
-  const out: Record<string, StageState> = {}
-  STAGE_LABEL.forEach(([k], i) => {
-    let st: StageState
-    if (k === failAt) st = 'fail'
-    else if (pg?.done) st = 'done'
-    else if (at < 0) st = paper.stages[k] ? 'done' : 'todo'
-    else if (i < at) st = 'done'
-    else if (i > at) st = 'todo'
-    else st = 'now'
-    if (NEEDS_ARTIFACT.has(k) && st !== 'now' && st !== 'fail') {
-      // 产物在 —— 不管推断走到哪一步了，这一格就是有东西的
-      if (paper.stages[k]) st = 'done'
-      // 推断说走过去了，可什么都没留下。既不是「完成」，也不是「还没轮到」
-      else if (st === 'done') st = 'empty'
-    }
-    out[k] = st
-  })
-  return out
-}
-
 /**
  * 跳到某一题。
  *
@@ -266,7 +169,8 @@ export default function PaperView({ name }: { name: string }) {
   if (!paper || !stats) return <div className="empty">载入中…</div>
 
   const pct = pg && pg.stageTotal ? Math.round((pg.stageCur / pg.stageTotal) * 100) : null
-  const states = stageStates(paper, pg)
+  // 格子清单与每格状态都由后端算好 —— 轮询回来的更新，没回来就用整卷带的那份
+  const cells = pg?.mode?.stages ?? paper.mode?.stages ?? []
   const failureCount = pg?.solutionFailures ?? 0
   const failedQuestions = paper.questions.filter((q) => !q.solution && q.solutionFailure)
   const toggleAll = () => {
@@ -283,23 +187,26 @@ export default function PaperView({ name }: { name: string }) {
           还没轮到(虚线框)、跑过了没产物(灰实线—)。停下来的时候「在跑」那格不闪，
           免得看着像还在动 */}
       <div className="stages">
-        {STAGE_LABEL.map(([k, label]) => {
-          const st = states[k]
-          const stalled = st === 'now' && pg != null && !pg.busy
-          const why = st === 'fail' ? `失败：${pg?.failed}`
-            : st === 'empty' ? '这一步跑过了，但没有产出'
+        {cells.map((c) => {
+          const stalled = c.state === 'now' && pg != null && !pg.busy
+          const why = c.state === 'fail' ? `失败：${pg?.failed}`
+            : c.state === 'empty' ? '这一步跑过了，但没有产出'
               : stalled ? '停在这一步，还没做完'
-                : st === 'now' ? '正在跑这一步'
-                  : st === 'done' ? '已完成'
-                    // ④ 的布尔是「写过至少一份断言」，判不出完成度，所以它照旧
-                    // 按推断画 —— 但话不能说成「还没跑到」，库里明明有东西
-                    : paper.stages[k] ? '这一轮还没跑到这一步（库里已经有一些产出）'
+                : c.state === 'now' ? '正在跑这一步'
+                  : c.state === 'done' ? '已完成'
+                    // 「还没轮到」有两种，话不一样。库里明明有这一步的产出、
+                    // 而推断说还没走到，那不是「还没跑」—— 管线不是单调跑一遍的，
+                    // 实测九份卷子有三份是这个样子（见 modes.cell_states 的说明）。
+                    // 说成「还没跑到」会让人以为库里是空的
+                    : paper.stages[c.code]
+                      ? '这一轮还没跑到这一步（库里已经有一些产出）'
                       : '还没跑到这一步'
           return (
-            <span key={k} className={`stage st-${st}${stalled ? ' idle' : ''}`}
-                  title={[why, paper.stageNotes?.[k]].filter(Boolean).join(' · ')}>
-              {st === 'now' && <i className="stage-dot" />}
-              {label}
+            <span key={c.code}
+                  className={`stage st-${c.state}${stalled ? ' idle' : ''}`}
+                  title={[why, paper.stageNotes?.[c.code]].filter(Boolean).join(' · ')}>
+              {c.state === 'now' && <i className="stage-dot" />}
+              {c.label}
             </span>
           )
         })}
