@@ -58,3 +58,87 @@ def test_needs_artifact里的格子必须真实存在():
     for m in modes.ALL:
         for c in m.needs_artifact:
             assert c in m.cells, m.code
+
+
+# ---------------------------------------------------------------- 每一格的状态
+#
+# 这段判断原来在前端（PaperView.tsx 的 stageStates），而 web/ 一个测试都没有。
+# 它恰恰是出过两次错的那段，所以搬到有测试的这一侧来。
+
+def _states(mode, **kw):
+    kw.setdefault("stage_code", None)
+    kw.setdefault("done", False)
+    kw.setdefault("failed_stage", None)
+    kw.setdefault("artifacts", {})
+    got = modes.cell_states(mode, **kw)
+    return {c["code"]: c["state"] for c in got}
+
+
+def test_按管线位置切三段():
+    """它之前的做完了、它本身在跑、它之后的还没轮到"""
+    s = _states(modes.PAPER, stage_code="spec")
+    assert s["ingest"] == "done" and s["segment"] == "done" and s["solve"] == "done"
+    assert s["spec"] == "now"
+    assert s["scene"] == "todo" and s["assemble"] == "todo"
+
+
+def test_子步骤归到所属大阶段():
+    """③c 跑的时候要亮在「③ 解题」那一格上，不是一格都不亮"""
+    assert _states(modes.PAPER, stage_code="kpmark")["solve"] == "now"
+    assert _states(modes.PAPER, stage_code="pick")["spec"] == "now"
+
+
+def test_跑完了全都是done():
+    s = _states(modes.PAPER, stage_code="done", done=True,
+                artifacts={"scene": True, "assemble": True})
+    assert set(s.values()) == {"done"}
+
+
+def test_失败只画在它自己那一格():
+    """
+    原来是画在「当前阶段」那一格，于是 ⑤ 正在正常出动画时那格也是红的、
+    写着「②b 公式识别 失败」
+    """
+    s = _states(modes.PAPER, stage_code="scene", failed_stage="segment")
+    assert s["segment"] == "fail"
+    assert s["scene"] == "now"
+
+
+def test_后端说不清是哪一步挂的就一格都不画():
+    s = _states(modes.PAPER, stage_code="scene", failed_stage=None)
+    assert "fail" not in s.values()
+
+
+def test_跑过去了却没有产物是empty():
+    """六道全试过、门禁一个都没过时，不能画成「⑤ 做完了」"""
+    s = _states(modes.PAPER, stage_code="assemble",
+                artifacts={"scene": False, "assemble": False})
+    assert s["scene"] == "empty"
+
+
+def test_有产物就算数不管推断走到哪():
+    """
+    三段切分假设管线是单调跑一遍的，可它不是：实测有卷子 stage_of 停在 ③，
+    而 ⑤ 早跑过、动画正在页面上播着
+    """
+    s = _states(modes.PAPER, stage_code="solve", artifacts={"scene": True})
+    assert s["scene"] == "done"
+
+
+def test_轮询还没回来时退回看产物():
+    """那时候只知道有没有产物，也只能说这么多"""
+    s = _states(modes.PAPER, stage_code=None,
+                artifacts={"scene": True, "assemble": False})
+    assert s["scene"] == "done" and s["assemble"] == "todo"
+
+
+def test_答题卡模式只有两格():
+    s = _states(modes.SHEET, stage_code="kpmark")
+    assert list(s) == ["refread", "kpmark"]
+    assert s["refread"] == "done" and s["kpmark"] == "now"
+
+
+def test_答题卡模式没有产物那一说():
+    """它没有 ⑤ 和 ⑦，empty 这个状态在这个模式里根本不该出现"""
+    s = _states(modes.SHEET, stage_code="done", done=True)
+    assert set(s.values()) == {"done"}

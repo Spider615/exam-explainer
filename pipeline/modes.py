@@ -151,3 +151,54 @@ def codes_returned_by(fn):
     手抄的话这份清单自己就成了第四份抄本，而这个文件存在的理由正是消掉抄本。
     """
     return set(_RETURN_CODE.findall(inspect.getsource(fn)))
+
+
+def cell_states(mode, stage_code, done, failed_stage, artifacts):
+    """
+    每一格此刻是什么状态。**纯函数**，返回 [{"code", "label", "state"}]。
+
+    五个状态：done 做完了 / now 在跑 / todo 还没轮到 / fail 挂在这一格 /
+    empty 跑过去了但什么都没留下。
+
+    **没跑到的格子不能画成删除线** —— 删除线读作「作废、不做了」，而它们只是
+    还没排到。这条约束在前端的 CSS 上，这里只负责给出状态。
+
+    `artifacts`：{格代号: 产物在不在}，只有 `mode.needs_artifact` 里那几格用得上。
+    `stage_code=None` 表示轮询还没回来 —— 那时只知道有没有产物，也只能说这么多。
+
+    两处例外都在这里，不许散到别处去：
+
+    1. **推断说做完了，其实什么都没留下**。⑤ 的 `sceneTried` 数的是「试过几道」
+       （数绿灯的话，有一道怎么都过不了门禁就永远差一个），六道全试过、门禁一个
+       都没过时计数照样往前走；⑦ 的 `assembledFresh` 只比时间戳，不看 out.html
+       还在不在磁盘上。
+    2. **推断说还没轮到，其实早就跑过了**。三段切分假设管线是单调跑一遍的，
+       可它不是 —— 实测库里九份卷子有三份是这个样子。
+    """
+    cells = mode.cells
+    cur = mode.cell_of.get(stage_code) if (stage_code and not done) else None
+    at = cells.index(cur) if cur in cells else -1
+    # 失败画在**它自己那一格**上。给不出阶段代号时一格都不画 ——
+    # 那条信息改由页面上的横幅整条说出来
+    fail_at = mode.cell_of.get(failed_stage) if failed_stage else None
+    out = []
+    for i, (code, label) in enumerate(mode.stages):
+        if code == fail_at:
+            st = "fail"
+        elif done:
+            st = "done"
+        elif at < 0:
+            st = "done" if artifacts.get(code) else "todo"
+        elif i < at:
+            st = "done"
+        elif i > at:
+            st = "todo"
+        else:
+            st = "now"
+        if code in mode.needs_artifact and st not in ("now", "fail"):
+            if artifacts.get(code):
+                st = "done"          # 产物在 —— 不管推断走到哪一步了
+            elif st == "done":
+                st = "empty"         # 既不是「完成」，也不是「还没轮到」
+        out.append({"code": code, "label": label, "state": st})
+    return out
