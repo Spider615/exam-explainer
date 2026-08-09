@@ -1,4 +1,3 @@
-import MathText from './MathText'
 import RichText from './RichText'
 import type { Question } from '../types'
 
@@ -83,32 +82,43 @@ export default function AnswerQuestionCard({ q }: { q: Question }) {
             : <span className="dim">这道题没挂上知识点</span>}
         </dd>
 
-        <dt>题干</dt>
+        {/* 题目这一栏优先给**原卷截图**，不给转写的题干。
+
+            转写那一段现在不显示了，理由是它比截图差在两头：Ⓔ 的提示词明确要求
+            「插图只用一句话描述、不要转写坐标刻度」（逐点转写一张受力分析图，
+            错了没人看得出来），所以它**把图丢了**；而它带回来的 LaTeX 又是
+            `$\Delta U_{AB}=\frac{3}{2}p_0V_0+Q$` 这种源码 —— 一道题四个选项
+            全是公式的时候，读起来还不如不给。原卷截图两样都有，而且是原件。
+
+            **转写的题干没有被删掉，只是不显示**：③c 判「这道题考什么」靠的就是
+            它（Ⓔ 存在的全部理由），库里那一列照旧。
+
+            只有在切不出截图时才退回文字（模型把位置读乱了会整页不切）——
+            那时候一片空白比一段源码更糟。退回时走 RichText，让 `$…$` 真的
+            渲染成公式，别再打源码。 */}
+        <dt>题目</dt>
         <dd>
-          {q.stem
-            ? <MathText text={q.stem} math={q.stemMath ?? []} />
-            /* 留白会被读成「这道题没题干」。要明说它为什么没有 */
-            : <span className="dim">这道题的题干还没有 —— 把原卷传进「原卷」那一栏就能读到</span>}
+          {q.stemImage ? (
+            <a href={q.stemImage} target="_blank" rel="noreferrer" title="点开看大图">
+              <img className="stemshot" src={q.stemImage}
+                   alt={`第 ${q.n} 题在原卷上的样子`} />
+            </a>
+          ) : q.stem ? (
+            <>
+              {/* 只把 `$$` 收成 `$`，**不套 normalizeMath**：那个函数会把
+                  「整串没有 $ 但含 \ 」的文本整个包成公式，而题干大半是中文
+                  散句（「如图所示，A\to B 为等压过程」），包起来会被 KaTeX
+                  拿去硬解析中文和标点。答案那一格几乎全是公式，题干不是 */}
+              <RichText text={q.stem.replace(/\$\$/g, '$')} />
+              <p className="dim">（这道题没切出原卷截图，上面是转写的文字）</p>
+            </>
+          ) : (
+            /* 留白会被读成「这道题本来就没有题目」。要明说它为什么没有 */
+            <span className="dim">
+              还没有这道题的题目 —— 把原卷传进「原卷」那一栏就能读到
+            </span>
+          )}
         </dd>
-
-        {/* 原卷上这道题的那一条截图。
-            **转写的题干把图丢了**：Ⓔ 的提示词明确要求「插图只用一句话描述、
-            不要转写坐标刻度」（逐点转写一张受力分析图，错了没人看得出来），
-            于是物理题一句「如图所示」之后什么都没有，人根本没法读。
-
-            截图摆在转写的题干**下面**而不是替代它：两样并排，切歪了、读错了
-            一眼就看得见（图文对不上）——「裁歪了没人看得见」正是设计文档当初
-            否掉裁图的理由，这样摆就不成立了。 */}
-        {q.stemImage && (
-          <>
-            <dt>原卷</dt>
-            <dd>
-              <a href={q.stemImage} target="_blank" rel="noreferrer" title="点开看大图">
-                <img className="stemshot" src={q.stemImage} alt={`第 ${q.n} 题在原卷上的样子`} />
-              </a>
-            </dd>
-          </>
-        )}
       </dl>
     </section>
   )
