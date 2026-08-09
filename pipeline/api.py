@@ -845,10 +845,20 @@ def pipeline_running(name=None, cmds=None):
     「已停止」这个状态本来要说清的事。同一个形状还有一处：卷名由文件名推出，
     那条正则只剥「题目版」不剥「答案版」，于是「X」是「X-答案版」的前缀。
 
-    卷名在命令行里只有两种落位，后面跟的要么是行尾、要么是一个 `-x` 参数
-    （见 run_pipeline 与 finish_paper 里那几条命令），按这个卡边界就够。
+    卷名在命令行里有三种落位：裸卷名跟在行尾或一个 `-x` 参数后面（solve /
+    spec / scene / outline / pick / speccheck / assemble）；`work/<卷名>`
+    作为 `-o` 的值（ingest / segment / mathvlm）；卷名后面跟着一串图片文件名
+    （refread —— 位置参数，既不是行尾也不是 flag）。下面正则的三个分支各卡
+    一种：`\\s+-`（flag）、`$`（行尾）、`\\s+(?!\\()\\S`（后面还有别的东西、
+    但紧跟的不是 "("）。第三个分支里的 `\\S` 不能省：只要求「lookahead 处
+    不是 (」不够 —— 碰上两个以上连续空格，`\\s+` 会回溯少吃一个、把 lookahead
+    让给第二个空格（也不是 "("），照样匹配上；`\\S` 逼着 `\\s+` 吃到最长，
+    回溯让出的那一位就会撞上 `\\S` 而失败。
+
     卷名本身不会含空格 —— `safe_name` 把空白都换成了下划线，只有 `free_name`
-    加的「 (2)」带空格，所以 `\\s+-` 这个边界不会被卷名自己撞上。
+    加的「 (2)」带空格。真正要挡的就是这一种形状：卷名后面紧跟一个空格再跟
+    "("，是唯一会让短卷名撞上长卷名命令行的情况，其余落位（flag、行尾、图片
+    文件名……）都该放行。
     """
     cmds = running_cmds() if cmds is None else cmds
     if name is None:
@@ -860,7 +870,7 @@ def pipeline_running(name=None, cmds=None):
     # 「下一个字符不是 (」：真正要挡的只有 free_name 那个「X (2)」后缀——
     # 卷名后面紧跟一个空格再跟 "("，是唯一会让短卷名撞上长卷名命令行的形状，
     # 其余（flag、行尾、图片文件名……）都该放行。
-    pats = [re.compile(r"(?:^|\s)%s(?:\s+(?!\()|$)" % re.escape(s))
+    pats = [re.compile(r"(?:^|\s)%s(?:\s+-|\s+(?!\()\S|$)" % re.escape(s))
             for s in (name, os.path.join(WORK, name))]
     return any(p.search(ln) for ln in cmds for p in pats)
 

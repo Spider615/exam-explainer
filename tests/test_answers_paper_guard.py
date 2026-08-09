@@ -56,3 +56,13 @@ def test_在跑判定认得出读参考答案():
 def test_在跑判定不会把别的卷子也算进来():
     cmd = "12345 /x/.venv/bin/python /x/pipeline/refread.py 期末卷 a.png"
     assert not api.pipeline_running("期末卷 (2)", cmds=[cmd])
+
+
+def test_多个空格也不会让短卷名撞上长卷名():
+    """
+    边界不能只靠「free_name 只加一个空格」这个别处维持的约定。
+    `\\s+(?!\\()` 会回溯少吃一个空格、把 lookahead 落到空格上而匹配成功 ——
+    那正是 docstring 里警告过的那次误判（三天前停了的卷子画着呼吸点写「正在跑」）
+    """
+    cmd = "1 /x/.venv/bin/python /x/pipeline/solve.py 期末卷  (2) -x"
+    assert not api.pipeline_running("期末卷", cmds=[cmd])
