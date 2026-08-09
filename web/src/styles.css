@@ -454,10 +454,6 @@ td.prg{white-space:nowrap}
   padding:8px 14px;font:inherit;font-size:15px;color:var(--ink3);cursor:pointer}
 .modes button:hover{color:var(--ink2)}
 .modes button.on{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
-.fieldrow{display:flex;align-items:center;gap:10px;margin:0 0 10px}
-.fieldrow>span{color:var(--ink3);font-size:14px}
-.fieldrow input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:4px;
-  background:var(--panel);color:var(--ink);font:inherit;font-size:15px}
 
 .acard{border:1px solid var(--hair);border-radius:4px;background:var(--panel);
   padding:14px 16px;margin:0 0 12px}
@@ -472,18 +468,29 @@ td.prg{white-space:nowrap}
   border-radius:3px;padding:2px 8px;margin:0 6px 4px 0;font-size:13px}
 .acard .kp i{color:var(--ink3);font-style:normal;margin-left:6px}
 
-/* 答题卡上传的暂存区：选好的文件先摊在这里，点了「开始分析」才真的开跑。
-   颜色一律用变量 —— 这个文件上面有一整套暗色覆盖，写死的在暗色下会瞎掉 */
-.picked{border:1px solid var(--hair);border-radius:4px;background:var(--panel);
-  padding:12px 14px;margin:10px 0 0}
-.picked-hd{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
-.picked-hd span{color:var(--ink3);font-size:13px;flex:1}
-.picked ol{margin:0;padding:0 0 0 22px;font-size:14px}
-.picked li{padding:3px 0;display:flex;align-items:baseline;gap:10px}
-.picked-n{flex:1;font-family:var(--mono);font-size:12.5px;word-break:break-all}
-.picked-sz{color:var(--ink3);font-size:12px;font-variant-numeric:tabular-nums}
-.picked-note{color:var(--ink3);font-size:13px;margin:8px 0 0}
-.picked-go{display:flex;align-items:center;gap:12px;margin-top:12px;
+/* 答题卡上传：三个框。老师手上就是三样东西，让他自己分比让系统猜可靠 ——
+   猜错一页参考答案，那一页上的题就悄悄没了。颜色一律用变量，暗色下才不瞎 */
+.slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:12px;margin:10px 0 0}
+.slot{border:1px solid var(--hair);border-radius:4px;background:var(--panel);padding:12px}
+.slot h4{margin:0 0 2px;font-size:14px;display:flex;align-items:baseline;gap:8px}
+.slot h4 em{font-style:normal;font-size:11px;color:var(--ink3);
+  border:1px solid var(--line);border-radius:2px;padding:0 5px}
+.slot h4 em.must{color:var(--acc);border-color:var(--acc);background:var(--acc2)}
+.slot-want{margin:0 0 8px;color:var(--ink2);font-size:12.5px;line-height:1.5}
+.slot-fate{margin:8px 0 0;color:var(--ink3);font-size:12px;line-height:1.5}
+.drop.slim{padding:18px 10px}
+.drop.slim b{font-size:14px;margin-bottom:2px}
+.drop.slim span{font-size:11.5px}
+.picked{margin:8px 0 0;padding:0 0 0 20px;font-size:13px}
+.picked li{padding:2px 0;display:flex;align-items:baseline;gap:8px}
+.picked-n{flex:1;font-family:var(--mono);font-size:11.5px;word-break:break-all}
+.picked-sz{color:var(--ink3);font-size:11px;font-variant-numeric:tabular-nums}
+.picked-note{color:var(--ink3);font-size:12px;margin:6px 0 0;line-height:1.5}
+.picked-go{display:flex;align-items:center;gap:12px;margin-top:14px;
   border-top:1px solid var(--hair);padding-top:12px}
-.picked-go span{color:var(--ink3);font-size:13px}
-.drop-no{color:var(--red);font-size:12.5px;max-width:52em;margin:2px auto 0}
+.picked-go span{color:var(--ink3);font-size:13px;flex:1}
+.fieldrow{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+.fieldrow>span{color:var(--ink3);font-size:14px}
+.fieldrow input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:4px;
+  background:var(--panel);color:var(--ink);font:inherit;font-size:15px}

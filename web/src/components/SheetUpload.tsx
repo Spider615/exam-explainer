@@ -3,25 +3,6 @@ import { ApiError, getJob, Unauthorized, uploadAnswerPaper } from '../api'
 import type { Job } from '../types'
 
 /**
- * 答题卡模式的上传框：卷名 + 一批参考答案。
- *
- * **卷名必须人填。** 这边收的是一批照片，文件名是 `IMG_0123` 这种，
- * 推不出任何有意义的卷名 —— 而卷名是页面地址的一部分，将来还要打印在报告上。
- *
- * **POST 一返回就自动跳走是错的，这轮改掉了。** 以前这里一拿到 `{job, name}`
- * 就直接 `onDone(r.name)` 跳进详情页，组件跟着卸载 —— 而 Ⓐ 读参考答案要几
- * 分钟，最常见的失败场景就是照片拍糊了：`refread.read()` 抛「一道题的答案
- * 都没读出来」，后端把这次新建的空壳卷子删掉，`/progress` 从此 404。跳走的
- * 话没有任何 UI 盯着这条链的进度，失败原因和「卷子已经不存在了」这件事
- * 谁都看不到，页面只会在 SheetView 里停在「Ⓐ 读参考答案」那个呼吸点不动
- * （另一半修在 SheetView.tsx 的轮询 catch 里）。
- *
- * 照抄 Upload.tsx 已经做对的那套：自己轮询 `getJob` 把任务画出来，跳走交给
- * 用户点按钮。比 Upload.tsx 简单的地方是不用 localStorage 记句柄——那边要
- * 应付「切分完就跳进试卷页，头几分钟卷子还没入库，刷新就把句柄丢了」；这边
- * POST 一失败页面还在原地、没有跳走这回事，也没有单题重跑那种要恢复的场景。
- */
-/**
  * 页序：把文件名按数字段切开，数字段按数值比、其余按小写字典序比。
  *
  * **必须和后端 `pipeline/pages.py` 的 `sort_key` 一模一样** —— 这个清单存在的
@@ -48,24 +29,74 @@ function byPageOrder(a: File, b: File): number {
   return ka.length - kb.length          // 前缀相同时短的在前，和 Python 一致
 }
 
-const kb = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB`
+const size = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB`
   : `${Math.max(1, Math.round(n / 1024))} KB`)
 
+type SlotKey = 'answers' | 'stem' | 'sheet'
+type Batch = Record<SlotKey, File[]>
+const EMPTY: Batch = { answers: [], stem: [], sheet: [] }
+
+/**
+ * 三个框，不是一个。
+ *
+ * 老师手上就是三样东西：原卷（题目）、答题卡、参考答案。一个框的时候他会很
+ * 自然地一起拖进来（实测就是这样），而后端按文件名排页序 —— 一份叫
+ * 「高二期末.pdf」的题目（名字里没数字）反而排到那些 `20260807-*.jpeg` 前面，
+ * Ⓐ 从第 1 页开始一页一分钟啃整份题目。更糟的是答题卡（学生手写、带红勾红叉）
+ * 排在真参考答案前面，而后端对同一题号先到先得 —— 学生写错的答案会被当成
+ * 标准答案存下来。
+ *
+ * 换成「让系统逐页认这是什么」也不行：认错一页参考答案，那一页上的题就悄悄
+ * 没了，而「悄悄」是这个项目最不能接受的失败形状。**三个框比一个聪明的分拣器
+ * 可靠**，而且老师本来就知道哪份是哪份 —— 这件事不该让系统去猜。
+ *
+ * 另外两栏这一轮读不了，但**现在就收下**：没理由让他为此分三次、隔几周传三回。
+ */
+interface Slot {
+  key: SlotKey
+  title: string
+  /** 必填 / 选填 */
+  need: string
+  /** 这一栏要的是什么 —— 说得越具体，传错的机会越小 */
+  want: string
+  /** 传上来之后会怎样。**选填那两栏尤其要说**：不说的话，人会以为传了没用 */
+  fate: string
+}
+
+const SLOTS: Slot[] = [
+  { key: 'answers', title: '参考答案', need: '必填',
+    want: '印着「参考答案」、一题一题给出答案的那几页',
+    fate: '这一轮唯一会读的：读出每题的标准答案和官方解答过程' },
+  { key: 'stem', title: '原卷（题目）', need: '选填',
+    want: '试卷本身，PDF 或拍的照片都行',
+    fate: '现在只收下存着 —— 等「读题干」做好就能给选择题和填空题挂上知识点' },
+  { key: 'sheet', title: '答题卡', need: '选填',
+    want: '学生那份，已经批改过的最好',
+    fate: '现在只收下存着 —— 等「读答题卡」做好就能逐题对错、出薄弱点' },
+]
+
+/**
+ * 答题卡模式的上传框。
+ *
+ * **卷名必须人填。** 这边收的是一批照片，文件名是 `IMG_0123` 这种，
+ * 推不出任何有意义的卷名 —— 而卷名是页面地址的一部分，将来还要打印在报告上。
+ *
+ * **松手就开跑是错的。** Ⓐ 一页要一分钟上下，四张图就是四分钟真金白银的模型
+ * 调用。选好的先摊开、点「开始分析」才真的开跑。
+ *
+ * **POST 一返回就自动跳走也是错的。** 以前一拿到 `{job, name}` 就跳进详情页、
+ * 组件跟着卸载 —— 而最常见的失败是照片拍糊了：后端抛「一道题的答案都没读
+ * 出来」、把这次新建的空壳卷子删掉，`/progress` 从此 404。跳走的话没有任何 UI
+ * 盯着这条链，失败原因和「卷子已经不存在了」谁都看不到。照抄 Upload.tsx 已经
+ * 做对的那套：自己轮询 `getJob` 把任务画出来，跳走交给用户点。
+ */
 export default function SheetUpload({ onDone }: {
   /** open=true 才跳进详情页；job 进 solving/done 时只用来刷新列表 */
   onDone: (name: string, open: boolean) => void
 }) {
   const [name, setName] = useState('')
-  /**
-   * 选好但**还没送出去**的文件。
-   *
-   * **松手就开跑是错的。** Ⓐ 一页要一分钟上下、四张图就是四分钟真金白银的
-   * 模型调用，而这条链有两件事必须在开跑之前让人确认：卷名（这边推不出来，
-   * 只能人填）和**页序**（按文件名排，不是拖进来的顺序）。手一滑拖错一个
-   * 文件夹，旧版会立刻开跑、几分钟后才在失败里看到。
-   */
-  const [picked, setPicked] = useState<File[]>([])
-  const [hot, setHot] = useState(false)
+  const [picked, setPicked] = useState<Batch>(EMPTY)
+  const [hot, setHot] = useState<SlotKey | null>(null)
   const [sending, setSending] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -74,9 +105,8 @@ export default function SheetUpload({ onDone }: {
   const [lost, setLost] = useState<string | null>(null)
   /** 连着几轮问不到后端了（网络抖动/重启中）。0 表示一切正常 */
   const [retry, setRetry] = useState(0)
-  const pick = useRef<HTMLInputElement>(null)
-  /** 换任务用抢的：只会发生在同一次挂载里连续传了两次，道理和 Upload.tsx
-      的 watching 一样，这里更简单——没有「挂载时接上一个旧任务」那一路 */
+  const pick = useRef<Record<string, HTMLInputElement | null>>({})
+  /** 换任务用抢的：只会发生在同一次挂载里连续传了两次 */
   const watching = useRef<string | null>(null)
   const alive = useRef(true)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
@@ -135,42 +165,49 @@ export default function SheetUpload({ onDone }: {
   }, [onDone])
 
   /**
-   * 把选中的文件收进暂存区，**不发**。
+   * 把选中的文件收进某一栏的暂存区，**不发**。
    *
    * 同名同大小的当成同一个（连着拖两次同一批是常事），其余追加 ——
-   * 追加而不是替换：老师完全可能分两次把 4 张图拖进来。
+   * 追加而不是替换：老师完全可能分两次把几张图拖进同一栏。
    */
-  function stage(files: File[]) {
+  function stage(slot: SlotKey, files: File[]) {
     if (!files.length) return
     setErr(null)
     setPicked((prev) => {
-      const seen = new Set(prev.map((f) => `${f.name} ${f.size}`))
-      return [...prev, ...files.filter((f) => !seen.has(`${f.name} ${f.size}`))]
+      const seen = new Set(prev[slot].map((f) => `${f.name}|${f.size}`))
+      return { ...prev,
+        [slot]: [...prev[slot], ...files.filter((f) => !seen.has(`${f.name}|${f.size}`))] }
     })
   }
 
+  const drop = (slot: SlotKey, f: File) =>
+    setPicked((prev) => ({ ...prev,
+      [slot]: prev[slot].filter((x) => !(x.name === f.name && x.size === f.size)) }))
+
+  const total = picked.answers.length + picked.stem.length + picked.sheet.length
+
   async function send() {
-    const files = [...picked].sort(byPageOrder)
-    if (!files.length) { setErr('还没有选文件'); return }
+    if (!picked.answers.length) { setErr('参考答案那一栏是空的 —— 它是这份诊断的地基'); return }
     if (!name.trim()) { setErr('先填一个卷名'); return }
     setErr(null); setNote(null); setJob(null); setLost(null); setRetry(0)
     setSending(true)
     let jid: string | null = null
     try {
-      const r = await uploadAnswerPaper(name.trim(), files)
+      const r = await uploadAnswerPaper(name.trim(), {
+        answers: [...picked.answers].sort(byPageOrder),
+        stem: [...picked.stem].sort(byPageOrder),
+        sheet: [...picked.sheet].sort(byPageOrder),
+      })
       // 后端可能改过名（撞上别人的卷子、或撞上自己的一份解析试卷）。
-      // 改了就要说出来 —— 不说的话人会去库里找那个他填的名字，找不到。
-      // 这条 note 现在不会跟着组件一起卸载了——上面文件头写了为什么
+      // 改了就要说出来 —— 不说的话人会去库里找那个他填的名字，找不到
       setNote(r.name === name.trim()
         ? `已开始读「${r.name}」的参考答案`
         : `卷名「${name.trim()}」已经被占用，这份存成了「${r.name}」`)
       jid = r.job
-      setPicked([])          // 送出去了就清空，别让下一次误传同一批
+      setPicked(EMPTY)          // 送出去了就清空，别让下一次误传同一批
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e))
     } finally {
-      // POST 回来就放开拖拽框——盯着后台那条链不是禁用它的理由，
-      // 「同一份卷子不许同时跑两条」那道闸在后端（会回 409）
       setSending(false)
     }
     if (jid) await follow(jid)
@@ -185,89 +222,79 @@ export default function SheetUpload({ onDone }: {
         <input value={name} onChange={(e) => setName(e.target.value)}
                placeholder="2025-2026高二物理期末" disabled={sending} />
       </label>
-      <div
-        className={`drop${hot ? ' hot' : ''}${sending ? ' busy' : ''}`}
-        onClick={() => pick.current?.click()}
-        onDragEnter={(e) => { e.preventDefault(); setHot(true) }}
-        onDragOver={(e) => { e.preventDefault(); setHot(true) }}
-        onDragLeave={() => setHot(false)}
-        onDrop={(e) => {
-          e.preventDefault(); setHot(false)
-          stage([...e.dataTransfer.files])
-        }}
-      >
-        {/* **说清楚要什么、更要说清楚不要什么。** 这个模式叫「答题卡诊断」，
-            老师手上是三样东西（题目、答题卡、参考答案），而这一栏这一轮只吃
-            参考答案 —— 不写明的话，人自然会把三样一起拖进来（实测就是这样）。
-            后果不只是白等：题目 PDF 文件名里没数字，按文件名排序反而排到最前，
-            一页一分钟先啃完整份题目；答题卡上学生手写的答案还可能被当成标准
-            答案存下来。后端也拦了一道（连着三页读不出就停），但那是兜底 */}
-        <b>{picked.length ? '再拖几张，或者换几张' : '把参考答案拖到这里'}</b>
-        <span>只要<b>参考答案</b>那几页 —— 印着「参考答案」、一题一题给出答案的那种</span>
-        <span>照片 / 扫描图 / PDF 都行，可以一次多张 · 按文件名排页序</span>
-        <span className="drop-no">
-          题目和答题卡这一轮还用不上，别混进来 —— 混着传会先把题目一页页啃完，
-          还可能把答题卡上学生写的答案当成标准答案
-        </span>
-        {/* value 清空：不然连着选同一批文件时 onChange 不会再触发 */}
-        <input ref={pick} type="file" multiple hidden
-               accept="image/*,application/pdf"
-               onChange={(e) => {
-                 stage([...(e.target.files ?? [])])
-                 e.target.value = ''
-               }} />
+
+      <div className="slots">
+        {SLOTS.map((s) => {
+          const files = picked[s.key]
+          return (
+            <section key={s.key} className="slot">
+              <h4>
+                {s.title}
+                <em className={s.key === 'answers' ? 'must' : ''}>{s.need}</em>
+              </h4>
+              <p className="slot-want">{s.want}</p>
+              <div
+                className={`drop slim${hot === s.key ? ' hot' : ''}${sending ? ' busy' : ''}`}
+                onClick={() => pick.current[s.key]?.click()}
+                onDragEnter={(e) => { e.preventDefault(); setHot(s.key) }}
+                onDragOver={(e) => { e.preventDefault(); setHot(s.key) }}
+                onDragLeave={() => setHot(null)}
+                onDrop={(e) => {
+                  e.preventDefault(); setHot(null)
+                  stage(s.key, [...e.dataTransfer.files])
+                }}
+              >
+                <b>{files.length ? '再拖几张' : '拖到这里'}</b>
+                <span>照片 / 扫描图 / PDF</span>
+                {/* value 清空：不然连着选同一批文件时 onChange 不会再触发 */}
+                <input ref={(el) => { pick.current[s.key] = el }}
+                       type="file" multiple hidden accept="image/*,application/pdf"
+                       onChange={(e) => {
+                         stage(s.key, [...(e.target.files ?? [])])
+                         e.target.value = ''
+                       }} />
+              </div>
+              <p className="slot-fate">{s.fate}</p>
+
+              {/* 页序在开跑之前就摊开：它是按**文件名**排的，不是拖进来的顺序，
+                  排错了在这一屏就看得见，不用等四分钟 */}
+              {files.length > 0 && (
+                <ol className="picked">
+                  {[...files].sort(byPageOrder).map((f) => (
+                    <li key={`${f.name}|${f.size}`}>
+                      <span className="picked-n">{f.name}</span>
+                      <span className="picked-sz">{size(f.size)}</span>
+                      <button className="del" disabled={sending} title={`去掉 ${f.name}`}
+                              onClick={() => drop(s.key, f)}>去掉</button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {files.some((f) => /\.pdf$/i.test(f.name)) && (
+                <p className="picked-note">
+                  里面有 PDF，会展开成多页 —— 上面这个清单只排了文件，排不出展开后的页。
+                </p>
+              )}
+            </section>
+          )
+        })}
       </div>
 
-      {/* 选好的先摊在这儿，**点了「开始分析」才真的开跑**。
-          Ⓐ 一页一分钟上下，四张就是四分钟真金白银的模型调用 —— 手一滑拖错
-          一个文件夹，旧版会立刻开跑、几分钟后才在失败里看到。
-          页序也在这里摊开：它是按**文件名**排的，不是拖进来的顺序，
-          排错了在这一屏就能看见，不用等四分钟。 */}
-      {picked.length > 0 && (
-        <div className="picked">
-          <div className="picked-hd">
-            <b>选了 {picked.length} 个文件</b>
-            <span>会按这个顺序当成第 1、2、3… 页读</span>
-            <button className="link" disabled={sending}
-                    onClick={() => setPicked([])}>全部清掉</button>
-          </div>
-          <ol>
-            {[...picked].sort(byPageOrder).map((f) => (
-              <li key={`${f.name} ${f.size}`}>
-                <span className="picked-n">{f.name}</span>
-                <span className="picked-sz">{kb(f.size)}</span>
-                <button className="del" disabled={sending} title={`去掉 ${f.name}`}
-                        onClick={() => setPicked((p) => p.filter(
-                          (x) => !(x.name === f.name && x.size === f.size)))}>
-                  去掉
-                </button>
-              </li>
-            ))}
-          </ol>
-          {/* 混着 PDF 和图片时，页序最容易出人意料：`pages.sort_key` 把文件名
-              按数字段切开比，**没有数字的文件名整体排在有数字的前面**（`(0, 名字)`
-              对上 `(20260807, ...)`）。于是一份叫「高二期末.pdf」的题目会排到
-              那堆 `20260807-*.jpeg` 前头，把真正的参考答案挤到十几页之后。
-              这条不说的话，上面那张「按这个顺序读」的清单是骗人的 —— 它只排了
-              文件，没排 PDF 展开出来的那些页 */}
-          {picked.some((f) => /\.pdf$/i.test(f.name)) && (
-            <p className="picked-note">
-              <b>里面有 PDF。</b>它会展开成多页，真实页数比这里的文件数多得多，
-              而上面这个清单只排了文件、排不出展开后的页。
-              如果这份 PDF 是<b>题目</b>而不是参考答案，请把它去掉 ——
-              它会排在最前面被一页页读完（一页约一分钟）。
-            </p>
-          )}
-          <div className="picked-go">
-            <button className="btn" disabled={sending || !name.trim()}
-                    onClick={() => void send()}>
-              {sending ? '正在送上去…' : '开始分析'}
-            </button>
-            <span>
-              {!name.trim() ? '先在上面填一个卷名'
-                : `读参考答案一页要一分钟上下，${picked.length} 个文件大约 ${picked.length} 分钟`}
-            </span>
-          </div>
+      {total > 0 && (
+        <div className="picked-go">
+          <button className="btn" disabled={sending || !name.trim() || !picked.answers.length}
+                  onClick={() => void send()}>
+            {sending ? '正在送上去…' : '开始分析'}
+          </button>
+          <span>
+            {!name.trim() ? '先在上面填一个卷名'
+              : !picked.answers.length ? '参考答案那一栏还是空的'
+                : `读参考答案一页要一分钟上下，${picked.answers.length} 个文件大约 `
+                  + `${picked.answers.length} 分钟；另外 ${total - picked.answers.length} `
+                  + '个只收下存着，不花时间'}
+          </span>
+          <button className="link" disabled={sending}
+                  onClick={() => setPicked(EMPTY)}>全部清掉</button>
         </div>
       )}
 

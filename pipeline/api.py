@@ -50,6 +50,7 @@ import grade            # 判等的口径只写一份，阅卷和「AI vs 卷子
 import mailer           # 验证码信；没配 SMTP 时退化成打日志
 import modes            # 「一共有哪几步、每步叫什么」只有这一份，stage_of 只负责分发
 import pages            # IMG_EXT：答题卡上传收哪些文件，口径要和 pages.normalize 一致
+import stash            # 原卷/答题卡这一轮读不了，但现在就收下存着
 
 from fastapi import Body, Depends, FastAPI, Form, Request, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -800,9 +801,16 @@ async def upload(file: UploadFile = File(...), user=Depends(current_user)):
     return {"job": jid, "name": name}
 
 
-def run_answer_pipeline(jid, paths, name, owner_id, created):
+def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
     """
-    答题卡模式的整条链：Ⓐ 读参考答案 → ③c 挂知识点。
+    答题卡模式的整条链：Ⓐ 读参考答案 → 收下原卷/答题卡 → ③c 挂知识点。
+
+    `paths` 是**参考答案**那一栏；`extra` 是 `[(kind, [路径…]), …]`，这一轮
+    读不了、但现在就收下（见 `stash.py`）。
+
+    **收材料排在 Ⓐ 之后。** 反过来的话，Ⓐ 失败时那批已经存好的原卷/答题卡
+    会跟着卷子一起被删（assets 以 CASCADE 挂在 papers 上），等于白存 ——
+    不如让「卷子在 = 材料在」这条不变量一直成立。
 
     **只有这一次新建的空壳才在失败时删掉。** 重跑一份已有卷子失败时不能删 ——
     `sheet_answers` 以 ON DELETE CASCADE 挂在 `questions` 上，删一次会把
@@ -853,6 +861,14 @@ def run_answer_pipeline(jid, paths, name, owner_id, created):
             JOBS[jid].update(state="solving", name=name, n=n_q,
                              warnings=[], solved=n_q, total=n_q)
         log("✓ 读出 %d 题，可以开始看了。知识点在后台继续挂" % n_q)
+        # 原卷和答题卡：这一轮读不了，但收下存着，等 Ⓔ 和步二做好直接能用。
+        # 纯代码（规范化 + 落库），几秒钟，不进 run_step 那套子进程/超时
+        for kind, extra_paths in extra:
+            if extra_paths:
+                log("▸ 收下%s" % stash.KINDS[kind][0])
+                stash.stash(name, extra_paths, kind, verbose=False)
+                log("   %d 个文件已收下，%s（现在还不会读它）"
+                    % (len(extra_paths), stash.KINDS[kind][1]))
         # ③c 挂不上知识点不算失败：页面逐题写「没挂上知识点」，不塞占位标签
         label, code, script, timeout = step_code[1]
         run_step(jid, label, step_path(script) + [name], timeout=timeout)
@@ -866,7 +882,9 @@ def run_answer_pipeline(jid, paths, name, owner_id, created):
     finally:
         with LOCK:
             CLAIMS.pop(name, None)
-        for p in paths:
+        # 三栏的原件都要收 —— 只收参考答案那一栏的话，原卷和答题卡会一直堆在
+        # `work/_uploads/`（那个目录没有 GC），而它们恰恰是最大的那几个文件
+        for p in list(paths) + [q for _, ps in extra for q in ps]:
             try:
                 os.remove(p)
             except OSError:
@@ -876,21 +894,38 @@ def run_answer_pipeline(jid, paths, name, owner_id, created):
 @app.post("/api/answer-papers")
 async def answer_upload(name: str = Form(...),
                         files: list[UploadFile] = File(...),
+                        stem_files: list[UploadFile] = File(default=[]),
+                        sheet_files: list[UploadFile] = File(default=[]),
                         user=Depends(current_user)):
     """
-    答题卡模式的上传：卷名 + 一到多张参考答案（照片 / 扫描图 / PDF）。
+    答题卡模式的上传：卷名 + 三栏材料。
+
+    `files` 参考答案（**必填**，这一轮唯一会读的）
+    `stem_files` 原卷题目、`sheet_files` 答题卡（选填，先收下存着）
+
+    **三栏而不是一栏，是因为不该让系统去猜。** 一栏的时候老师会很自然地把手上
+    三样东西一起拖进来（实测就是这样），而 `pages.normalize` 按文件名排序 ——
+    一份叫「高二期末.pdf」的题目（文件名里没数字）反而排到那些 `20260807-*.jpeg`
+    前面，Ⓐ 从第 1 页开始一页一分钟啃整份题目。更糟的是答题卡（学生手写、
+    带红勾红叉）排在真参考答案前面，而 `refread.keep()` 对同一题号先到先得 ——
+    学生写错的答案会被当成标准答案存下来。
+    换成让系统逐页认「这是什么」也不行：认错一页参考答案，那一页上的题就悄悄
+    没了。**三个框比一个聪明的分拣器可靠**，而且老师本来就知道哪份是哪份。
 
     和 `/api/upload` 是两条独立的入口，故意不合并 —— 合并的话「收 PDF 还是收
     一批图」「卷名从文件名推还是让人填」这两件事会缠成一堆 if，
     而这次改动的整个目的就是把它们分开。
     """
     if not files:
-        raise HTTPException(400, "一个文件都没有")
-    saved_names = [safe_image_name(f.filename) for f in files]   # 先校验，再落盘
-    blobs = [await f.read() for f in files]
-    total = sum(len(b) for b in blobs)
+        raise HTTPException(400, "参考答案那一栏是空的 —— 它是这份诊断的地基，"
+                                 "没有它读不出任何标准答案")
+    groups = [("page", files), ("stem", stem_files), ("sheet", sheet_files)]
+    # 先把三栏的文件名都校验一遍，**再**读字节：不合法的类型要在落盘之前拒掉
+    saved = {k: [safe_image_name(f.filename) for f in fs] for k, fs in groups}
+    blobs = {k: [await f.read() for f in fs] for k, fs in groups}
+    total = sum(len(b) for bs in blobs.values() for b in bs)
     if total > 80 * 1024 * 1024:
-        raise HTTPException(413, "这一批加起来超过 80 MB")
+        raise HTTPException(413, "三栏加起来超过 80 MB")
 
     with LOCK:
         claimed = dict(CLAIMS)
@@ -903,25 +938,37 @@ async def answer_upload(name: str = Form(...),
         raise HTTPException(409, "这份卷子正在跑，等它跑完再重传 —— 答题卡库里能看到它到哪一步了")
 
     jid = uuid.uuid4().hex[:12]
-    # 落盘在闸门之后，路径按任务分开 —— 被 409 挡掉的那次不该已经把文件写下去
+    # 落盘在闸门之后，路径按任务分开 —— 被 409 挡掉的那次不该已经把文件写下去。
+    # 三栏各自带上分类前缀：一来同名文件不会互相覆盖，二来出问题时从磁盘上
+    # 一眼看得出哪个文件是当成什么传上来的
     os.makedirs(UPLOADS, exist_ok=True)
-    paths = []
-    for i, (fn, data) in enumerate(zip(saved_names, blobs), 1):
-        p = os.path.join(UPLOADS, "%s_%02d_%s" % (jid, i, fn))
-        with open(p, "wb") as f:
-            f.write(data)
-        paths.append(p)
+    on_disk = {}
+    for kind, _ in groups:
+        out = []
+        for i, (fn, data) in enumerate(zip(saved[kind], blobs[kind]), 1):
+            p = os.path.join(UPLOADS, "%s_%s_%02d_%s" % (jid, kind, i, fn))
+            with open(p, "wb") as f:
+                f.write(data)
+            out.append(p)
+        on_disk[kind] = out
 
     if created:
         store.create_answers_paper(paper, owner_id=user["id"])
+    bits = ["参考答案 %d" % len(on_disk["page"])]
+    for kind in ("stem", "sheet"):
+        if on_disk[kind]:
+            bits.append("%s %d" % (stash.KINDS[kind][0], len(on_disk[kind])))
     with LOCK:
         CLAIMS[paper] = user["id"]
         JOBS[jid] = {"state": "running", "step": "排队中", "name": paper,
                      "owner_id": user["id"],
-                     "log": ["收到 %d 个文件（%.1f MB）" % (len(paths), total / 1048576)]}
-    threading.Thread(target=run_answer_pipeline,
-                     args=(jid, paths, paper, user["id"], created),
-                     daemon=True).start()
+                     "log": ["收到 %s 个文件（%.1f MB）"
+                             % ("、".join(bits), total / 1048576)]}
+    threading.Thread(
+        target=run_answer_pipeline,
+        args=(jid, on_disk["page"], paper, user["id"], created,
+              [("stem", on_disk["stem"]), ("sheet", on_disk["sheet"])]),
+        daemon=True).start()
     return {"job": jid, "name": paper}
 
 

@@ -72,10 +72,19 @@ export function uploadPdf(file: File) {
  * 和 uploadPdf 是两条入口，故意不合并 —— 那边卷名从文件名推、只收一个 PDF，
  * 这边卷名要人填、收一批图。
  */
-export function uploadAnswerPaper(name: string, files: File[]) {
+/** 答题卡模式的三栏材料。`answers` 必填，另两栏这一轮读不了、只收下存着 */
+export interface AnswerUpload {
+  answers: File[]
+  stem: File[]
+  sheet: File[]
+}
+
+export function uploadAnswerPaper(name: string, g: AnswerUpload) {
   const fd = new FormData()
   fd.append('name', name)
-  for (const f of files) fd.append('files', f)
+  for (const f of g.answers) fd.append('files', f)
+  for (const f of g.stem) fd.append('stem_files', f)
+  for (const f of g.sheet) fd.append('sheet_files', f)
   return fetch('/api/answer-papers', { ...CRED, method: 'POST', body: fd })
     .then(j<{ job: string; name: string }>)
 }
