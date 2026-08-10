@@ -23,10 +23,10 @@
 - [x] Task 5: `sheetread.py`（Ⓑa/Ⓑb/Ⓑc）　complete（32 条测试；模型那一跑在 Task 7 接管线时验）
 - [x] Task 6: `sheetverdict.py`（Ⓒ 判定、题号绑定、互校）　complete（26 条测试）
 - [x] Task 7: 落库 + 接进管线　complete（10 条测试 + conftest 加了「不许真调模型」的闸）
-- [ ] Task 8: 页面 —— 答题卡列表与详情
+- [x] Task 8: 页面 —— 答题卡列表与详情　complete（SheetDetail + Sheets + 路由 + 样式）
 - [ ] Task 9: 改判
 - [ ] Task 10: 拿真材料端到端跑一遍
 
 ## 测试基线
 
-714 passed（Task 7 之后）。569 是本轮开工时的数。
+718 passed（Task 8 之后）。569 是本轮开工时的数。
