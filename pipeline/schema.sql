@@ -420,3 +420,12 @@ UPDATE sheet_answers a SET scored_at = now()
  WHERE a.scored_at IS NULL
    AND EXISTS (SELECT 1 FROM sheet_answers x
                 WHERE x.sheet_id = a.sheet_id AND x.score_got IS NOT NULL);
+
+-- 这份答题卡上，Ⓑ 的每一次子调用跑成什么样：
+--   [{"page":1,"pass":"Ⓑa","ok":true,"seconds":235,"rows":18,"err":null}, ...]
+-- 外加这一次的对总分结果、两遍之间的冲突、题号对不上的整题告警。
+--
+-- **不落这一行的话，「Ⓑb 第 2 页整遍失败」和「这几道题本来就读不出」
+-- 在库里和页面上完全同形** —— 前者该让人重传，后者该让人去看原图，
+-- 而页面分不出来就只能都说成「这道题没读出来」。
+ALTER TABLE answer_sheets ADD COLUMN IF NOT EXISTS reads jsonb NOT NULL DEFAULT '{}';

@@ -242,14 +242,22 @@ def _cut(page_png, top, bottom, dst, zoom=ZOOM):
     return dst
 
 
-def read(paper_name, sheet_id, page_files, verbose=True, on_call=None):
+def read(paper_name, sheet_id, page_files, known_ns=None,
+         verbose=True, on_call=None):
     """
-    读一份答题卡。返回 `{"rows", "clashes", "total", "checksum", "calls"}`。
+    读一份答题卡。返回
+    `{"rows", "clashes", "total", "checksum", "calls", "aborted"}`。
 
     `on_call(rec)` 每跑完一次子调用回调一次，`rec` 是
     `{"page", "pass", "ok", "seconds", "rows", "err"}` —— **每次子调用的成败
     都要落一行**，不然「Ⓑb 第 2 页整遍失败」和「这几道题本来就读不出」
     在库里和页面上完全同形。
+
+    `known_ns` 是参考答案给出的题号清单。给了的话就多一道**中途闸门**：
+    第一页读完，如果一个**大题号**都对不上这份清单，就停下来 ——
+    这几张图多半根本不是这份卷子的答题卡（拍错了、传串了）。
+    不停的话会把剩下几页也读完，十几次调用换一份全是 `unsure` 的报告。
+    判据和 `refread.BLANK_PAGES_LIMIT` 同构。
     """
     import time
     log = (lambda s: print(s, flush=True)) if verbose else (lambda *a, **k: None)
@@ -303,6 +311,25 @@ def read(paper_name, sheet_id, page_files, verbose=True, on_call=None):
         all_rows += rows
         all_clash += clash
 
+        # 中途闸门：第一页一个大题号都对不上参考答案的清单 → 停。
+        # 这几张图多半根本不是这份卷子的答题卡。继续读只会把剩下几页的调用
+        # 也花掉，换一份全是 unsure 的报告
+        if i == 1 and known_ns and rows:
+            mains = {n // 100 if n >= 100 else n for n in
+                     (r["n"] for r in rows)}
+            ref_mains = {n // 100 if n >= 100 else n for n in known_ns}
+            if not (mains & ref_mains):
+                why = ("第 1 页读出来的题号（%s）和这份卷子的参考答案（%s）"
+                       "一个都对不上 —— 这几张图多半不是这份卷子的答题卡。"
+                       "剩下 %d 页没有读。"
+                       % ("、".join(_show(n) for n in sorted(mains)[:6]),
+                          "、".join(_show(n) for n in sorted(ref_mains)[:6]),
+                          len(page_files) - 1))
+                log("✗ " + why)
+                return {"rows": all_rows, "clashes": all_clash, "total": None,
+                        "checksum": (False, why), "calls": calls,
+                        "aborted": why}
+
     total = None
     if page_files:
         dst = os.path.join(work, "total.png")
@@ -312,7 +339,7 @@ def read(paper_name, sheet_id, page_files, verbose=True, on_call=None):
     ok, why = checksum(all_rows, total)
     log(("✓ " if ok else "⚠ ") + why)
     return {"rows": all_rows, "clashes": all_clash, "total": total,
-            "checksum": (ok, why), "calls": calls}
+            "checksum": (ok, why), "calls": calls, "aborted": None}
 
 
 def _height(png):

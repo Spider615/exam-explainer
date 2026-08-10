@@ -200,14 +200,24 @@ def _screenshot(tmp_path, name):
     return str(p)
 
 
-def test_一张截图跑完存下两页(db, owner, tmp_path):
+def test_一张截图跑完存下两页(db, owner, tmp_path, monkeypatch):
+    """
+    只验 Ⓢ 那一段。**Ⓑ 要打桩** —— 这条测试原来写在 run_sheet_pipeline
+    还只到 Ⓢ 的时候，等它扩到整条链，这里就顺着走进了 Ⓑ、真的去调了模型
+    （全量从 9 秒变 175 秒）。现在 conftest 那道 `no_real_model` 会当场拦下来。
+    """
+    import sheetread
+    monkeypatch.setattr(sheetread.mathvlm, "ask_raw",
+                        lambda *a, **k: ([{"n": "1", "y": 0.5, "answer": "A",
+                                           "mark": "right"}]
+                                         if k.get("want") == "array" else {"total": 1}))
     store.create_answers_paper("Ⓢ用卷", owner)
     store.put_answer_question("Ⓢ用卷", 1, "A", None)
     sid = store.create_sheet("Ⓢ用卷", "张三", owner)
     jid = "t" + "0" * 11
     api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
     api.run_sheet_pipeline(jid, "Ⓢ用卷", sid, [_screenshot(tmp_path, "s.png")], owner)
-    assert api.JOBS[jid]["state"] == "done"
+    assert api.JOBS[jid]["state"] == "done", api.JOBS[jid].get("err")
     assert len(store.sheet_pages(sid)) == 2, "一张双页截图该切出两页"
 
 

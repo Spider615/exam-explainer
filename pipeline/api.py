@@ -52,6 +52,8 @@ import modes            # 「一共有哪几步、每步叫什么」只有这一
 import pages            # IMG_EXT：答题卡上传收哪些文件，口径要和 pages.normalize 一致
 import stash            # 原卷/答题卡这一轮读不了，但现在就收下存着
 import sheetcut         # Ⓢ：从手机截图里抠出答题卡。纯几何，不调模型
+import sheetread        # Ⓑ：读批改结果。两遍——整页定位 + 按 y 切条
+import sheetverdict     # Ⓒ：由分数/符号推判定，互校。纯函数
 
 from fastapi import Body, Depends, FastAPI, Form, Request, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -1166,14 +1168,88 @@ def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id):
                                   "，劈成两页" if c["seam"] else ""))
         n = store.put_sheet_pages(paper, sheet_id, [c["path"] for c in cuts])
         log("✓ 切出 %d 页答题卡，已存好" % n)
-        log("   （这一轮到此为止 —— 读批改结果还没做，"
-            "页面上先能看到原图）")
+
+        # ── Ⓑ 读批改 ────────────────────────────────────────────────
+        known = [q["n"] for q in (store.get_paper(paper) or {"questions": []})
+                 ["questions"]]
         with LOCK:
-            JOBS[jid].update(state="done", step="完成", n=n)
+            JOBS[jid].update(step="Ⓑ 读批改", pageTotal=n, pageDone=0)
+
+        def on_call(rec):
+            # 边跑边把进度记进 JOBS。Ⓑa 一页要三四分钟，没有这个的话
+            # 页面上只有一个转不停的点，人分不出「在读第 2 页」和「卡死了」
+            with LOCK:
+                JOBS[jid].update(pageDone=rec["page"],
+                                 step="Ⓑ 读批改 · 第 %d 页 %s"
+                                      % (rec["page"], rec["pass"]))
+
+        got = sheetread.read(paper, sheet_id, [c["path"] for c in cuts],
+                             known_ns=known, verbose=False, on_call=on_call)
+        for line in _sheet_lines(got, n):
+            log(line)
+
+        # ── Ⓒ 判定 ──────────────────────────────────────────────────
+        bound, warns = sheetverdict.bind(got["rows"], known)
+        qid_of = store.question_ids(paper)
+        refs = {q["n"]: q.get("ref_answer")
+                for q in (store.get_paper(paper) or {"questions": []})["questions"]}
+        n_written = 0
+        for r in bound:
+            v, by, why = sheetverdict.decide(r)
+            note = sheetverdict.crosscheck(dict(r, verdict=v), refs.get(r["bind"]))
+            store.put_sheet_answer(
+                sheet_id, r["n"], scored=True,
+                question_id=qid_of.get(r["bind"]),
+                raw_text=r.get("answer"), mark_raw=r.get("mark"),
+                score_got=r.get("got"), score_full=r.get("full"),
+                teacher_red=r.get("red"), read_conf=r.get("conf"),
+                verdict=v, verdict_by=by,
+                verdict_why=why + ("　⚠ " + note if note else ""))
+            n_written += 1
+
+        # 这一次跑成什么样，整份落库 —— 页面按块说话靠它
+        store.set_sheet_reads(sheet_id, {
+            "calls": got["calls"], "checksum": list(got["checksum"]),
+            "clashes": got["clashes"], "bindWarnings": warns,
+            "aborted": got.get("aborted"), "total": got["total"]})
+        if got["total"] is not None:
+            store.set_sheet_total(sheet_id, got["total"])
+
+        # **一条都没读出来就得老实失败。** 留一份空卡装作跑完了，
+        # 页面上会显示成「这个学生一道题都没做对」
+        if not n_written:
+            with LOCK:
+                JOBS[jid].update(state="error", err="一道题都没读出来",
+                                 err_code="sheetread")
+            log("✗ 一道题都没读出来 —— 换清楚一点的答题卡图再传一次")
+            return
+        with LOCK:
+            JOBS[jid].update(state="done", step="完成", n=n_written)
+        log("✓ 读出 %d 题，可以看了" % n_written)
     except Exception as e:                                    # noqa: BLE001
         with LOCK:
-            JOBS[jid].update(state="error", err=str(e), err_code="sheetcut")
+            JOBS[jid].update(state="error", err=str(e), err_code="sheetread")
         log("✗ 出错：%s" % e)
+
+
+def _sheet_lines(got, n_pages):
+    """把 Ⓑ 这一趟的结果翻成人话。**每一条异常都要说出口。**"""
+    out = ["── Ⓑ 读批改：%d 页，%d 次调用" % (n_pages, len(got["calls"]))]
+    bad = [c for c in got["calls"] if not c["ok"]]
+    if bad:
+        out.append("   ⚠ 有 %d 次调用没成：%s" %
+                   (len(bad), "、".join("第%d页%s" % (c["page"], c["pass"])
+                                        for c in bad)))
+    if got.get("aborted"):
+        out.append("   ✗ " + got["aborted"])
+    for c in got["clashes"][:6]:
+        out.append("   ⚠ " + c["why"])
+    if len(got["clashes"]) > 6:
+        out.append("   ⚠ 还有 %d 条对不上的，页面上能看全"
+                   % (len(got["clashes"]) - 6))
+    ok, why = got["checksum"]
+    out.append(("   ✓ " if ok else "   ⚠ ") + why)
+    return out
 
 
 @app.post("/api/answer-sheets")

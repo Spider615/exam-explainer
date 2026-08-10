@@ -41,3 +41,36 @@ def conn(db):
     yield c
     c.rollback()
     c.close()
+
+
+@pytest.fixture(autouse=True)
+def no_real_model(monkeypatch, request):
+    """
+    **测试里永远不许真调模型。** 自动生效，不用每个测试自己记得。
+
+    这条是踩出来的：`run_sheet_pipeline` 从「只到 Ⓢ」扩到整条链的那一刻，
+    两条早先写的测试（它们只想验切图）顺着往下走进了 Ⓑ，**真的去调了火山方舟**
+    —— 全量测试从 9 秒变成 175 秒，而且每跑一次都在花钱。它没有报错，
+    只是慢，所以很容易被当成「测试变多了自然变慢」。
+
+    被这道闸拦下时不要把它注掉：要么给那个测试打桩（`monkeypatch.setattr`
+    某个模块的 `ask_raw`），要么它本来就不该走到模型那一步。
+
+    **挡的是真正出网那一层**（`post_doubao` 与 claude CLI 的子进程），不是
+    `ask_raw` 本身 —— 有几条测试正是在测 `ask_raw` 的取值和容错，
+    挡在它上面会把那些正当的测试一起打死（第一版就是这么写错的）。
+
+    真要跑实拨的验收，用 `-m allow_model` 单独跑，或者直接跑管线脚本。
+    """
+    if "allow_model" in request.keywords:
+        return
+    import mathvlm
+
+    def boom(*a, **k):
+        raise AssertionError(
+            "这个测试真去调模型了。测试里不许 —— 给它打桩，"
+            "或者确认它本来就不该走到这一步。"
+            "（实拨验收请标 @pytest.mark.allow_model）")
+
+    monkeypatch.setattr(mathvlm, "post_doubao", boom)
+    monkeypatch.setattr(mathvlm, "CLI", None)

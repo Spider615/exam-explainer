@@ -800,6 +800,15 @@ def set_sheet_pages(sheet_id, n):
         c.commit()
 
 
+def question_ids(paper_name):
+    """`{题号: question_id}`。答题卡要靠它把作答挂到题上。"""
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT q.n, q.id FROM questions q JOIN papers p ON p.id=q.paper_id
+                        WHERE p.name=%s""", (paper_name,))
+        return {r[0]: r[1] for r in cur.fetchall()}
+
+
 def sheet_page_path(sheet_id, page):
     """
     这一页答题卡原图的 `rel_path`。
@@ -852,6 +861,28 @@ def put_sheet_pages(paper_name, sheet_id, local_paths):
                     "WHERE id=%s", (len(rels), sheet_id))
         c.commit()
     return len(rels)
+
+
+def set_sheet_reads(sheet_id, reads):
+    """
+    这一次 Ⓑ 跑成什么样：每次子调用的成败耗时、对总分的结果、
+    两遍之间的冲突、题号对不上的整题告警。
+
+    **必须落库。** 不落的话「Ⓑb 第 2 页整遍失败」和「这几道题本来就读不出」
+    在页面上完全同形 —— 前者该让人重传，后者该让人去看原图。
+    """
+    with connect() as c:
+        c.execute("UPDATE answer_sheets SET reads=%s, updated_at=now() WHERE id=%s",
+                  (json.dumps(reads, ensure_ascii=False), sheet_id))
+        c.commit()
+
+
+def sheet_reads(sheet_id):
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("SELECT reads FROM answer_sheets WHERE id=%s", (sheet_id,))
+        r = cur.fetchone()
+        return (r[0] if r else None) or {}
 
 
 def set_sheet_total(sheet_id, total):
