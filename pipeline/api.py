@@ -51,6 +51,7 @@ import mailer           # 验证码信；没配 SMTP 时退化成打日志
 import modes            # 「一共有哪几步、每步叫什么」只有这一份，stage_of 只负责分发
 import pages            # IMG_EXT：答题卡上传收哪些文件，口径要和 pages.normalize 一致
 import stash            # 原卷/答题卡这一轮读不了，但现在就收下存着
+import sheetcut         # Ⓢ：从手机截图里抠出答题卡。纯几何，不调模型
 
 from fastapi import Body, Depends, FastAPI, Form, Request, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -911,7 +912,18 @@ def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
                         timeout=timeout, on_line=page_progress):
             with LOCK:
                 JOBS[jid].update(state="error", err=label + " 失败", err_code=code)
-            if created:
+            # 删空壳。**两个条件都要：这次新建的，而且现在还空着。**
+            #
+            # 原来只看 `created`，而它回答的是另一个问题。步二给答题卡开了独立
+            # 入口之后会出现「建卷 → 传答题卡（落了 sheet_answers）→ 重跑 Ⓐ
+            # 且失败」这样的顺序 —— 那时候 `created` 已经不足以保证卷子还是空的，
+            # 而学生的作答**不可再生**（参考答案能重读，那张已批改的答题卡
+            # 老师未必还留着，上传的原件跑完就清了）。
+            if created and not safe_to_delete_shell(name):
+                log("   ⚠ 这份卷子上已经挂了答题卡，**不删** —— "
+                    "学生的作答重建不出来。参考答案没读成，请重传参考答案；"
+                    "卷子和答题卡都还在。")
+            elif created:
                 # run_step 返回 False 不等于「一道题都没读出来」——超时被 killpg
                 # 时，refread 逐题落库的那些题可能已经写进去了。删之前先问一次
                 # 库里到底有几题，日志按实际数目说话，不能不分青红皂白地断言
@@ -981,6 +993,59 @@ def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
                 os.remove(p)
             except OSError:
                 pass
+
+
+def sheet_upload_gate(paper, user_id):
+    """
+    传答题卡之前的**零成本闸门**。不合格当场抛 `HTTPException`。
+
+    这道闸排在任何模型调用之前，理由和 ④c 挪到 ④ 前面完全一样：
+    **便宜的筛子要排在贵的前面。** 一份还没读参考答案的卷子，Ⓑ 照样会跑满 ——
+    一份卡十几次调用、二十来分钟 —— 产出一份**全是 `unsure` 的空报告**，
+    而那份报告看起来和「这孩子什么都不会」一模一样。
+
+    四条：
+
+      · 卷子得在，而且归他。**不存在和别人的一律回 404**，不区分 ——
+        区分了的话，卷名就成了一个能探测别人库存的接口
+      · 得是答题卡模式。往解析试卷上传答题卡是走错了门，当场说清楚
+      · **得已经读出题号清单**（`questions > 0`）。这是那道零成本闸门本身
+      · 不许和正在跑的链并跑。两条链写同一个 `work/<卷名>/`，
+        而且会把额度跑两遍。这道闸必须在后端 —— 前端那个「上传中禁用」
+        刷新一下就绕过去了
+    """
+    exists, owner = store.paper_owner(paper)
+    if not exists or owner != user_id:
+        raise HTTPException(404, "没有这份卷子")
+    if store.source_kind_of(paper) != "answers_only":
+        raise HTTPException(400, "「%s」是一份解析试卷，不是答题卡卷子 —— "
+                                 "答题卡要传到「答题卡诊断」那边它自己的卷子上" % paper)
+    pg = store.progress(paper)
+    if not pg or not pg["questions"]:
+        raise HTTPException(400, "这份卷子还没读出参考答案 —— 先把参考答案读完再传"
+                                 "答题卡。没有题号清单的话，答题卡上读出来的每一条"
+                                 "都挂不上题，整份报告只会是一片「说不清」")
+    if active_job_for(paper) or pipeline_running(paper):
+        raise HTTPException(409, "这份卷子正在跑，等它跑完再传 —— "
+                                 "答题卡库里能看到它到哪一步了")
+
+
+def safe_to_delete_shell(name):
+    """
+    Ⓐ 失败之后，这份卷子还能不能当空壳删掉。
+
+    **判据是「现在还空着」，不是「这次新建的」。** 原来用的是 `created`
+    这个标志，而它回答的是另一个问题。步二给答题卡开了独立入口之后，
+    会出现「建卷 → 传答题卡（落了 sheet_answers）→ 重跑 Ⓐ 且失败」这样的顺序，
+    那时候 `created` 已经不足以保证这份卷子还是空的。
+
+    学生的作答**不可再生**：参考答案能重读（材料还在磁盘上），
+    那张已批改的答题卡老师未必还留着，而上传的原件跑完就从 `_uploads` 清了。
+
+    **只要建过卡就不许删**，哪怕一条作答都还没读出来 —— 建了卡就说明那批
+    答题卡原图已经在库里，删卷会连它们一起带走，重传要老师再找一次原件。
+    """
+    return not store.list_sheets(name)
 
 
 @app.post("/api/answer-papers")
@@ -1062,6 +1127,119 @@ async def answer_upload(name: str = Form(...),
               [("stem", on_disk["stem"]), ("sheet", on_disk["sheet"])]),
         daemon=True).start()
     return {"job": jid, "name": paper}
+
+
+def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id):
+    """
+    一份答题卡的整条链。**这一轮只到 Ⓢ**：抠出答题卡页图、存进库。
+
+    Ⓑ 读批改、Ⓒ 判定接在后面（计划 Task 5–7）。分开落地是有意的：
+    Ⓢ 是纯几何、不花钱、几秒钟就跑完，先把它接到页面上，
+    老师传完就能看见「切出来几页、切成什么样」—— 而这恰恰是 Ⓑ 出问题时
+    第一个要排查的东西。
+
+    **失败不删卡。** 卡里可能已经有上一次读出来的作答，而那是不可再生的；
+    切图失败只说明这一批图不行，让人重传就是了。
+    """
+    def log(s):
+        job_log(jid, s)
+
+    try:
+        outdir = os.path.join(WORK, paper, "sheet", str(sheet_id))
+        log("── Ⓢ 抠答题卡")
+        with LOCK:
+            JOBS[jid].update(step="Ⓢ 抠答题卡")
+        try:
+            cuts = sheetcut.cut(paths, outdir, verbose=False)
+        except ValueError as e:
+            # 「没在这张图里找到答题卡」——**明说，不硬跑**。
+            # 拿一张带着状态栏的图去读题号，读出来的东西没人能信
+            with LOCK:
+                JOBS[jid].update(state="error", err=str(e), err_code="sheetcut")
+            log("✗ %s" % e)
+            log("   把答题卡那一块裁出来再传一次，或者直接传答题卡的照片")
+            return
+        for c in cuts:
+            log("   %s → %s%s" % (c["src"],
+                                  "裁出中间那条" if c["crop_mode"] == "cropped"
+                                  else "整张原样用",
+                                  "，劈成两页" if c["seam"] else ""))
+        n = store.put_sheet_pages(paper, sheet_id, [c["path"] for c in cuts])
+        log("✓ 切出 %d 页答题卡，已存好" % n)
+        log("   （这一轮到此为止 —— 读批改结果还没做，"
+            "页面上先能看到原图）")
+        with LOCK:
+            JOBS[jid].update(state="done", step="完成", n=n)
+    except Exception as e:                                    # noqa: BLE001
+        with LOCK:
+            JOBS[jid].update(state="error", err=str(e), err_code="sheetcut")
+        log("✗ 出错：%s" % e)
+
+
+@app.post("/api/answer-sheets")
+async def sheet_upload(paper: str = Form(...),
+                       student: str = Form(default=""),
+                       files: list[UploadFile] = File(...),
+                       user=Depends(current_user)):
+    """
+    传一份**已批改的**答题卡，挂到一份已经读出参考答案的卷子上。
+
+    和 `/api/answer-papers` 分开是有理由的：那个入口建的是**卷子**（一份卷子
+    一套标准答案），这个入口建的是**一份卡**（一个学生一次作答），一份卷子
+    可以挂多份卡。合在一起的话「这次是新建卷子还是加一个学生」会变成一个
+    藏在参数里的模式开关，而两条路的闸门口径完全不同。
+
+    闸门在 `sheet_upload_gate`，**排在读文件之前**：被挡掉的那次不该已经
+    把几十兆字节读进内存、更不该落盘。
+    """
+    sheet_upload_gate(paper, user["id"])
+    if not files:
+        raise HTTPException(400, "一张答题卡都没有")
+    names = [safe_image_name(f.filename) for f in files]
+    blobs = [await f.read() for f in files]
+    total = sum(len(b) for b in blobs)
+    if total > 80 * 1024 * 1024:
+        raise HTTPException(413, "加起来超过 80 MB")
+
+    jid = uuid.uuid4().hex[:12]
+    os.makedirs(UPLOADS, exist_ok=True)
+    on_disk = []
+    for i, (fn, data) in enumerate(zip(names, blobs), 1):
+        p = os.path.join(UPLOADS, "%s_sheet_%02d_%s" % (jid, i, fn))
+        with open(p, "wb") as f:
+            f.write(data)
+        on_disk.append(p)
+
+    # **先建卡拿到 id，再按 id 存料。** 反过来的话没有 id 可用，只能存成卷子级的
+    # 路径，第二个学生就会覆盖第一个学生的原图（见 store.sheet_page_path）
+    sid = store.create_sheet(paper, student.strip() or None, user["id"])
+    with LOCK:
+        JOBS[jid] = {"state": "running", "step": "排队中", "name": paper,
+                     "owner_id": user["id"], "sheet": sid,
+                     "log": ["收到 %d 张答题卡（%.1f MB）"
+                             % (len(on_disk), total / 1048576)]}
+    threading.Thread(target=run_sheet_pipeline,
+                     args=(jid, paper, sid, on_disk, user["id"]),
+                     daemon=True).start()
+    return {"job": jid, "sheet": sid, "paper": paper}
+
+
+@app.get("/api/sheets/{sid}/img/{fn}")
+def sheet_image(sid: int, fn: str, user=Depends(current_user)):
+    """
+    一份答题卡的原图页与逐题切片。
+
+    **单独一条路由，因为鉴权对象是卡不是卷。** 现有那三条
+    （`page/{n}`、`mathimg/{fn}`、`img/{fn}`）把前缀写死在路径里，
+    `sheet/` 开头的一条都取不出来 —— 切片会 404，而「原图切片挨着判定」
+    是这个功能唯一的红绿灯。
+    """
+    if "/" in fn or ".." in fn:
+        raise HTTPException(400, "非法路径")
+    name, owner = store.sheet_owner(sid)
+    if not name or owner != user["id"]:
+        raise HTTPException(404, "没有这份答题卡")
+    return send(name, store.find_asset(name, "sheet/%d/%s" % (sid, fn)))
 
 
 def active_job_for(name):

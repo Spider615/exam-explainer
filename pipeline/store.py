@@ -800,6 +800,60 @@ def set_sheet_pages(sheet_id, n):
         c.commit()
 
 
+def sheet_page_path(sheet_id, page):
+    """
+    这一页答题卡原图的 `rel_path`。
+
+    **按卡分目录，不按卷子。** 一份卷子挂多份答题卡（一个学生一份），
+    而原来 `stash.py` 存的是卷子级的 `sheet/pNN.png` —— 第二个学生会就地覆盖
+    第一个学生的原图，而第一份诊断的 `crop_rel` 还指着那个路径，
+    于是页面上第一个学生的「原图切片」显示的是第二个学生的作答。
+    **红绿灯指错了人，比没有红绿灯更糟。**
+
+    前缀仍是 `sheet/`，`put_asset` 按 `rel_path.split("/")[0]` 推 `kind`，
+    所以分类不变。
+    """
+    return "sheet/%d/p%02d.png" % (sheet_id, page)
+
+
+def sheet_pages(sheet_id):
+    """这份答题卡存了哪几页，按页序。"""
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""SELECT a.rel_path FROM assets a
+                         JOIN answer_sheets s ON s.paper_id = a.paper_id
+                        WHERE s.id=%s AND a.rel_path LIKE %s
+                        ORDER BY a.rel_path""",
+                    (sheet_id, "sheet/%d/p%%" % sheet_id))
+        return [r[0] for r in cur.fetchall()]
+
+
+def put_sheet_pages(paper_name, sheet_id, local_paths):
+    """
+    整卡替换这份答题卡的页图，返回存了几页。
+
+    **旧页要连 `assets` 行一起删干净。** 上次传 3 页这次传 2 页的话，
+    上次的 `p03.png` 还在库里，Ⓑ 会把上一次那张（可能是拍歪重传前的，
+    也可能是上一个学生的）当成这次的读进来 —— 而它看起来和正常的一页
+    毫无区别。
+    """
+    rels = []
+    for i, p in enumerate(local_paths, 1):
+        rel = sheet_page_path(sheet_id, i)
+        put_page_asset(paper_name, p, rel)
+        rels.append(rel)
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""DELETE FROM assets a USING answer_sheets s
+                        WHERE s.paper_id = a.paper_id AND s.id=%s
+                          AND a.rel_path LIKE %s AND a.rel_path <> ALL(%s)""",
+                    (sheet_id, "sheet/%d/p%%" % sheet_id, rels))
+        cur.execute("UPDATE answer_sheets SET n_pages=%s, updated_at=now() "
+                    "WHERE id=%s", (len(rels), sheet_id))
+        c.commit()
+    return len(rels)
+
+
 def set_sheet_total(sheet_id, total):
     """
     卷子上印的总分（实测 58.5）。Ⓑc 单独读，用来对 Σscore_got。
