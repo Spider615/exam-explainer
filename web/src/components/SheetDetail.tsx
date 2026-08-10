@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getSheet } from '../api'
+import { getSheet, regrade } from '../api'
 import RichText from './RichText'
 import type { Sheet, SheetRow, Verdict, VerdictBy } from '../types'
 
@@ -148,7 +148,7 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
         </div>
       )}
 
-      {s.rows.map((r) => <Row key={r.n} r={r} />)}
+      {s.rows.map((r) => <Row key={r.n} r={r} sheet={s.id} onChanged={load} />)}
 
       {s.pages.length > 0 && (
         <details className="sheet-pages">
@@ -175,8 +175,36 @@ function showN(n: number) {
   return n >= 100 ? `${Math.floor(n / 100)}(${n % 100})` : String(n)
 }
 
-function Row({ r }: { r: SheetRow }) {
+function Row({ r, sheet, onChanged }: {
+  r: SheetRow
+  sheet: number
+  onChanged: () => void
+}) {
   const v = r.verdict || 'unsure'
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const change = async (next: Verdict | null) => {
+    // 半对是几分推不出来，得问一句。对/错后端按满分和 0 推，不用打扰老师
+    let score: number | undefined
+    if (next === 'partial') {
+      const got = window.prompt(
+        `第 ${showN(r.n)} 题改判为「半对」——得几分？（满分 ${r.scoreFull ?? '?'} 分）`)
+      if (got == null) return
+      const num = Number(got)
+      if (!Number.isFinite(num)) { setErr('分数要填一个数'); return }
+      score = num
+    }
+    setBusy(true); setErr(null)
+    try {
+      await regrade(sheet, r.n, next, score)
+      onChanged()
+    } catch (e) {
+      setErr(String(e))
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
     <section className={`srow srow-${v}`} id={`q${r.n}`} tabIndex={-1}>
       <h3>
@@ -250,6 +278,28 @@ function Row({ r }: { r: SheetRow }) {
           )}
         </dl>
       </div>
+
+      {/* 改判。**分数跟着一起改** —— 只改判定的话页面会显示「对 · 0 分（满分 3 分）」，
+          而薄弱知识点按丢分排，那条改判等于没改 */}
+      <div className="srow-fix">
+        <span className="dim">改判为</span>
+        {(['right', 'partial', 'wrong', 'blank'] as Verdict[]).map((k) => (
+          <button key={k} disabled={busy || v === k} onClick={() => change(k)}>
+            {MARK[k]} {WORD[k]}
+          </button>
+        ))}
+        {r.teacherVerdict && (
+          <>
+            <button disabled={busy} onClick={() => change(null)}>撤回改判</button>
+            {/* 原判留着、也说出来 —— 老师才知道自己改掉了什么，而且撤得回来 */}
+            <span className="dim">
+              系统原判是「{r.sysVerdict ? WORD[r.sysVerdict] : '说不清'}
+              {r.sysScoreGot != null && ` · ${r.sysScoreGot} 分`}」
+            </span>
+          </>
+        )}
+      </div>
+      {err && <div className="banner bad">{err}</div>}
 
       {r.refSolution && (
         <details className="srow-sol">

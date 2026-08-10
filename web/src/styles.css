@@ -567,3 +567,6 @@ td.prg{white-space:nowrap}
 .sheet-pages{margin:22px 0}
 .sheet-pages img{max-width:100%;margin:8px 0;border:1px solid var(--hair);
   border-radius:6px}
+.srow-fix{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:12px;
+  padding-top:10px;border-top:1px dashed var(--hair);font-size:13px}
+.srow-fix button{font-size:13px;padding:2px 10px}

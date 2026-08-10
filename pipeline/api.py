@@ -1330,11 +1330,18 @@ def sheet_detail(sid: int, user=Depends(current_user)):
             "n": a["n"], "bound": a["question_id"] is not None,
             "answer": a["raw_text"], "markRaw": a["mark_raw"],
             "red": a["teacher_red"], "readConf": a["read_conf"],
-            "scoreGot": _num(a["score_got"]), "scoreFull": _num(a["score_full"]),
+            # **下发改判后的分数，不是系统原分。** 发原分的话，老师改判成
+            # 「对」之后页面还写着「对 · 0 分（满分 3 分）」—— 而这一整条
+            # 正是为了消灭这种自相矛盾
+            "scoreGot": _num(a["final_score_got"]),
+            "scoreFull": _num(a["score_full"]),
             "verdict": a["final_verdict"], "verdictBy": a["verdict_by"],
             "verdictWhy": a["verdict_why"],
-            # 老师改判过没有。页面要分得出「系统判的」和「老师改的」
+            # 老师改判过没有，以及系统原来判的是什么。**两样都要给** ——
+            # 页面要分得出「系统判的」和「你改的」，而且要说得出原判是什么，
+            # 老师才知道自己改掉了什么
             "teacherVerdict": a["teacher_verdict"],
+            "sysVerdict": a["verdict"], "sysScoreGot": _num(a["score_got"]),
             "crop": ("/api/sheets/%d/%s" % (sid, a["crop_rel"].split("/", 2)[-1])
                      if a["crop_rel"] else None),
             "refAnswer": q and q.get("ref_answer"),
@@ -1356,6 +1363,32 @@ def sheet_detail(sid: int, user=Depends(current_user)):
             "job": next((dict(j, id=i) for i, j in reversed(list(JOBS.items()))
                          if j.get("sheet") == sid
                          and j.get("state") in ("running", "solving")), None)}
+
+
+@app.post("/api/sheets/{sid}/questions/{n}/regrade")
+def regrade(sid: int, n: int, body: dict = Body(...), user=Depends(current_user)):
+    """
+    老师改判一道题。`{"verdict": "right"|"partial"|..., "score": 数字?}`，
+    `verdict=null` 表示撤回改判。
+
+    **判定和分数一起改**（见 `store.set_teacher_verdict`）—— 只改判定的话
+    页面会显示「对 · 0 分（满分 3 分）」，而薄弱知识点按丢分率排，
+    那条改判完全无效。
+
+    **改判之后诊断标为过期，不自动重跑。** 重跑要花钱花时间，
+    而老师可能连着改好几道。页面上配一个「重新诊断」按钮由他决定什么时候跑。
+    """
+    name, owner = store.sheet_owner(sid)
+    if not name or owner != user["id"]:
+        raise HTTPException(404, "没有这份答题卡")
+    v = body.get("verdict")
+    try:
+        store.set_teacher_verdict(sid, n, v, score_got=body.get("score"))
+    except ValueError as e:
+        # store 那边的话都是能照着做的（「半对必须给分数」「这份卡里没有第 N 题」），
+        # 原样传出去，别糊成一句「改判失败」
+        raise HTTPException(400, str(e))
+    return {"ok": True, "n": n, "verdict": v}
 
 
 @app.get("/api/sheets/{sid}/img/{fn}")

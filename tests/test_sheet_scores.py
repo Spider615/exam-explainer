@@ -46,10 +46,18 @@ def test_写入端挡得住拼错的来源(db):
 
 
 def test_老师改得出半对(db):
+    """
+    `partial` 在白名单里 —— 加这个值之前，老师根本改不出「半对」。
+
+    改判成半对**必须同时给分数**（半对是几分推不出来，猜一个就是编数据），
+    这条规矩在 `tests/test_sheet_regrade.py` 里单独守着。
+    """
     sid = _card("分数用改判卷")
-    store.put_sheet_answer(sid, 1, verdict="wrong", verdict_by="teacher_score")
-    store.set_teacher_verdict(sid, 1, "partial")
-    assert store.sheet_answers(sid)[0]["final_verdict"] == "partial"
+    store.put_sheet_answer(sid, 1, verdict="wrong", verdict_by="teacher_score",
+                           score_got=0, score_full=2)
+    store.set_teacher_verdict(sid, 1, "partial", score_got=1)
+    r = store.sheet_answers(sid)[0]
+    assert r["final_verdict"] == "partial" and float(r["final_score_got"]) == 1
 
 
 def test_分数存得下小数(db):

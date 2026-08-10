@@ -952,28 +952,62 @@ def sheet_answers(sheet_id):
                               read_conf, reread, reread_raw,
                               verdict, verdict_by, verdict_why, teacher_verdict,
                               score_got, score_full, mark_raw, teacher_red, scored_at,
-                              COALESCE(teacher_verdict, verdict) AS final_verdict
+                              teacher_score_got,
+                              COALESCE(teacher_verdict, verdict) AS final_verdict,
+                              -- **只在这里 COALESCE 一次。** 让每个调用点各写一份
+                              -- 总会漏掉一个，漏掉的那个表现为「老师改了判，
+                              -- 某个地方还显示旧结果」——api.ts 那次 401 广播
+                              -- 就是这个教训
+                              COALESCE(teacher_score_got, score_got) AS final_score_got
                          FROM sheet_answers WHERE sheet_id=%s ORDER BY n""",
                     (sheet_id,))
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, r)) for r in cur.fetchall()]
 
 
-def set_teacher_verdict(sheet_id, n, verdict):
+def set_teacher_verdict(sheet_id, n, verdict, score_got=None):
     """
-    老师改判。`verdict=None` 表示撤回改判，退回系统原判。
+    老师改判。`verdict=None` 表示撤回改判，退回系统原判（分数也一起退回）。
 
-    **不碰 verdict 那一列。** 留着原判才看得出系统错在哪，也才撤得回来。
+    **不碰 `verdict` / `score_got` 那两列。** 留着原判和原分才看得出系统错在哪，
+    也才撤得回来；改判的值存进 `teacher_verdict` / `teacher_score_got`。
+
+    **判定和分数必须一起改。** 只改判定的话，页面会显示「对 · 0 分（满分 3 分）」，
+    而薄弱知识点是按丢分率排的 —— 那条改判**完全无效**，这个知识点照样背着
+    3 分的丢分挂在榜首。
+
+    `score_got` 不给时按判定推：`right` 是满分、`wrong` 是 0。
+    **`partial` 推不出来，必须显式给** —— 猜一个就是编数据。
+    （老师在页面上点「改判为对」不该被逼着再填一次分数，所以前两种要能推。）
+
+    **命中 0 行当场抛。** 静默成功是最坏的：老师以为改好了，刷新回来还是老样子，
+    而他不会怀疑「那道题号根本不在这份卡上」。抛之前也不许 touch
+    `updated_at` —— 那是「诊断过没过期」的判据，没改成就不该动它。
     """
     # 报错文案由 verdicts 那份清单拼出来，**不在这里抄第二遍** ——
     # 抄一份的话，加值时必然漏改它，而那时候报错本身会说谎
     if verdict is not None:
         verdicts.check(verdict)
+    if verdict == "partial" and score_got is None:
+        raise ValueError("改判成「半对」必须同时给分数 —— 半对是几分推不出来，"
+                         "猜一个就是编数据")
     with connect() as c:
-        c.execute("UPDATE sheet_answers SET teacher_verdict=%s WHERE sheet_id=%s AND n=%s",
-                  (verdict, sheet_id, n))
-        # 诊断过没过期靠它判，所以改判必须 touch
-        c.execute("UPDATE answer_sheets SET updated_at=now() WHERE id=%s", (sheet_id,))
+        cur = c.cursor()
+        if verdict is None:
+            cur.execute("""UPDATE sheet_answers
+                              SET teacher_verdict=NULL, teacher_score_got=NULL
+                            WHERE sheet_id=%s AND n=%s""", (sheet_id, n))
+        else:
+            cur.execute("""UPDATE sheet_answers SET teacher_verdict=%s,
+                             teacher_score_got = COALESCE(%s,
+                               CASE WHEN %s='right' THEN score_full
+                                    WHEN %s='wrong' THEN 0 END)
+                            WHERE sheet_id=%s AND n=%s""",
+                        (verdict, score_got, verdict, verdict, sheet_id, n))
+        if not cur.rowcount:
+            raise ValueError("这份答题卡里没有第 %s 题，改判没写进去" % n)
+        # 诊断过没过期靠它判，所以改判必须 touch —— 但只有真改了才 touch
+        cur.execute("UPDATE answer_sheets SET updated_at=now() WHERE id=%s", (sheet_id,))
         c.commit()
 
 
@@ -1003,9 +1037,13 @@ def list_sheets(paper_name):
                                 AND COALESCE(a.teacher_verdict, a.verdict)='partial'),
                               (SELECT COALESCE(sum(
                                  CASE WHEN COALESCE(a.teacher_verdict, a.verdict)='right'
-                                      THEN 0 ELSE a.score_full - a.score_got END), 0)
+                                      THEN 0
+                                      ELSE a.score_full
+                                           - COALESCE(a.teacher_score_got, a.score_got)
+                                 END), 0)
                                  FROM sheet_answers a WHERE a.sheet_id=s.id
-                                  AND a.score_full IS NOT NULL AND a.score_got IS NOT NULL
+                                  AND a.score_full IS NOT NULL
+                                  AND COALESCE(a.teacher_score_got, a.score_got) IS NOT NULL
                                   AND COALESCE(a.teacher_verdict, a.verdict) IN (%s))
                          FROM answer_sheets s JOIN papers p ON p.id=s.paper_id
                         WHERE p.name=%%s ORDER BY s.created_at DESC""" % counted,

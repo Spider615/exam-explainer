@@ -347,6 +347,9 @@ export interface SheetRow {
   verdictWhy: string | null
   /** 老师改判过没有。null = 没改过，显示的是系统原判 */
   teacherVerdict: Verdict | null
+  /** 系统原来判的是什么。改判之后要说得出「你改掉了什么」，而且撤得回来 */
+  sysVerdict: Verdict | null
+  sysScoreGot: number | null
   /** 这道题在原图上的切片。**必须挨着判定显示** —— 老师一眼能校对是唯一的红绿灯 */
   crop: string | null
   refAnswer: string | null

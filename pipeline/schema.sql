@@ -429,3 +429,12 @@ UPDATE sheet_answers a SET scored_at = now()
 -- 在库里和页面上完全同形** —— 前者该让人重传，后者该让人去看原图，
 -- 而页面分不出来就只能都说成「这道题没读出来」。
 ALTER TABLE answer_sheets ADD COLUMN IF NOT EXISTS reads jsonb NOT NULL DEFAULT '{}';
+
+-- 老师改判时给的分数。**单独一列，不覆盖 score_got。**
+-- 留着原判和原分才看得出系统错在哪，也才撤得回来；对外读到的是
+-- COALESCE(teacher_score_got, score_got)，**只在 store.sheet_answers 那一处做**。
+--
+-- 不加这一列的话，改判只改判定不改分数：页面会显示「对 · 0 分（满分 3 分）」，
+-- 而薄弱知识点是按丢分率排的 —— 那条改判完全无效，这个知识点照样背着 3 分
+-- 的丢分挂在榜首。
+ALTER TABLE sheet_answers ADD COLUMN IF NOT EXISTS teacher_score_got numeric;

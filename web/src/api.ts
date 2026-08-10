@@ -1,4 +1,4 @@
-import type { Job, Paper, PaperSummary, Progress, Sheet } from './types'
+import type { Job, Paper, PaperSummary, Progress, Sheet, Verdict } from './types'
 
 /** 会话是 HttpOnly cookie，JS 读不到它，只能靠请求自动带上 */
 const CRED: RequestInit = { credentials: 'include' }
@@ -141,3 +141,20 @@ export function uploadSheet(paper: string, student: string, files: File[]) {
   return fetch('/api/answer-sheets', { ...CRED, method: 'POST', body: fd })
     .then(j<{ job: string; sheet: number; paper: string }>)
 }
+
+/**
+ * 老师改判一道题。`verdict=null` 撤回改判。
+ *
+ * **改判成「半对」必须同时给分数** —— 半对是几分推不出来。
+ * 对/错不用给：后端按满分和 0 推。
+ *
+ * 后端的 detail 要原样显示：那几条都是能照着做的话
+ *（「半对必须给分数」「这份卡里没有第 N 题」），糊成「改判失败」就白写了。
+ */
+export const regrade = (sheet: number, n: number,
+                        verdict: Verdict | null, score?: number) =>
+  fetch(`/api/sheets/${sheet}/questions/${n}/regrade`, {
+    ...CRED, method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ verdict, score }),
+  }).then(j<{ ok: boolean }>)
