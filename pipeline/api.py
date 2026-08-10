@@ -1326,7 +1326,7 @@ def failure_note(name, code, busy):
 # ④ 一题六分钟、⑤ 一道十几分钟，按时间阈值判必然误报「已停止」。
 PIPE_RE = re.compile(
     r"pipeline/(solve|spec|scene|outline|kpmark|refans|refread|pick|speccheck"
-    r"|assemble|ingest|segment|mathvlm)\.py")
+    r"|assemble|ingest|segment|mathvlm|stemread|sheetread)\.py")
 # 而且**跑它的得是个 python**。只按命令行里出没出现过脚本名来判的话，一条
 # 恰好提到了 `pipeline/solve.py` 的 shell 命令（编辑器、别的工具、甚至一次
 # 手敲的 grep）就会被算成「管线在跑」，整份卷子被标成解题中。

@@ -111,3 +111,62 @@ def test_多个空格也不会让短卷名撞上长卷名():
     """
     cmd = "1 /x/.venv/bin/python /x/pipeline/solve.py 期末卷  (2) -x"
     assert not api.pipeline_running("期末卷", cmds=[cmd])
+
+
+def test_在跑判定认得出读题干():
+    """
+    `stemread` 一直漏在 PIPE_RE 外面。Ⓔ 一页要一分钟上下，那几分钟里
+    「这份卷子在跑吗」一律答 false —— 上传闸门是漏的，同一份能同时跑两条。
+    """
+    cmd = "12345 /x/.venv/bin/python /x/pipeline/stemread.py 期末卷 a.png b.png"
+    assert api.PIPE_RE.search(cmd)
+    assert api.pipeline_running("期末卷", cmds=[cmd])
+
+
+def test_在跑判定认得出读答题卡():
+    cmd = ("12345 /x/.venv/bin/python /x/pipeline/sheetread.py 期末卷 "
+           "--sheet 3 a.png b.png")
+    assert api.PIPE_RE.search(cmd)
+    assert api.pipeline_running("期末卷", cmds=[cmd])
+
+
+def test_每个管线脚本都登记进了在跑判定():
+    """
+    **门禁。** 漏登记一个脚本的后果是静默的：那一步跑的那几分钟里
+    `pipeline_running` 一律答 false，上传闸门形同虚设，同一份卷子能同时跑两条，
+    两条链写同一个 work 目录、把模型额度跑两遍。
+
+    判据是「pipeline/ 下所有带 `if __name__ == '__main__'` 的脚本」——
+    有 main 的就是能被 run_step 单独拉起来的，就该在这张表里。
+    """
+    import os
+    d = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "pipeline")
+    runnable = set()
+    for fn in os.listdir(d):
+        if not fn.endswith(".py"):
+            continue
+        src = open(os.path.join(d, fn), encoding="utf-8").read()
+        if "__main__" in src:
+            runnable.add(fn[:-3])
+    # 这几个有 main 但**不是管线步骤**，不该进 PIPE_RE：
+    #   run/store         编排器、库层（api.py 不在此列 —— 它走 uvicorn，没有 main）
+    #   arkshim/clishim/cliask  模型垫片
+    #   mailer/kp/pages   工具
+    #   scenedecl/scenegen      ⑤ 的代码生成器，由 scene.py 在进程内调
+    #   stash/sheetcut    在 api 进程内调，不起子进程，撞不上并跑
+    NOT_PIPELINE = {"run", "store", "arkshim", "clishim", "cliask",
+                    "mailer", "kp", "pages", "scenedecl", "scenegen",
+                    "stash", "sheetcut"}
+    stale = sorted(NOT_PIPELINE - runnable)
+    assert not stale, (
+        "排除名单里这几个已经没有 main 了：%s。留着会让这张表慢慢腐烂成"
+        "一张谁也不敢动的名单，删掉它们。" % "、".join(stale))
+    missing = sorted(runnable - NOT_PIPELINE - {
+        m for m in runnable
+        if api.PIPE_RE.search("pipeline/%s.py" % m)})
+    assert not missing, (
+        "这些脚本能被单独拉起来，但 PIPE_RE 认不出它们：%s。\n"
+        "后果不是报错，是它们跑的那几分钟里上传闸门是漏的。\n"
+        "确认不是管线步骤的话，加进上面那个 NOT_PIPELINE 集合并说明理由。"
+        % "、".join(missing))
