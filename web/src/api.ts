@@ -1,4 +1,4 @@
-import type { Job, Paper, PaperSummary, Progress } from './types'
+import type { Job, Paper, PaperSummary, Progress, Sheet } from './types'
 
 /** 会话是 HttpOnly cookie，JS 读不到它，只能靠请求自动带上 */
 const CRED: RequestInit = { credentials: 'include' }
@@ -121,3 +121,23 @@ export interface DeleteResult { deleted: string[]; missing: string[]; objects: n
 
 export const deletePapers = (names: string[]) =>
   post('/api/papers/delete', { names }).then(j<DeleteResult>)
+
+// ---------------------------------------------------------------- 答题卡（步二）
+
+export const getSheet = (id: number) =>
+  fetch(`/api/sheets/${id}`, CRED).then(j<Sheet>)
+
+/**
+ * 传一份**已批改的**答题卡，挂到一份已经读出参考答案的卷子上。
+ *
+ * 和 uploadAnswerPaper 是两条入口：那个建的是**卷子**（一份卷子一套标准答案），
+ * 这个建的是**一份卡**（一个学生一次作答），一份卷子可以挂多份卡。
+ */
+export function uploadSheet(paper: string, student: string, files: File[]) {
+  const fd = new FormData()
+  fd.append('paper', paper)
+  fd.append('student', student)
+  for (const f of files) fd.append('files', f)
+  return fetch('/api/answer-sheets', { ...CRED, method: 'POST', body: fd })
+    .then(j<{ job: string; sheet: number; paper: string }>)
+}

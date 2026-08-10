@@ -219,3 +219,64 @@ def test_失败也不删已有的作答(db, owner, tmp_path, monkeypatch):
     api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
     api.run_sheet_pipeline(jid, "链用保作答卷", sid, [_screenshot(tmp_path)], owner)
     assert store.sheet_answers(sid)[0]["raw_text"] == "上一次读出来的"
+
+
+# ---------------------------------------------------------------- 详情端点
+
+def test_详情端点把该给的都给了(db, owner, tmp_path, fake_model):
+    """
+    页面上「你写的 X / 标准答案 Y」要并排显示。让前端为了这一栏再拉一次整卷
+    （一两兆）是不划算的，所以标准答案从卷子那边带过来。
+    """
+    _paper("详情用卷", owner)
+    sid = store.create_sheet("详情用卷", "张三", owner)
+    jid = "d" + "0" * 11
+    api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
+    api.run_sheet_pipeline(jid, "详情用卷", sid, [_screenshot(tmp_path)], owner)
+
+    got = api.sheet_detail(sid, user={"id": owner})
+    assert got["student"] == "张三" and got["paper"] == "详情用卷"
+    r = {x["n"]: x for x in got["rows"]}
+    assert r[9]["refAnswer"] == "标准9", "标准答案要跟着一起给"
+    assert r[9]["verdict"] and r[9]["verdictBy"]
+
+
+def test_分数下发成数不是字符串(db, owner, tmp_path, fake_model):
+    """
+    numeric 列回来是 Decimal，json 编不动、前端也不该处理它。
+    不转的话页面上会出现 "1" 和 1 混用，比大小当场出错。
+    """
+    _paper("详情用数卷", owner)
+    sid = store.create_sheet("详情用数卷", "张三", owner)
+    jid = "d" + "1" * 11
+    api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
+    api.run_sheet_pipeline(jid, "详情用数卷", sid, [_screenshot(tmp_path)], owner)
+
+    got = api.sheet_detail(sid, user={"id": owner})
+    assert isinstance(got["total"], float)
+    assert isinstance(got["lost"], float)
+    for r in got["rows"]:
+        assert r["scoreGot"] is None or isinstance(r["scoreGot"], float)
+
+
+def test_详情端点带出这一次跑成什么样(db, owner, tmp_path, fake_model):
+    """页面要按块说「Ⓑb 第 2 页那一遍没读成」，靠的就是这一份"""
+    _paper("详情用记账卷", owner)
+    sid = store.create_sheet("详情用记账卷", "张三", owner)
+    jid = "d" + "2" * 11
+    api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
+    api.run_sheet_pipeline(jid, "详情用记账卷", sid, [_screenshot(tmp_path)], owner)
+
+    got = api.sheet_detail(sid, user={"id": owner})
+    assert got["reads"]["calls"]
+    assert "checksum" in got["reads"]
+
+
+def test_别人的答题卡看不到(db, owner, conn):
+    conn.execute("INSERT INTO users (id, email) VALUES (90599, 'pl2@test.local') "
+                 "ON CONFLICT (id) DO NOTHING")
+    conn.commit()
+    _paper("详情用别人卷", 90599)
+    sid = store.create_sheet("详情用别人卷", "李四", 90599)
+    with pytest.raises(Exception):
+        api.sheet_detail(sid, user={"id": owner})

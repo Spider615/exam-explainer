@@ -1300,6 +1300,64 @@ async def sheet_upload(paper: str = Form(...),
     return {"job": jid, "sheet": sid, "paper": paper}
 
 
+def _num(v):
+    """`numeric` 列回来的是 Decimal，`json` 编不动、前端也不该处理它。"""
+    return None if v is None else float(v)
+
+
+@app.get("/api/sheets/{sid}")
+def sheet_detail(sid: int, user=Depends(current_user)):
+    """
+    一份答题卡的详情：逐题作答 · 判定 · 分数 · 原图切片，加上这一次跑成什么样。
+
+    **标准答案和官方解答从卷子那边带过来**：页面上「你写的 X / 标准答案 Y」
+    要并排显示，让前端再拉一次整卷（一两兆）只为取这一栏是不划算的。
+
+    `reads` 原样下发 —— 里面装着每次子调用的成败、对总分的结果、两遍之间的
+    冲突、题号对不上的整题告警。**页面要按块把它们说出来**：
+    「Ⓑb 第 2 页那一遍没读成」和「这几道题本来就读不出」是两件事。
+    """
+    name, owner = store.sheet_owner(sid)
+    if not name or owner != user["id"]:
+        raise HTTPException(404, "没有这份答题卡")
+    paper = store.get_paper(name) or {"questions": []}
+    ref = {q["n"]: q for q in paper["questions"]}
+    cat = kp.load()
+    rows = []
+    for a in store.sheet_answers(sid):
+        q = ref.get(a["n"]) if a["question_id"] else None
+        rows.append({
+            "n": a["n"], "bound": a["question_id"] is not None,
+            "answer": a["raw_text"], "markRaw": a["mark_raw"],
+            "red": a["teacher_red"], "readConf": a["read_conf"],
+            "scoreGot": _num(a["score_got"]), "scoreFull": _num(a["score_full"]),
+            "verdict": a["final_verdict"], "verdictBy": a["verdict_by"],
+            "verdictWhy": a["verdict_why"],
+            # 老师改判过没有。页面要分得出「系统判的」和「老师改的」
+            "teacherVerdict": a["teacher_verdict"],
+            "crop": ("/api/sheets/%d/%s" % (sid, a["crop_rel"].split("/", 2)[-1])
+                     if a["crop_rel"] else None),
+            "refAnswer": q and q.get("ref_answer"),
+            "refSolution": q and q.get("ref_solution"),
+            "kps": [{"code": k["code"], "why": k.get("why", ""),
+                     "name": cat[k["code"]]["name"] if k["code"] in cat else k["code"],
+                     "chapter": cat[k["code"]]["chapter"] if k["code"] in cat else ""}
+                    for k in ((q or {}).get("kps") or [])],
+        })
+    meta = next((s for s in store.list_sheets(name) if s["id"] == sid), {})
+    return {"id": sid, "paper": name, "student": meta.get("student"),
+            "nPages": meta.get("nPages"), "total": _num(meta.get("total")),
+            "answers": meta.get("answers"), "wrong": meta.get("wrong"),
+            "partial": meta.get("partial"), "lost": _num(meta.get("lost")),
+            "pages": ["/api/sheets/%d/%s" % (sid, p.split("/", 2)[-1])
+                      for p in store.sheet_pages(sid)],
+            "reads": store.sheet_reads(sid),
+            "rows": rows,
+            "job": next((dict(j, id=i) for i, j in reversed(list(JOBS.items()))
+                         if j.get("sheet") == sid
+                         and j.get("state") in ("running", "solving")), None)}
+
+
 @app.get("/api/sheets/{sid}/img/{fn}")
 def sheet_image(sid: int, fn: str, user=Depends(current_user)):
     """

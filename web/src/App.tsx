@@ -6,6 +6,7 @@ import PaperView from './components/PaperView'
 import SheetList from './components/SheetList'
 import SheetUpload from './components/SheetUpload'
 import SheetView from './components/SheetView'
+import SheetDetail from './components/SheetDetail'
 import Upload, { clearSavedJob } from './components/Upload'
 import type { PaperSummary } from './types'
 
@@ -15,24 +16,32 @@ type Mode = 'paper' | 'sheet'
  * 从地址读「哪个模式、开着哪份卷子」。
  *
  * `#/paper/<卷名>` `#/sheet/<卷名>`；只有模式时不开卷子。
+ * 答题卡模式多一层：`#/sheet/<卷名>/s<卡号>` 打开某一份学生的答题卡。
+ * 卡号带 `s` 前缀，免得和卷名里可能出现的数字段混起来。
  * **老地址 `#/p/<卷名>` 要继续能开** —— 直接失效是不可接受的，
  * 那些链接可能已经发出去了。命中时先当解析试卷开着，
  * 拿到整卷数据知道它真正的模式后再把地址换过去。
  */
-function readHash(): { mode: Mode; open: string | null; legacy: boolean } {
+function readHash(): {
+  mode: Mode; open: string | null; sheet: number | null; legacy: boolean
+} {
   const h = window.location.hash
-  let m = /^#\/(paper|sheet)(?:\/(.+))?$/.exec(h)
+  let m = /^#\/sheet\/(.+)\/s(\d+)$/.exec(h)
+  if (m) return { mode: 'sheet', open: decodeURIComponent(m[1]),
+                  sheet: Number(m[2]), legacy: false }
+  m = /^#\/(paper|sheet)(?:\/(.+))?$/.exec(h)
   if (m) return { mode: m[1] as Mode, open: m[2] ? decodeURIComponent(m[2]) : null,
-                  legacy: false }
+                  sheet: null, legacy: false }
   m = /^#\/p\/(.+)$/.exec(h)
-  if (m) return { mode: 'paper', open: decodeURIComponent(m[1]), legacy: true }
-  return { mode: 'paper', open: null, legacy: false }
+  if (m) return { mode: 'paper', open: decodeURIComponent(m[1]), sheet: null,
+                  legacy: true }
+  return { mode: 'paper', open: null, sheet: null, legacy: false }
 }
 
 export default function App() {
   const [rows, setRows] = useState<PaperSummary[]>([])
   const [route, setRoute] = useState(readHash)
-  const { mode, open } = route
+  const { mode, open, sheet } = route
 
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
@@ -66,8 +75,16 @@ export default function App() {
     window.location.hash = name
       ? `/${next}/${encodeURIComponent(name)}` : `/${next}`
     if (next !== modeRef.current) clearModeResidue()
-    setRoute({ mode: next, open: name, legacy: false })
+    setRoute({ mode: next, open: name, sheet: null, legacy: false })
   }, [clearModeResidue])
+
+  /** 打开/关掉某一份答题卡。地址要跟着变，刷新和分享才回得到同一屏 */
+  const goSheet = useCallback((name: string, id: number | null) => {
+    window.location.hash = id
+      ? `/sheet/${encodeURIComponent(name)}/s${id}`
+      : `/sheet/${encodeURIComponent(name)}`
+    setRoute({ mode: 'sheet', open: name, sheet: id, legacy: false })
+  }, [])
 
   /**
    * 登录态。三个值不能合并成一个布尔：`undefined` 是「还没问过后端」。
@@ -197,7 +214,11 @@ export default function App() {
       </nav>
 
       {open ? (
-        mode === 'sheet' ? <SheetView name={open} /> : <PaperView name={open} />
+        mode === 'sheet' ? (
+          sheet != null
+            ? <SheetDetail id={sheet} onBack={() => goSheet(open, null)} />
+            : <SheetView name={open} onOpenSheet={(id) => goSheet(open, id)} />
+        ) : <PaperView name={open} />
       ) : mode === 'sheet' ? (
         <>
           <SheetUpload onDone={(n, o) => { refresh(); if (o) go('sheet', n) }} />

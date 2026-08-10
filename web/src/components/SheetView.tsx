@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ApiError, getPaper, getProgress } from '../api'
 import AnswerQuestionCard, { mainOf } from './AnswerQuestionCard'
 import { fmtDur } from '../fmt'
+import Sheets from './Sheets'
 import type { Paper, Progress } from '../types'
 
 /**
@@ -11,7 +12,11 @@ import type { Paper, Progress } from '../types'
  * 没有「n 张图为动画」，页脚那句免责也完全不同 —— 这边的标准答案和解答过程
  * 来自老师给的参考答案，**不是 AI 生成的**，AI 生成的只有知识点标签。
  */
-export default function SheetView({ name }: { name: string }) {
+export default function SheetView({ name, onOpenSheet }: {
+  name: string
+  /** 点开一份答题卡 */
+  onOpenSheet: (id: number) => void
+}) {
   const [paper, setPaper] = useState<Paper | null>(null)
   const [pg, setPg] = useState<Progress | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -212,6 +217,12 @@ export default function SheetView({ name }: { name: string }) {
             : '要挂上得有题干：把原卷传进「原卷」那一栏，重新上传一次就会连题干一起读。'}
         </div>
       )}
+
+      {/* 这份卷子下面的答题卡。**按卡画，不占上面那排格子** —— 一份卷子可以挂
+          多份卡（一个学生一份），而那排格子是按卷子算的，装不下「哪一份卡读到
+          第几题」；更糟的是没传答题卡的卷子会永远走不到「已完成」。
+          详见 pipeline/modes.py 里 _stage_of_sheet 的说明 */}
+      <Sheets paper={name} rows={paper.sheets ?? []} onOpen={onOpenSheet} />
 
       {/* **按大题分组，不逐小问渲染。** 第 13 题的 4 个小问共用同一段题干、
           同一张原卷截图 —— 逐条渲染的话那张整页宽的截图会被重复贴 4 遍，

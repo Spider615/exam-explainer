@@ -507,3 +507,63 @@ td.prg{white-space:nowrap}
 .acard dl.sub:first-of-type{border-top:0;padding-top:0;margin-top:0}
 .acard .sub-n{font-family:var(--math);font-size:14px;color:var(--ink);font-weight:600}
 .acard-nosol{margin:10px 0 0;color:var(--ink3);font-size:13px}
+
+/* ---------------------------------------------------------------- 答题卡（步二） */
+/* 颜色一律走调色板变量。写死浅色在暗色主题下会瞎 —— 这个文件顶上就有一整套
+   `prefers-color-scheme: dark` 的覆盖，绕过它等于只做了一半 */
+
+.sheets{margin:28px 0;padding-top:18px;border-top:1px solid var(--hair)}
+.sheets h3{margin:0 0 10px;font-size:15px}
+.sheets .dim{color:var(--ink3);font-size:14px}
+.sheet-tbl{width:100%;border-collapse:collapse;font-size:14px}
+.sheet-tbl th{text-align:left;font-weight:500;color:var(--ink3);
+  padding:6px 8px;border-bottom:1px solid var(--line)}
+.sheet-tbl td{padding:8px;border-bottom:1px solid var(--hair)}
+.sheet-tbl tbody tr{cursor:pointer}
+.sheet-tbl tbody tr:hover{background:var(--stem)}
+.sheet-up{display:flex;gap:8px;align-items:center;margin:12px 0 6px;flex-wrap:wrap}
+
+.sheet-hd h2{margin:6px 0 12px}
+.sheet-hd h2 small{color:var(--ink3);font-weight:400;font-size:14px}
+
+/* 逐题速览。**半对是 ◐，自己一档** —— 归到 ✓ 会让人以为这块掌握了，
+   归到 ✗ 会让「一分没得」和「差一点」看起来一样严重 */
+.glance{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 20px}
+.gl{display:inline-flex;align-items:baseline;gap:3px;padding:3px 8px;
+  border-radius:6px;font-size:13px;text-decoration:none;
+  border:1px solid var(--line);color:var(--ink)}
+.gl i{font-style:normal;color:var(--ink3);font-size:11px}
+.gl-right{background:var(--cy2);border-color:var(--cy)}
+.gl-partial{background:var(--acc2);border-color:var(--acc)}
+.gl-wrong{background:var(--red2);border-color:var(--red)}
+.gl-blank{background:transparent}
+.gl-unsure{background:transparent;border-style:dashed}
+
+.srow{margin:18px 0;padding:14px 16px;border:1px solid var(--hair);
+  border-radius:10px;background:var(--panel)}
+.srow-wrong{border-left:3px solid var(--red)}
+.srow-partial{border-left:3px solid var(--acc)}
+.srow-right{border-left:3px solid var(--cy)}
+.srow h3{margin:0 0 10px;font-size:15px;display:flex;gap:10px;
+  align-items:baseline;flex-wrap:wrap}
+.srow h3 em{font-style:normal;font-size:13px;font-weight:400}
+.srow h3 .v-right{color:var(--cy)}
+.srow h3 .v-partial{color:var(--acc)}
+.srow h3 .v-wrong{color:var(--red)}
+.srow h3 .score{color:var(--ink2)}
+.srow h3 .by{color:var(--ink3);border:1px solid var(--line);
+  border-radius:4px;padding:1px 6px}
+/* 原图切片**挨着判定**，不藏进二级页面 —— 老师一眼能校对是唯一的红绿灯 */
+.srow-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);
+  gap:16px;align-items:start}
+@media (max-width:720px){.srow-body{grid-template-columns:1fr}}
+.cropshot{max-width:100%;border:1px solid var(--hair);border-radius:6px}
+.srow dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;
+  margin:0;font-size:14px}
+.srow dt{color:var(--ink3)}
+.srow dd{margin:0}
+.srow .dim{color:var(--ink3)}
+.srow-sol{margin-top:10px;font-size:14px}
+.sheet-pages{margin:22px 0}
+.sheet-pages img{max-width:100%;margin:8px 0;border:1px solid var(--hair);
+  border-radius:6px}

@@ -162,6 +162,14 @@ export interface Paper {
   /** 这份卷子此刻在不在跑。非空时试卷页顶部画进度带 */
   job?: JobBrief | null
   coverage: { solved: number; failed: number; total: number }
+  /**
+   * 这份卷子下面的答题卡（一个学生一份，可以有多份）。
+   * **只有答题卡模式才有这一栏** —— 解析试卷压根没有这回事。
+   *
+   * 答题卡的进度和失败画在**卡**上，不占上面那排格子：那排是按卷子算的，
+   * 装不下「哪一份卡读到第几题」，而且没传答题卡的卷子会永远走不到「已完成」。
+   */
+  sheets?: SheetBrief[]
 }
 
 /** 从库里算出来的进度。谁跑的都算得出来——命令行跑的、服务重启过的，一样可见 */
@@ -290,4 +298,79 @@ export interface Job {
   warnings?: string[]
   err?: string
   log: string[]
+}
+
+// ---------------------------------------------------------------- 答题卡（步二）
+
+/** 判定。**`partial` 是这一轮新增的**，页面上用 ◐，不许混进 ✓ 也不许混进 ✗ */
+export type Verdict = 'right' | 'partial' | 'wrong' | 'blank' | 'unsure'
+
+/**
+ * 谁判的。可信度差一个量级，页面必须分得出来：
+ *   teacher_score 照卷子上印的得分判（最可信）
+ *   teacher_mark  照红勾红叉判（读不到得分时退回这条）
+ *   teacher       老师在页面上改判的
+ */
+export type VerdictBy = 'teacher_score' | 'teacher_mark' | 'code' | 'model' | 'teacher'
+
+/** 一份答题卡在卷子详情页上的一行 */
+export interface SheetBrief {
+  id: number
+  student: string | null
+  nPages: number
+  created_at: string
+  updated_at: string
+  /** 卷子上印的总分。null = 没读到 */
+  total: number | null
+  answers: number
+  wrong: number
+  /** 半对几道。**和 wrong 分开数** —— 合在一起，8 道半对的卡会显示「错 2 道」 */
+  partial: number
+  /** 丢了多少分。薄弱知识点按它排，所以卡片上显示的也该是它 */
+  lost: number | null
+}
+
+export interface SheetRow {
+  n: number
+  /** 挂到卷子上的题没有。false = 小问编号对不上，页面要单独列出来请人认 */
+  bound: boolean
+  answer: string | null
+  markRaw: string | null
+  /** 老师在旁边红笔写的正确答案（实测题 6 写了 BC）。白捡的第三份对照 */
+  red: string | null
+  readConf: string | null
+  scoreGot: number | null
+  scoreFull: number | null
+  verdict: Verdict | null
+  verdictBy: VerdictBy | null
+  /** 为什么这么判。页面要显示 —— 判定的可信度全靠它 */
+  verdictWhy: string | null
+  /** 老师改判过没有。null = 没改过，显示的是系统原判 */
+  teacherVerdict: Verdict | null
+  /** 这道题在原图上的切片。**必须挨着判定显示** —— 老师一眼能校对是唯一的红绿灯 */
+  crop: string | null
+  refAnswer: string | null
+  refSolution: string | null
+  kps: KnowledgePoint[]
+}
+
+/** 这一次 Ⓑ 跑成什么样。**页面要按块说出来**，不能只在后台记一笔 */
+export interface SheetReads {
+  calls?: { page: number; pass: string; ok: boolean; seconds: number; rows: number; err: string | null }[]
+  /** [对得上吗, 一句人话] */
+  checksum?: [boolean, string]
+  clashes?: { n: number | null; why: string }[]
+  /** 小问编号对不上的整题告警 */
+  bindWarnings?: { main: number; why: string }[]
+  /** 中途停了的理由。有值说明后面几页根本没读 */
+  aborted?: string | null
+  total?: number | null
+}
+
+export interface Sheet extends SheetBrief {
+  paper: string
+  pages: string[]
+  reads: SheetReads
+  rows: SheetRow[]
+  job: { id: string; state: string; step?: string; pageDone?: number; pageTotal?: number } | null
 }
