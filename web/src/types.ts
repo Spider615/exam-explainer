@@ -359,7 +359,12 @@ export interface SheetRow {
 
 /** 这一次 Ⓑ 跑成什么样。**页面要按块说出来**，不能只在后台记一笔 */
 export interface SheetReads {
-  calls?: { page: number; pass: string; ok: boolean; seconds: number; rows: number; err: string | null }[]
+  calls?: {
+    page: number; pass: string; ok: boolean; seconds: number
+    rows: number; err: string | null
+    /** 第几次跑。>1 说明头一次结果不够用、重跑过 —— 页面要说出来 */
+    attempt?: number
+  }[]
   /** [对得上吗, 一句人话] */
   checksum?: [boolean, string]
   clashes?: { n: number | null; why: string }[]

@@ -352,3 +352,111 @@ def test_丢了几条要说得出来():
     got, dropped = sheetread.strips_report(marks, 1000)
     assert dropped == [11]
     assert [n for ns, _, _ in got for n in ns] == [9, 10, 12, 13, 14]
+
+
+# ---------------------------------------------------------------- 自检不过就重跑
+#
+# 两轮实跑同一份材料，Ⓑa 的输出差别不小：一轮 y 单调、一轮不单调；一轮读出勾叉、
+# 一轮没读。代码侧的容错补齐之后，剩下的不稳定只能靠重跑。
+#
+# **但重跑必须留痕。** 悄悄重跑一次然后当没事发生，等于把「这份材料模型读不稳」
+# 这个事实藏起来——而那正是老师该知道的（换张更清楚的图比重试有用得多）。
+
+class _Model:
+    """
+    按次序返回预设结果，**分得清是哪一遍**。
+
+    桩不分遍的话，Ⓑc 那次（要 object）会拿到给 Ⓑb 的数组，
+    或者反过来 —— 测的就不是要测的东西了。
+    """
+
+    def __init__(self, *a_rounds, b_rounds=(), total=None):
+        self.a = list(a_rounds)
+        self.b = list(b_rounds)
+        self.total = total if total is not None else {"total": 1}
+        self.na = self.nb = self.nc = 0
+
+    def __call__(self, img, prompt, want="object", timeout=240, backend=None):
+        if want == "object":
+            self.nc += 1
+            return dict(self.total)
+        if "一整页" in prompt:
+            self.na += 1
+            return self.a[min(self.na - 1, len(self.a) - 1)]
+        self.nb += 1
+        return (self.b[min(self.nb - 1, len(self.b) - 1)] if self.b
+                else [{"n": "1", "got": 1, "full": 1}])
+
+
+def test_位置读乱得太厉害就重跑一次(monkeypatch, tmp_path):
+    """
+    第一轮 y 全乱（切不出条），第二轮好的 —— 该用第二轮的结果，
+    而不是带着一页空白往下走。
+    """
+    bad = [{"n": str(i), "y": 1 - i * 0.1, "answer": "x"} for i in range(1, 6)]
+    good = [{"n": str(i), "y": i * 0.1, "answer": "x"} for i in range(1, 6)]
+    m = _Model(bad, good)
+    monkeypatch.setattr(sheetread.mathvlm, "ask_raw", m)
+    got = sheetread.read("卷", 1, [_page(tmp_path)], verbose=False)
+    assert any(c["pass"] == "Ⓑa" and c.get("attempt") == 2 for c in got["calls"]), \
+        "该重跑一次"
+    assert got["rows"], "第二轮好的结果该被用上"
+
+
+def test_一条都没读出来也重跑(monkeypatch, tmp_path):
+    # Ⓑb 也回空，免得它往结果里塞进别的题号，把这条测试的意思搅浑
+    m = _Model([], [{"n": "9", "y": 0.5, "answer": "x"}], b_rounds=([],))
+    monkeypatch.setattr(sheetread.mathvlm, "ask_raw", m)
+    got = sheetread.read("卷", 1, [_page(tmp_path)], verbose=False)
+    assert [r["n"] for r in got["rows"]] == [9]
+    assert m.na == 2, "第一遍空手，该重跑一次"
+
+
+def test_只重跑一次不许无限重(monkeypatch, tmp_path):
+    """一直不好就带着已有的结果往下走，别把一份卡的调用烧光"""
+    bad = [{"n": str(i), "y": 1 - i * 0.1, "answer": "x"} for i in range(1, 6)]
+    m = _Model(bad)
+    monkeypatch.setattr(sheetread.mathvlm, "ask_raw", m)
+    got = sheetread.read("卷", 1, [_page(tmp_path)], verbose=False)
+    a_calls = [c for c in got["calls"] if c["pass"] == "Ⓑa"]
+    assert len(a_calls) == 2, "最多两次"
+
+
+def test_第一轮就好就不重跑(monkeypatch, tmp_path):
+    """重跑要花钱花时间，好的时候一次都不该多跑"""
+    good = [{"n": str(i), "y": i * 0.1, "answer": "x"} for i in range(1, 6)]
+    m = _Model(good)
+    monkeypatch.setattr(sheetread.mathvlm, "ask_raw", m)
+    got = sheetread.read("卷", 1, [_page(tmp_path)], verbose=False)
+    assert len([c for c in got["calls"] if c["pass"] == "Ⓑa"]) == 1
+
+
+def test_重跑过要留痕(monkeypatch, tmp_path):
+    """
+    悄悄重跑然后当没事发生，等于把「这份材料模型读不稳」藏起来 ——
+    而那正是老师该知道的（换张更清楚的图比重试有用得多）。
+    """
+    bad = [{"n": str(i), "y": 1 - i * 0.1, "answer": "x"} for i in range(1, 6)]
+    good = [{"n": str(i), "y": i * 0.1, "answer": "x"} for i in range(1, 6)]
+    m = _Model(bad, good)
+    monkeypatch.setattr(sheetread.mathvlm, "ask_raw", m)
+    got = sheetread.read("卷", 1, [_page(tmp_path)], verbose=False)
+    assert any("重跑" in c["why"] for c in got["clashes"]), \
+        "重跑过这件事要出现在页面上"
+
+
+def test_某一条切片空手而归也重跑一次(monkeypatch, tmp_path):
+    """Ⓑb 某一条回 0 行，多半是这一次没读成，不是这几道题没内容"""
+    a = [{"n": str(i), "y": i * 0.1, "answer": "x"} for i in range(1, 6)]
+    m = _Model(a, b_rounds=([], [{"n": "1", "got": 1, "full": 1}]))
+    monkeypatch.setattr(sheetread.mathvlm, "ask_raw", m)
+    got = sheetread.read("卷", 1, [_page(tmp_path)], verbose=False)
+    b_calls = [c for c in got["calls"] if c["pass"] == "Ⓑb"]
+    assert any(c.get("attempt") == 2 for c in b_calls)
+
+
+def _page(tmp_path):
+    from PIL import Image
+    p = tmp_path / "p.png"
+    Image.new("RGB", (540, 750), (250, 250, 250)).save(p)
+    return str(p)

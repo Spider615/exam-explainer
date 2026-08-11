@@ -52,6 +52,9 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
   const reads = s.reads || {}
   const [sumOk, sumWhy] = reads.checksum || [true, '']
   const badCalls = (reads.calls || []).filter((c) => !c.ok)
+  // 重跑过几次。**要说出来** —— 悄悄重跑然后当没事发生，等于把「这份材料
+  // 模型读不稳」藏起来，而那正是老师最该知道的：换一张更清楚的图比重试可靠
+  const retried = (reads.calls || []).filter((c) => (c.attempt ?? 1) > 1)
   const unbound = s.rows.filter((r) => !r.bound)
 
   return (
@@ -102,6 +105,15 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
           {badCalls.map((c) => `第 ${c.page} 页 ${c.pass}`).join('、')}。
           <b>这些题下面显示的「没读出来」不是「学生没写」</b> ——
           是那一遍根本没读到。换清楚一点的图重传一次。
+        </div>
+      )}
+
+      {retried.length > 0 && (
+        <div className="banner">
+          <b>有 {retried.length} 次读取重跑过</b>
+          （{retried.map((c) => `第 ${c.page} 页 ${c.pass}`).join('、')}）——
+          头一次的结果不够用。同一张图两次读得不一样，说明这几页对模型偏难：
+          <b>换一张更清楚的重传，比多重试几次可靠</b>。
         </div>
       )}
 

@@ -343,9 +343,9 @@ def read(paper_name, sheet_id, page_files, known_ns=None,
     os.makedirs(work, exist_ok=True)
     calls = []
 
-    def call(page_i, which, img, prompt, want):
+    def call(page_i, which, img, prompt, want, attempt=1):
         t0 = time.time()
-        rec = {"page": page_i, "pass": which, "ok": False,
+        rec = {"page": page_i, "pass": which, "attempt": attempt, "ok": False,
                "seconds": 0, "rows": 0, "err": None}
         try:
             got = mathvlm.ask_raw(img, prompt, want=want, timeout=900)
@@ -362,14 +362,59 @@ def read(paper_name, sheet_id, page_files, known_ns=None,
             if on_call:
                 on_call(rec)
 
+    def call_twice(page_i, which, img, prompt, want, ok_enough):
+        """
+        跑一次；`ok_enough(结果)` 说不够好就**再跑一次**，用第二次的。
+
+        两轮实跑同一份材料，Ⓑa 的输出差别不小（一轮 y 单调、一轮不单调；
+        一轮读出勾叉、一轮没读）。代码侧的容错补齐之后，剩下的不稳定只能靠重跑。
+
+        **只重一次。** 一直不好就带着已有的结果往下走 —— 无限重会把一份卡的
+        调用烧光，而且第三次好起来的指望不比第二次大。
+
+        **重跑过这件事要留痕**（`attempt=2` 落进 `calls`，页面上说一句）。
+        悄悄重跑然后当没事发生，等于把「这份材料模型读不稳」藏起来 ——
+        而那正是老师最该知道的：换一张更清楚的图，比重试有用得多。
+        """
+        got = call(page_i, which, img, prompt, want)
+        if ok_enough(got):
+            return got, False
+        log("   ↻ 第 %d 页 %s 这一次结果不够用，重跑一次" % (page_i, which))
+        again = call(page_i, which, img, prompt, want, attempt=2)
+        # 第二次也不行的话，用两次里**看起来更完整**的那一份
+        if ok_enough(again) or not got:
+            return again, True
+        return (again if len(again or []) > len(got or []) else got), True
+
     log("共 %d 页要读" % len(page_files))
     all_rows, all_clash = [], []
     for i, pg in enumerate(page_files, 1):
-        a = call(i, "Ⓑa", pg, PROMPT_A, "array") or []
+        h = _height(pg)
+
+        def a_ok(got):
+            """这一轮 Ⓑa 够不够用：读出东西了，而且位置够单调、切得出条。"""
+            if not got:
+                return False
+            ms = [(_qnum(r.get("n")), r.get("y")) for r in got
+                  if _qnum(r.get("n")) is not None]
+            if not ms:
+                return False
+            cuts, drop = strips_report(ms, h)
+            # 切不出条、或者被丢掉的超过两成 —— 位置这一轮读得不行
+            return bool(cuts) and len(drop) <= 0.2 * len(ms)
+
+        a, a_retried = call_twice(i, "Ⓑa", pg, PROMPT_A, "array", a_ok)
+        a = a or []
+        if a_retried:
+            all_clash.append({
+                "n": None,
+                "why": "第 %d 页的第一遍重跑过一次（头一次位置读乱了或者没读出东西）"
+                       " —— 同一张图两次读得不一样，说明这一页对模型偏难，"
+                       "换一张更清楚的重传会比重试可靠" % i})
         marks = [(_qnum(r.get("n")), r.get("y")) for r in a
                  if _qnum(r.get("n")) is not None]
         b = []
-        cut_list, dropped_y = strips_report(marks, _height(pg))
+        cut_list, dropped_y = strips_report(marks, h)
         if dropped_y:
             # **静默丢弃和静默失败一样糟。** 这几道题这一页没跑第二遍，
             # 它们的填涂和得分不是「读不出」，是根本没去读
@@ -382,9 +427,16 @@ def read(paper_name, sheet_id, page_files, known_ns=None,
         for ns, top, bot in cut_list:
             dst = os.path.join(work, "p%02d-%d.png" % (i, top))
             _cut(pg, top, bot, dst)
-            got = call(i, "Ⓑb", dst, PROMPT_B % "、".join(_show(n) for n in ns),
-                       "array")
-            b += got or []
+            got, retried = call_twice(
+                i, "Ⓑb", dst, PROMPT_B % "、".join(_show(n) for n in ns),
+                "array", lambda g: bool(g))
+            if retried:
+                all_clash.append({
+                    "n": None,
+                    "why": "第 %d 页有一条切片重跑过一次（头一次空手而归）" % i})
+            # 只收数组。`want="array"` 已经保证了，但拿到别的东西时
+            # `b += got` 会**静默**把字典的键当成行展开，那种坏法没人看得见
+            b += got if isinstance(got, list) else []
         rows, clash = merge([dict(r, n=_qnum(r.get("n"))) for r in a
                              if _qnum(r.get("n")) is not None],
                             [dict(r, n=_qnum(r.get("n"))) for r in (b or [])
@@ -430,7 +482,8 @@ def read(paper_name, sheet_id, page_files, known_ns=None,
     if page_files:
         dst = os.path.join(work, "total.png")
         _cut(page_files[0], 0, int(_height(page_files[0]) * 0.10), dst)
-        got = call(1, "Ⓑc", dst, PROMPT_C, "object")
+        got, _ = call_twice(1, "Ⓑc", dst, PROMPT_C, "object",
+                            lambda g: bool(g) and g.get("total") is not None)
         total = (got or {}).get("total")
     ok, why = checksum(all_rows, total)
     log(("✓ " if ok else "⚠ ") + why)
