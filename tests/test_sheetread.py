@@ -244,3 +244,68 @@ def test_没有分数的行不进求和():
     """卷子上就没印分数的题，不该被当成 0 分拉低总和"""
     ok, _ = sheetread.checksum([{"n": 9, "got": 3}, {"n": 10}], 3)
     assert ok
+
+
+# ---------------------------------------------------------------- 勾叉两遍都读
+#
+# 2026-08-10 端到端实跑逼出来的：选择题 6/7/8 判成了「说不清」。作答读对了
+# （AC/BC/D），但那三行**没有印分数**，而 Ⓑa 这一次没给出它们的勾叉 —— 退无可退。
+# 1-5 同样没分数却判对了，说明这是模型逐行的不稳定，不是代码路径问题。
+#
+# 治法：**Ⓑb 也报 mark**。它看的是放大 3 倍的条，探针在同一块上勾叉读了 8/8。
+# 两遍都读，合并时谁读到算谁的。
+
+def test_第二遍读到的勾叉能补上第一遍的空():
+    rows, clash = sheetread.merge([{"n": 6, "answer": "AC"}],
+                                  [{"n": 6, "mark": "wrong"}])
+    assert rows[0]["mark"] == "wrong"
+    assert clash == []
+
+
+def test_没看见不许盖过看见了():
+    """
+    `mark: "none"` 是「这一行我没看见批改符号」，不是「这一行确实没有符号」——
+    拿它盖掉另一遍**看见了**的读数，正好把有信息的那条丢了。
+    实跑里 1-5 判对而 6/7/8 说不清，差别就在这一栏。
+    """
+    rows, clash = sheetread.merge([{"n": 7, "mark": "none"}],
+                                  [{"n": 7, "mark": "right"}])
+    assert rows[0]["mark"] == "right"
+    assert clash == [], "「没看见」和「看见了」不算两遍矛盾"
+
+
+def test_反过来也一样():
+    rows, _ = sheetread.merge([{"n": 7, "mark": "right"}],
+                              [{"n": 7, "mark": "none"}])
+    assert rows[0]["mark"] == "right"
+
+
+def test_两遍都看见了但不一样才算矛盾():
+    _, clash = sheetread.merge([{"n": 7, "mark": "right"}],
+                               [{"n": 7, "mark": "wrong"}])
+    assert len(clash) == 1
+
+
+def test_两遍都没看见就还是没看见():
+    rows, _ = sheetread.merge([{"n": 7, "mark": "none"}], [{"n": 7}])
+    assert rows[0]["mark"] == "none"
+
+
+# ---------------------------------------------------------------- 差额要有归属
+
+def test_对不上时点名说哪几道没有分数():
+    """
+    实跑：Σ 差 28 分，而那 28 正好是选择题 1-8 的总分 —— 它们在答题卡上
+    **本来就不印每题得分**。只说「差 28」会让人以为读错了；
+    点名说出「这 8 道没有分数标注」，差额就有了归属。
+    """
+    rows = [{"n": 9, "got": 3}] + [{"n": i} for i in range(1, 9)]
+    ok, why = sheetread.checksum(rows, 31)
+    assert not ok
+    assert "8 道没有分数标注" in why
+    assert "1" in why and "8" in why
+
+
+def test_全都有分数时不说这句多余的话():
+    ok, why = sheetread.checksum([{"n": 9, "got": 3}], 5)
+    assert not ok and "没有分数标注" not in why

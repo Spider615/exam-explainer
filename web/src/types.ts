@@ -363,8 +363,14 @@ export interface SheetReads {
   /** [对得上吗, 一句人话] */
   checksum?: [boolean, string]
   clashes?: { n: number | null; why: string }[]
-  /** 小问编号对不上的整题告警 */
-  bindWarnings?: { main: number; why: string }[]
+  /**
+   * 整题级的题号告警。`kind` 决定页面说哪句话 —— **三种的下一步不一样**：
+   *   mismatch 编号错位（卡上多出一个答案里没有的）→ 请你认一下哪条对哪条
+   *   missing  漏读了几条（卡上的都在答案里）→ 换清楚点的图重传这一页
+   *   whole    卡上是一整块、答案拆成小问 → 正常，标准答案按整题给
+   *   unknown  参考答案里压根没这道大题
+   */
+  bindWarnings?: { main: number; kind?: 'mismatch' | 'missing' | 'whole' | 'unknown'; why: string }[]
   /** 中途停了的理由。有值说明后面几页根本没读 */
   aborted?: string | null
   total?: number | null

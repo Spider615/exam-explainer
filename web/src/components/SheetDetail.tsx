@@ -116,9 +116,18 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
         </div>
       )}
 
+      {/* 三种告警的**下一步不一样**，标题就得不一样：
+          错位 → 请你认一下哪条对哪条；漏读 → 换清楚点的图重传这一页；
+          整题对上 → 这是正常的，只是提醒你标准答案是整题给的。
+          全写成「挂不上」的话，老师对着三条一样的横幅不知道该做什么 */}
       {(reads.bindWarnings || []).map((w) => (
-        <div className="banner" key={w.main}>
-          <b>第 {w.main} 题挂不上</b>　{w.why}
+        <div className={`banner${w.kind === 'whole' ? '' : ' bad'}`} key={w.main}>
+          <b>
+            {w.kind === 'mismatch' ? `第 ${w.main} 题的小问编号对不上`
+              : w.kind === 'missing' ? `第 ${w.main} 题少读了几条`
+                : w.kind === 'whole' ? `第 ${w.main} 题按整题对上`
+                  : `第 ${w.main} 题挂不上`}
+          </b>　{w.why}
         </div>
       ))}
 

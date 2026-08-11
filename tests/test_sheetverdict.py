@@ -41,8 +41,9 @@ def test_集合不等时整道大题一条都不绑():
     rows, warn = sheetverdict.bind([{"n": n} for n in (1301, 1302, 1304, 1305)],
                                    KNOWN)
     assert all(r["bind"] is None for r in rows), \
-        "小问编号对不上时，整道大题一条都不许绑"
+        "编号错位时，整道大题一条都不许绑"
     assert len(warn) == 1 and warn[0]["main"] == 13
+    assert warn[0]["kind"] == "mismatch"
 
 
 def test_对不上的告警要把两边都说出来():
@@ -73,15 +74,22 @@ def test_卷子里压根没有的大题单独报():
     assert warn and warn[0]["main"] == 99
 
 
-def test_少写一个小问也算集合不等():
+def test_少读一个小问时能绑的还是绑上():
     """
     答题卡上只有 (1)(2)(3)，参考答案有 (1)(2)(3)(4)。
-    前三条**看起来**能对上，但少一条就说明两边的编号体系未必是一回事 ——
-    这正是 13 题那种错位的另一半可能。宁可整题请人认。
+
+    **这一条初版判成「整题不绑」，被 2026-08-10 的端到端实跑推翻了。**
+    当时的理由是「少一条就说明两边编号体系未必是一回事」—— 听着像那么回事，
+    实跑出来的代价却是：14/15/16 三道大题共 39 分全都挂不上标准答案和知识点，
+    而那恰恰是诊断最该覆盖的部分。
+
+    真正的判据是**方向**：卡上的题号**都在**答案里（真子集）说明只是漏读了，
+    能绑的绑上、少的点名报出来；卡上**多出**一个答案里没有的，才说明编号体系
+    不是一回事（见下面 13 题那条）。
     """
     rows, warn = sheetverdict.bind([{"n": n} for n in (1301, 1302, 1303)], KNOWN)
-    assert all(r["bind"] is None for r in rows)
-    assert len(warn) == 1
+    assert [r["bind"] for r in rows] == [1301, 1302, 1303]
+    assert len(warn) == 1 and warn[0]["kind"] == "missing"
 
 
 # ---------------------------------------------------------------- 判定
@@ -195,3 +203,73 @@ def test_老师红笔写的和参考答案对不上也要报():
 def test_老师红笔写的和参考答案一致就不报():
     assert sheetverdict.crosscheck({"answer": "AC", "verdict": "wrong",
                                     "red": "BC"}, "BC") is None
+
+
+# ---------------------------------------------------------------- 粒度不同 ≠ 编号错位
+#
+# 2026-08-10 端到端实跑逼出来的。第一版规则「小问集合不相等 → 整题不绑」一刀切，
+# 把三种完全不同的情况判成了同一种：
+#
+#   13 题  卡上 (1)(2)(4)(5)、答案 (1)(2)(3)(4)  → **编号错位**，该整题不绑
+#   14 题  卡上是**一整块**、答案拆成 (1)(2)(3)  → **粒度不同**，该绑到整题
+#   16 题  卡上 (1)(2)、答案 (1)(2)(3)          → **漏读一条**，能绑的该绑上
+#
+# 一刀切的代价是实打实的：14/15/16 三道大题共 39 分全都挂不上标准答案和知识点，
+# 而那恰恰是诊断最该覆盖的部分。
+
+def test_答题卡是整题而答案拆小问时绑到整题():
+    """
+    大题的答题卡上就是一整块（学生自由书写，没有分小问的答题线），
+    参考答案却拆成 (1)(2)(3)。这是**粒度不同**，不是编号错位。
+    """
+    rows, warn = sheetverdict.bind([{"n": 14}], [1401, 1402, 1403])
+    assert rows[0]["bind"] is None, "没有哪一个小问单独对应它"
+    assert rows[0]["bindMain"] == 14, "但它整题对得上，标准答案和知识点该按整题给"
+    assert not any(w.get("kind") == "mismatch" for w in warn), \
+        "粒度不同不是错位，不该报成「编号对不上」"
+
+
+def test_卡上少读了一条时能绑的绑上():
+    """
+    卡上 (1)(2)、答案 (1)(2)(3) —— 卡上这些**都在**答案里，是真子集，
+    说明只是第 3 条没读到。前两条绑上是安全的。
+    """
+    rows, warn = sheetverdict.bind([{"n": 1601}, {"n": 1602}],
+                                   [1601, 1602, 1603])
+    assert [r["bind"] for r in rows] == [1601, 1602]
+    assert any(w["main"] == 16 and "16(3)" in w["why"] for w in warn), \
+        "少了哪一条要点名说出来"
+
+
+def test_卡上多出一个答案里没有的就整题不绑():
+    """
+    13 题：卡上 (1)(2)(4)(5)，答案 (1)(2)(3)(4)。**(5) 不在答案里** ——
+    这说明两边的编号体系不是一回事，那么 1301/1302/1304 的「精确相等」
+    也不能信（卡上的 (4) 其实是答案的 (3)）。
+    """
+    rows, warn = sheetverdict.bind(
+        [{"n": n} for n in (1301, 1302, 1304, 1305)], [1301, 1302, 1303, 1304])
+    assert all(r["bind"] is None for r in rows)
+    assert all(r["bindMain"] is None for r in rows)
+    assert any(w["main"] == 13 and w.get("kind") == "mismatch" for w in warn)
+
+
+def test_错位和漏读的告警要分得出来():
+    """两句话该说的下一步不一样：一个是「请你认」，一个是「重传更清楚的图」"""
+    _, a = sheetverdict.bind([{"n": n} for n in (1301, 1302, 1304, 1305)],
+                             [1301, 1302, 1303, 1304])
+    _, b = sheetverdict.bind([{"n": 1601}, {"n": 1602}], [1601, 1602, 1603])
+    assert a[0]["kind"] == "mismatch" and b[0]["kind"] == "missing"
+
+
+def test_整题和小问同时出现时按小问算():
+    """卡上既有 14 又有 14(1)，那不是粒度问题，是读串了"""
+    rows, warn = sheetverdict.bind([{"n": 14}, {"n": 1401}], [1401, 1402, 1403])
+    assert all(r["bind"] is None for r in rows)
+    assert any(w.get("kind") == "mismatch" for w in warn)
+
+
+def test_单题不受粒度规则影响():
+    """第 9 题两边都是整题，正常绑"""
+    rows, warn = sheetverdict.bind([{"n": 9}], [9, 11])
+    assert rows[0]["bind"] == 9 and rows[0]["bindMain"] is None and warn == []

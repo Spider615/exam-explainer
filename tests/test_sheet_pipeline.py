@@ -158,20 +158,44 @@ def test_题号一个都对不上就停下来(db, owner, tmp_path, fake_model):
     assert {c["page"] for c in reads["calls"]} == {1}
 
 
-def test_小问编号对不上时整题不绑(db, owner, tmp_path, fake_model):
+def test_小问编号错位时整题不绑(db, owner, tmp_path, fake_model):
     """
-    答题卡上 12 题只有 (1)(3)，参考答案有 (1)(2)(3)。
-    1201/1203 都精确命中已有题号，逐条绑会绑上——而两边的编号体系未必是一回事。
+    答题卡上 12 题读出 (1)(3)，而参考答案只有 (1)(2) —— 卡上的 (3)
+    **不在**参考答案里，说明两边编号体系不是一回事，(1) 的「精确相等」
+    也不能信。整题不绑。
+
+    （这条初版用的是「卡上少一条」当样本，而那种情况 2026-08-10 的实跑证明
+    是**漏读**、不是错位，现在按 `kind="missing"` 处理、能绑的绑上。
+    判据是**方向**：多出来的才是错位的证据。）
     """
-    _paper("链用绑不上卷", owner, ns=(9, 11, 1201, 1202, 1203))
+    _paper("链用绑不上卷", owner, ns=(9, 11, 1201, 1202))
     sid = store.create_sheet("链用绑不上卷", "张三", owner)
     jid = "p" + "6" * 11
     api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
     api.run_sheet_pipeline(jid, "链用绑不上卷", sid, [_screenshot(tmp_path)], owner)
     rows = {r["n"]: r for r in store.sheet_answers(sid)}
-    assert rows[1201]["question_id"] is None, "12 题的小问集合对不上，不许绑"
+    assert rows[1201]["question_id"] is None, "12 题的小问编号错位，不许绑"
     assert rows[9]["question_id"] is not None, "9 题自己对得上，不该受牵连"
-    assert any(w["main"] == 12 for w in store.sheet_reads(sid)["bindWarnings"])
+    warns = store.sheet_reads(sid)["bindWarnings"]
+    assert any(w["main"] == 12 and w["kind"] == "mismatch" for w in warns)
+
+
+def test_少读一条小问时能绑的还是绑上(db, owner, tmp_path, fake_model):
+    """
+    卡上读出 12(1)(3)，参考答案有 12(1)(2)(3) —— 卡上的都在答案里，
+    是**漏读**不是错位。一刀切「整题不绑」的代价，实跑里是 39 分的大题
+    全都挂不上标准答案和知识点。
+    """
+    _paper("链用漏读卷", owner, ns=(9, 11, 1201, 1202, 1203))
+    sid = store.create_sheet("链用漏读卷", "张三", owner)
+    jid = "p" + "a" * 11
+    api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
+    api.run_sheet_pipeline(jid, "链用漏读卷", sid, [_screenshot(tmp_path)], owner)
+    rows = {r["n"]: r for r in store.sheet_answers(sid)}
+    assert rows[1201]["question_id"] is not None
+    assert rows[1203]["question_id"] is not None
+    warns = store.sheet_reads(sid)["bindWarnings"]
+    assert any(w["main"] == 12 and w["kind"] == "missing" for w in warns)
 
 
 def test_模型整遍失败要和读不出来分得开(db, owner, tmp_path, monkeypatch):

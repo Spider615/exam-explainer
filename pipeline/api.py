@@ -1194,9 +1194,21 @@ def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id):
         refs = {q["n"]: q.get("ref_answer")
                 for q in (store.get_paper(paper) or {"questions": []})["questions"]}
         n_written = 0
+        # 整题对上时（答题卡上是一整块、参考答案拆成小问），标准答案按整题拼 ——
+        # 那是 2026-08-10 实跑逼出来的：一刀切「整题不绑」会让 14/15/16 三道大题
+        # 共 39 分挂不上任何标准答案和知识点，而那正是诊断最该覆盖的部分
+        by_main = {}
+        for n, a in refs.items():
+            if a:
+                by_main.setdefault(n // 100 if n >= 100 else n, []).append((n, a))
         for r in bound:
             v, by, why = sheetverdict.decide(r)
-            note = sheetverdict.crosscheck(dict(r, verdict=v), refs.get(r["bind"]))
+            ref = refs.get(r["bind"])
+            if ref is None and r.get("bindMain") is not None:
+                parts = sorted(by_main.get(r["bindMain"], []))
+                ref = "；".join("(%d) %s" % (n % 100, a) if n >= 100 else a
+                                for n, a in parts) or None
+            note = sheetverdict.crosscheck(dict(r, verdict=v), ref)
             store.put_sheet_answer(
                 sheet_id, r["n"], scored=True,
                 question_id=qid_of.get(r["bind"]),

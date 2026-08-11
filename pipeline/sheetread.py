@@ -8,7 +8,7 @@ sheetread.py —— Ⓑ：读已批改答题卡上的作答、批改符号和得
 **两遍，不是整页读一遍。**（2026-08-10 探针实测，数字见设计文档文末）
 
   Ⓑa  整页原分辨率（540×750）  → {n, y, answer, mark, conf}
-  Ⓑb  按 y 切条、每条放大 3×   → {n, filled, got, full, red, conf}
+  Ⓑb  按 y 切条、每条放大 3×   → {n, filled, mark, got, full, red, conf}
   Ⓑc  左上角总分那一小块 ×3    → {total}
 
 整页读一遍那条路验过了，它在两处**必然**丢东西：选择题填涂 8 道全认不出
@@ -28,6 +28,10 @@ sheetread.py —— Ⓑ：读已批改答题卡上的作答、批改符号和得
    逼模型回答会把诚实的弃权变成自信的错误。
 2. **Ⓑb 的提示词直接写明这一条是第几题**（Ⓑa 已经知道了），模型不必再读题号 ——
    「题号裸奔」那个失败模式因此整个消失。
+2b. **勾叉两遍都读。** 2026-08-10 实跑：选择题 6/7/8 判成了「说不清」——
+   作答读对了，但那几行**没有印分数**，而 Ⓑa 那一次没给出它们的勾叉。
+   1-5 同样没分数却判对了，说明是模型逐行的不稳定。Ⓑb 看的是放大 3 倍的条，
+   探针在同一块上勾叉读了 8/8，让它也报一份，合并时谁读到算谁的。
 3. **Ⓑc 必须单独一次调用、单独一块裁图，且与 Ⓑb 的裁条不重叠。**
    总分和逐题得分同源的话，「Σ得分对总分」就成了自证。
 """
@@ -61,6 +65,13 @@ ZOOM = 3
 #: 合并的时候要给真读出来的让路，而且不许算成两遍不一致
 BLANKS = ("", "unreadable", "blank", None)
 
+#: 批改符号里的「没看见」。合并时和上面那几个一个待遇。
+#:
+#: `none` 的意思是「这一行我没看见批改符号」，**不是**「这一行确实没有符号」——
+#: 拿它盖掉另一遍**看见了**的读数，正好把有信息的那条丢了。
+#: 2026-08-10 实跑：选择题 6/7/8 判成「说不清」，1-5 判对，差别就在这一栏。
+MARK_BLANKS = ("", "none", "unknown", None)
+
 
 PROMPT_A = """这是一张**已批改**物理答题卡的一整页（学生手写作答 + 老师红笔批改）。
 
@@ -88,14 +99,18 @@ PROMPT_B = """这是一张**已批改**物理答题卡的一条横切片，已�
   n       题号，就用上面给的那几个之一
   filled  如果这题是**填涂式选择题**：学生涂黑的字母，如 "D" 或 "AC"。
           一个都没涂写 "blank"，看不清写 "unreadable"。不是填涂题写 null
+  mark    老师批在这一行的符号："right" 红勾 / "wrong" 红叉 /
+          "half" 勾上带叉 / "none" 这一行确实没有符号
   got     红色得分标注里得了几分，数字。没有标注写 null
   full    红色得分标注里的满分，数字。没有标注写 null
   red     老师用红笔在这一行**写的字**（通常是正确答案）。没有写 null
   conf    "high" / "low"
 
-两条要求：
+三条要求：
 · `filled` 只报**学生涂黑的**，老师红笔写的一律进 `red`。这两样绝不能混。
 · 得分标注形如「1分(满分2分)」，通常印在作答行的**右上方**。
+· **`mark` 要认真读**：选择题那几行**没有分数标注**，红勾红叉是判对错的唯一依据。
+  这一条已经放大过，看得清 —— 看不清才写 "none"，不要因为省事写 "none"。
 
 只输出 JSON 数组，不要别的话。"""
 
@@ -161,8 +176,9 @@ def strips(marks, height, max_n=MAX_PER_STRIP, max_h=MAX_STRIP_H, pad=PAD):
     return out
 
 
-def _blank(v):
-    return v in BLANKS
+def _blank(v, key=None):
+    """这个值算不算「没读到」。`mark` 那一栏的哨兵不一样，见 MARK_BLANKS。"""
+    return v in (MARK_BLANKS if key == "mark" else BLANKS)
 
 
 def merge(a_rows, b_rows):
@@ -198,11 +214,13 @@ def merge(a_rows, b_rows):
             continue
         cur = out[n]
         for k, v in r.items():
-            if k == "n" or _blank(v):
+            if k == "n":
                 continue
             # Ⓑb 的 filled 就是这道题的作答（填涂式选择题）
             key = "answer" if k == "filled" else k
-            if _blank(cur.get(key)):
+            if _blank(v, key):
+                continue
+            if _blank(cur.get(key), key):
                 cur[key] = v
             elif cur[key] != v:
                 clash.append({"n": n, "why": "两遍读出来不一样：%s 一个是 %r、"
@@ -222,15 +240,28 @@ def checksum(rows, total):
     题号清单对账（`sheetverdict.bind`）、满分对账（`full` 对参考答案的分值）。
 
     对不上**不失败**，只报 —— 硬失败会把一份 25/26 题都对的结果整个扔掉。
+
+    **差额要有归属。** 2026-08-10 实跑：Σ 差 28 分，而那 28 正好是选择题 1–8
+    的总分 —— 它们在这张答题卡上**本来就不印每题得分**（选择题是整块阅的）。
+    只说「差 28」会让人以为哪里读错了，然后去翻一遍其实没错的题；
+    点名说出「这 8 道没有分数标注」，差额立刻有了归属。
     """
     if total is None:
         return True, "没读到总分，跳过这条校验"
     got = sum(r["got"] for r in rows if r.get("got") is not None)
     if abs(got - float(total)) < 0.01:
         return True, "逐题得分加起来 %g，和卷子上印的总分对得上" % got
-    return False, ("逐题得分加起来是 %g，卷子上印的总分是 %g —— 差 %g。"
-                   "多半是漏了一题、多读了一条，或者某个数字读错了"
-                   % (got, float(total), abs(got - float(total))))
+    why = ("逐题得分加起来是 %g，卷子上印的总分是 %g —— 差 %g。"
+           % (got, float(total), abs(got - float(total))))
+    noscore = [r["n"] for r in rows if r.get("got") is None]
+    if noscore:
+        why += ("其中 %d 道没有分数标注（%s）—— 这类题（多半是选择题）在答题卡上"
+                "本来就不印每题得分，差额多半就在这里。"
+                % (len(noscore), "、".join(_show(n) for n in noscore[:10])
+                   + ("…" if len(noscore) > 10 else "")))
+    else:
+        why += "多半是漏了一题、多读了一条，或者某个数字读错了"
+    return False, why
 
 
 # ---------------------------------------------------------------- 跑起来
