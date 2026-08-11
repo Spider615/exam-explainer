@@ -145,17 +145,64 @@ def strips(marks, height, max_n=MAX_PER_STRIP, max_h=MAX_STRIP_H, pad=PAD):
     得分标注印在作答行的**上方**，留少了会把标注切给上一条
     （实测第 11 题那条里带着 12(1) 的「1分(满分1分)」）。
 
-    **y 不按题号递增就整页不切**（回空）。那说明模型把位置读乱了，
-    而位置乱了切出来的每一条都对不上题号 —— 宁可这一页不切。
+    **y 不单调时，只丢破坏单调的那几条**，不是整页不切 ——
+    详见 `strips_report`（初版就是整页不切，被第二轮实跑打了脸）。
+    要知道丢了哪几道题，用 `strips_report`。
+    """
+    return strips_report(marks, height, max_n, max_h, pad)[0]
+
+
+#: 单调修复之后至少要留下多少才肯切。留不下这么多就说明位置整体估崩了 ——
+#: 那时候切出来每一条都对不上题号，宁可这一页没有第二遍
+KEEP_FRAC = 0.6
+KEEP_MIN = 3
+
+
+def strips_report(marks, height, max_n=MAX_PER_STRIP, max_h=MAX_STRIP_H,
+                  pad=PAD):
+    """
+    同 `strips`，但连**丢掉了哪几道题**一起回：`(条, 丢掉的题号)`。
+
+    **一条坏的 `y` 不该废掉整页。** 初版是「y 不按题号递增就整页不切」，
+    2026-08-10 第二轮实跑打了脸：Ⓑa 那一次给出的 18 条里有一条 y 乱了，
+    于是整页一条都没切，Ⓑb **一次都没被调用** —— 选择题填涂全丢、
+    12(3) 的分数没读到、判定从 `partial` 回退成 `right`。
+
+    现在按题号顺序取 **y 严格递增的最长子序列**，破坏单调的那几条丢掉并报出来；
+    留不下多数（见 `KEEP_FRAC` / `KEEP_MIN`）才整页不切 —— 那时候是位置整体
+    估崩了，切出来每一条都对不上题号。
+
+    **丢了几条必须说出来**：静默丢弃和静默失败一样糟。
     """
     marks = [(n, float(y)) for n, y in marks
              if isinstance(y, (int, float)) and 0 <= y <= 1]
     if not marks:
-        return []
-    if [n for n, _ in marks] != sorted(n for n, _ in marks):
-        return []
-    if any(b <= a for (_, a), (_, b) in zip(marks, marks[1:])):
-        return []
+        return [], []
+    marks = sorted(marks, key=lambda t: t[0])
+
+    # 按题号顺序、y 严格递增的最长子序列（n 不大，O(n²) 足够）
+    best = [1] * len(marks)
+    prev = [-1] * len(marks)
+    for i in range(len(marks)):
+        for j in range(i):
+            if marks[j][1] < marks[i][1] and best[j] + 1 > best[i]:
+                best[i], prev[i] = best[j] + 1, j
+    end = max(range(len(marks)), key=lambda i: best[i])
+    keep_idx = []
+    while end != -1:
+        keep_idx.append(end)
+        end = prev[end]
+    keep_idx.reverse()
+
+    # 门槛只在**真有冲突**的时候才判：一条都没冲突（子序列就是全部）时，
+    # 哪怕整页只有一两道题也照切。写成「条数多才判」是错的 ——
+    # 两条互相矛盾时留下一条是任选一个，而那一条也不可信
+    if len(keep_idx) < len(marks) and \
+            len(keep_idx) < max(KEEP_MIN, KEEP_FRAC * len(marks)):
+        return [], [n for n, _ in marks]
+    kept = {i for i in keep_idx}
+    dropped = [marks[i][0] for i in range(len(marks)) if i not in kept]
+    marks = [marks[i] for i in keep_idx]
 
     groups = [[marks[0]]]
     for cur in marks[1:]:
@@ -173,7 +220,7 @@ def strips(marks, height, max_n=MAX_PER_STRIP, max_h=MAX_STRIP_H, pad=PAD):
         bottom = (int(groups[i + 1][0][1] * height) if i + 1 < len(groups)
                   else height)
         out.append(([n for n, _ in g], top, bottom))
-    return out
+    return out, dropped
 
 
 def _blank(v, key=None):
@@ -322,7 +369,17 @@ def read(paper_name, sheet_id, page_files, known_ns=None,
         marks = [(_qnum(r.get("n")), r.get("y")) for r in a
                  if _qnum(r.get("n")) is not None]
         b = []
-        for ns, top, bot in strips(marks, _height(pg)):
+        cut_list, dropped_y = strips_report(marks, _height(pg))
+        if dropped_y:
+            # **静默丢弃和静默失败一样糟。** 这几道题这一页没跑第二遍，
+            # 它们的填涂和得分不是「读不出」，是根本没去读
+            all_clash.append({
+                "n": None,
+                "why": "第 %d 页有 %d 道题的位置读乱了（%s），这几道没有跑第二遍 —— "
+                       "它们的填涂和得分是空的，不代表卷子上没有"
+                       % (i, len(dropped_y),
+                          "、".join(_show(n) for n in dropped_y[:8]))})
+        for ns, top, bot in cut_list:
             dst = os.path.join(work, "p%02d-%d.png" % (i, top))
             _cut(pg, top, bot, dst)
             got = call(i, "Ⓑb", dst, PROMPT_B % "、".join(_show(n) for n in ns),
@@ -334,10 +391,18 @@ def read(paper_name, sheet_id, page_files, known_ns=None,
                              if _qnum(r.get("n")) is not None])
         # **整遍失败要认出来**：Ⓑa 报了 N 条而 Ⓑb 一条都没回，不是「这些题没有
         # 分数」，是那一遍挂了。走逐题降级的话，页面会把它显示成「这些题读不出」
-        if marks and not b:
+        # **「没去读」和「读了没回来」是两句不同的话。** 前者是我们自己没敢切，
+        # 后者是模型挂了 —— 一个该说「位置读乱了」，一个该说「重传/重试」
+        if marks and not cut_list:
             all_clash.append({"n": None,
-                              "why": "第 %d 页的 Ⓑb 整遍没回来 —— 这一页的填涂和"
-                                     "得分都不是「读不出」，是根本没读" % i})
+                              "why": "第 %d 页整页没能按题切条（位置读乱了），"
+                                     "所以填涂和得分一条都没读 —— 不是「读不出」，"
+                                     "是没去读。换清楚一点的图重传这一页" % i})
+        elif cut_list and not b:
+            all_clash.append({"n": None,
+                              "why": "第 %d 页的 Ⓑb 整遍没回来（模型侧失败）—— "
+                                     "这一页的填涂和得分都不是「读不出」，是根本没读"
+                                     % i})
         log("   第 %d 页 读到 %d 条" % (i, len(rows)))
         all_rows += rows
         all_clash += clash

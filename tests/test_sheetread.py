@@ -309,3 +309,46 @@ def test_对不上时点名说哪几道没有分数():
 def test_全都有分数时不说这句多余的话():
     ok, why = sheetread.checksum([{"n": 9, "got": 3}], 5)
     assert not ok and "没有分数标注" not in why
+
+
+# ---------------------------------------------------------------- 一条坏的 y 不该废掉整页
+#
+# 2026-08-10 第二轮实跑：第 1 页的 Ⓑb **一次都没被调用** —— 不是挂了，是 strips()
+# 回了空，因为 Ⓑa 那一轮给出的 y 不单调。护栏本身是对的（位置乱了切出来每一条
+# 都对不上题号），但代价太狠：一条坏的 y 废掉整页 18 道题的第二遍，
+# 于是选择题填涂全丢、12(3) 的分数没读到、判定从 partial 回退成 right。
+#
+# 改成：丢掉破坏单调的那几条，留下大多数；剩得太少才整页不切。
+
+def test_一条坏的y只丢它自己():
+    marks = [(9, 0.1), (10, 0.2), (11, 0.9), (12, 0.4), (13, 0.5), (14, 0.6)]
+    got = sheetread.strips(marks, 1000)
+    covered = [n for ns, _, _ in got for n in ns]
+    assert 11 not in covered, "破坏单调的那条该丢掉"
+    assert set(covered) == {9, 10, 12, 13, 14}, "其余五条都该留下"
+
+
+def test_真实那一页少一条y也照切():
+    """实跑那一页 18 道题，坏一条不该让另外 17 道跟着陪葬"""
+    bad = [(n, y) for n, y in REAL]
+    bad[5] = (bad[5][0], 0.99)              # 把第 6 题的 y 弄乱
+    got = sheetread.strips(bad, 750)
+    covered = [n for ns, _, _ in got for n in ns]
+    assert len(covered) >= 16, "只该丢掉出问题的那一条"
+
+
+def test_乱得太厉害还是整页不切():
+    """
+    留不下多数就说明位置整体估崩了 —— 那时候切出来每一条都对不上题号，
+    宁可这一页没有第二遍。
+    """
+    assert sheetread.strips([(9, 0.7), (10, 0.3)], 750) == []
+    assert sheetread.strips([(9, 0.9), (10, 0.5), (11, 0.1)], 750) == []
+
+
+def test_丢了几条要说得出来():
+    """静默丢弃和静默失败一样糟 —— 页面要能说「这几道没读第二遍」"""
+    marks = [(9, 0.1), (10, 0.2), (11, 0.9), (12, 0.4), (13, 0.5), (14, 0.6)]
+    got, dropped = sheetread.strips_report(marks, 1000)
+    assert dropped == [11]
+    assert [n for ns, _, _ in got for n in ns] == [9, 10, 12, 13, 14]
