@@ -304,3 +304,70 @@ def test_别人的答题卡看不到(db, owner, conn):
     sid = store.create_sheet("详情用别人卷", "李四", 90599)
     with pytest.raises(Exception):
         api.sheet_detail(sid, user={"id": owner})
+
+
+# ---------------------------------------------------------------- 图片 URL
+#
+# 2026-08-11 页面上四张答题卡原图全裂了。原因是拼 URL 时漏了路由里的 `/img/`
+# 那一段：路由是 `/api/sheets/{sid}/img/{fn}`，拼出来的是 `/api/sheets/{sid}/{fn}`。
+#
+# **这类错单元测试原本照不到**：两边各自都「对」，只有拼在一起才错。
+# 所以这几条**拿真实的路由表去核**，不是自己写一遍预期的字符串——
+# 自己写一遍的话，改了路由这里照样绿。
+
+def _routes():
+    from pipeline import api
+    return [r.path for r in api.app.routes if hasattr(r, "path")]
+
+
+def test_原图的url对得上真实路由(db, owner, tmp_path, fake_model):
+    import re
+    _paper("URL用卷", owner)
+    sid = store.create_sheet("URL用卷", "张三", owner)
+    jid = "u" + "0" * 11
+    api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
+    api.run_sheet_pipeline(jid, "URL用卷", sid, [_screenshot(tmp_path)], owner)
+
+    got = api.sheet_detail(sid, user={"id": owner})
+    assert got["pages"], "该有原图"
+    pats = [re.compile("^" + re.sub(r"\{[^}]+\}", "[^/]+", p) + "$")
+            for p in _routes()]
+    for url in got["pages"]:
+        assert any(p.match(url) for p in pats), \
+            "这个 URL 没有任何路由接得住：%s" % url
+
+
+def test_切片的url也对得上(db, owner):
+    """
+    切片的文件名里**不许有斜杠** —— 取图的路由是 `/img/{fn}`，
+    多一段路径就没有路由接得住。这是 2026-08-11 图全裂的另一半。
+    """
+    import re
+    _paper("URL用切片卷", owner)
+    sid = store.create_sheet("URL用切片卷", "张三", owner)
+    store.put_sheet_answer(sid, 9, raw_text="x",
+                           crop_rel="sheet/%d/cp01-228.png" % sid)
+    got = api.sheet_detail(sid, user={"id": owner})
+    url = got["rows"][0]["crop"]
+    pats = [re.compile("^" + re.sub(r"\{[^}]+\}", "[^/]+", p) + "$")
+            for p in _routes()]
+    assert any(p.match(url) for p in pats), "这个 URL 没有路由接得住：%s" % url
+
+
+def test_逐题都挂上了原图切片(db, owner, tmp_path, fake_model):
+    """
+    **设计里管这个叫「老师一眼能校对的唯一红绿灯」。** 页面早就留了位置，
+    但管线一直没往里填（`crop_rel` 从来没被写过），于是每一行都显示
+    「这道题没有原图切片」—— 一个写好了却永远走不到的分支。
+    """
+    _paper("切片用卷", owner)
+    sid = store.create_sheet("切片用卷", "张三", owner)
+    jid = "c" + "0" * 11
+    api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
+    api.run_sheet_pipeline(jid, "切片用卷", sid, [_screenshot(tmp_path)], owner)
+    rows = store.sheet_answers(sid)
+    assert rows, "没读出题"
+    assert all(r["crop_rel"] for r in rows), \
+        "每道题都该挂上它所在那一条切片：%s" % [(r["n"], r["crop_rel"]) for r in rows]
+    assert all("/" not in r["crop_rel"].split("/", 2)[-1] for r in rows), \
+        "切片文件名里不许有斜杠，否则取图的路由接不住"

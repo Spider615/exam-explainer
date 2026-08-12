@@ -1201,6 +1201,20 @@ def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id):
         for n, a in refs.items():
             if a:
                 by_main.setdefault(n // 100 if n >= 100 else n, []).append((n, a))
+        # 逐题原图切片：Ⓑb 切条时那些图本来就在磁盘上，存进 assets 挂到题上。
+        # **设计里管它叫「老师一眼能校对的唯一红绿灯」** —— 页面留了位置，
+        # 之前一直没人往里填（`crop_rel` 从来没被写过），每一行都显示
+        # 「这道题没有原图切片」
+        crop_rel = {}
+        for n, local in (got.get("crops") or {}).items():
+            if not os.path.exists(local):
+                continue
+            # 文件名里**不许有斜杠** —— 取图的路由是 `/img/{fn}`，
+            # 多一段路径就没有路由接得住（那正是 2026-08-11 图全裂的另一半）
+            rel = "sheet/%d/c%s" % (sheet_id, os.path.basename(local))
+            store.put_page_asset(paper, local, rel)
+            crop_rel[n] = rel
+
         for r in bound:
             v, by, why = sheetverdict.decide(r)
             ref = refs.get(r["bind"])
@@ -1215,6 +1229,7 @@ def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id):
                 raw_text=r.get("answer"), mark_raw=r.get("mark"),
                 score_got=r.get("got"), score_full=r.get("full"),
                 teacher_red=r.get("red"), read_conf=r.get("conf"),
+                crop_rel=crop_rel.get(r["n"]),
                 verdict=v, verdict_by=by,
                 verdict_why=why + ("　⚠ " + note if note else ""))
             n_written += 1
@@ -1317,6 +1332,16 @@ def _num(v):
     return None if v is None else float(v)
 
 
+def _sheet_img_url(sid, rel_path):
+    """
+    答题卡里一张图的对外 URL。`rel_path` 是 `sheet/<sid>/pNN.png` 这种。
+
+    **只写这一处。** 拼 URL 的地方一多，漏掉路径里某一段是迟早的事 ——
+    2026-08-11 就漏过 `/img/`，页面上四张原图全裂，而后端和前端各自看都「对」。
+    """
+    return "/api/sheets/%d/img/%s" % (sid, rel_path.split("/", 2)[-1])
+
+
 @app.get("/api/sheets/{sid}")
 def sheet_detail(sid: int, user=Depends(current_user)):
     """
@@ -1354,8 +1379,10 @@ def sheet_detail(sid: int, user=Depends(current_user)):
             # 老师才知道自己改掉了什么
             "teacherVerdict": a["teacher_verdict"],
             "sysVerdict": a["verdict"], "sysScoreGot": _num(a["score_got"]),
-            "crop": ("/api/sheets/%d/%s" % (sid, a["crop_rel"].split("/", 2)[-1])
-                     if a["crop_rel"] else None),
+            # **`/img/` 那一段不能漏。** 路由是 `/api/sheets/{sid}/img/{fn}`，
+            # 少了它页面上每张图都裂 —— 而两边各自看都「对」，只有拼在一起才错。
+            # tests/test_sheet_pipeline.py 拿**真实的路由表**核这件事
+            "crop": (_sheet_img_url(sid, a["crop_rel"]) if a["crop_rel"] else None),
             "refAnswer": q and q.get("ref_answer"),
             "refSolution": q and q.get("ref_solution"),
             "kps": [{"code": k["code"], "why": k.get("why", ""),
@@ -1368,8 +1395,7 @@ def sheet_detail(sid: int, user=Depends(current_user)):
             "nPages": meta.get("nPages"), "total": _num(meta.get("total")),
             "answers": meta.get("answers"), "wrong": meta.get("wrong"),
             "partial": meta.get("partial"), "lost": _num(meta.get("lost")),
-            "pages": ["/api/sheets/%d/%s" % (sid, p.split("/", 2)[-1])
-                      for p in store.sheet_pages(sid)],
+            "pages": [_sheet_img_url(sid, p) for p in store.sheet_pages(sid)],
             "reads": store.sheet_reads(sid),
             "rows": rows,
             "job": next((dict(j, id=i) for i, j in reversed(list(JOBS.items()))

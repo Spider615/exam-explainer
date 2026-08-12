@@ -388,6 +388,9 @@ def read(paper_name, sheet_id, page_files, known_ns=None,
 
     log("共 %d 页要读" % len(page_files))
     all_rows, all_clash = [], []
+    # 每道题落在哪一条切片上。**这就是「原图切片」的来源** —— 条本来就切好了、
+    # 图也在磁盘上，接出去就是设计里那盏「老师一眼能校对」的红绿灯
+    crops = {}
     for i, pg in enumerate(page_files, 1):
         h = _height(pg)
 
@@ -427,6 +430,8 @@ def read(paper_name, sheet_id, page_files, known_ns=None,
         for ns, top, bot in cut_list:
             dst = os.path.join(work, "p%02d-%d.png" % (i, top))
             _cut(pg, top, bot, dst)
+            for n in ns:
+                crops[n] = dst
             got, retried = call_twice(
                 i, "Ⓑb", dst, PROMPT_B % "、".join(_show(n) for n in ns),
                 "array", lambda g: bool(g))
@@ -476,7 +481,7 @@ def read(paper_name, sheet_id, page_files, known_ns=None,
                 log("✗ " + why)
                 return {"rows": all_rows, "clashes": all_clash, "total": None,
                         "checksum": (False, why), "calls": calls,
-                        "aborted": why}
+                        "aborted": why, "crops": crops}
 
     total = None
     if page_files:
@@ -488,7 +493,8 @@ def read(paper_name, sheet_id, page_files, known_ns=None,
     ok, why = checksum(all_rows, total)
     log(("✓ " if ok else "⚠ ") + why)
     return {"rows": all_rows, "clashes": all_clash, "total": total,
-            "checksum": (ok, why), "calls": calls, "aborted": None}
+            "checksum": (ok, why), "calls": calls, "aborted": None,
+            "crops": crops}
 
 
 def _height(png):
