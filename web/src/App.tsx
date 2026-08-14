@@ -3,6 +3,7 @@ import { deletePapers, getMe, getProgress, listPapers, logout, Unauthorized } fr
 import AppShell from './components/AppShell'
 import type { Mode } from './components/AppShell'
 import Login from './components/Login'
+import PageIntro from './components/PageIntro'
 import PaperList from './components/PaperList'
 import PaperView from './components/PaperView'
 import SheetList from './components/SheetList'
@@ -36,6 +37,24 @@ function readHash(): {
   if (m) return { mode: 'paper', open: decodeURIComponent(m[1]), sheet: null,
                   legacy: true }
   return { mode: 'paper', open: null, sheet: null, legacy: false }
+}
+
+/**
+ * 任务库的小标题，右边挂一句**可解释的**统计。
+ *
+ * 「12 份 · 2 份在跑」是数得出来的；「本周处理 37 页」不是 —— 后者要么现编，
+ * 要么得为它加一个端点。这一屏不需要经营看板，需要的是「有没有还在跑的」。
+ */
+function LibHead({ title, rows }: { title: string; rows: PaperSummary[] }) {
+  const running = rows.filter((r) => r.progress?.busy).length
+  return (
+    <div className="sec-hd">
+      <h2>{title}</h2>
+      {rows.length > 0 && (
+        <span>{rows.length} 份{running > 0 && <> · <b>{running} 份在跑</b></>}</span>
+      )}
+    </div>
+  )
 }
 
 export default function App() {
@@ -210,22 +229,30 @@ export default function App() {
             : <SheetView name={open} onOpenSheet={(id) => goSheet(open, id)} />
         ) : <PaperView name={open} />
       ) : mode === 'sheet' ? (
-        <>
+        <div className="rise">
+          <PageIntro
+            title="答题卡诊断"
+            lede="传参考答案和学生已经批改过的答题卡，逐题给出对错、丢分，
+                  以及这个知识点下一步该练什么。" />
           <SheetUpload onDone={(n, o) => { refresh(); if (o) go('sheet', n) }}
                        onOpenSheet={(n, id) => { refresh(); goSheet(n, id) }} />
-          <h2 className="lbl">答题卡库</h2>
+          <LibHead title="答题卡库" rows={rows} />
           {note && <div className="toast">{note}</div>}
           <SheetList rows={rows} onOpen={(n) => go('sheet', n)}
                      onDelete={remove} busy={busy} />
-        </>
+        </div>
       ) : (
-        <>
+        <div className="rise">
+          <PageIntro
+            title="解析试卷"
+            lede="上传一份物理卷 PDF，自动跑完切题、解题、写物理断言、生成动画，
+                  得到一份能直接拿去讲的卷子。" />
           <Upload onDone={(n, o) => { refresh(); if (o) go('paper', n) }} />
-          <h2 className="lbl">试卷库</h2>
+          <LibHead title="试卷库" rows={rows} />
           {note && <div className="toast">{note}</div>}
           <PaperList rows={rows} onOpen={(n) => go('paper', n)}
                      onDelete={remove} busy={busy} />
-        </>
+        </div>
       )}
     </AppShell>
   )

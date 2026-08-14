@@ -141,12 +141,75 @@ a{color:var(--acc);text-underline-offset:2px}
   .wrap{padding-left:14px;padding-right:14px}
 }
 
-.drop{border:2px dashed var(--line);border-radius:6px;padding:40px 24px;text-align:center;
-      background:var(--panel);transition:.15s;cursor:pointer}
-.drop.hot{border-color:var(--acc);background:var(--acc2)}
+/* ── 页面开头三行 ─────────────────────────────────────────────────────────
+   这是什么、能得到什么。三秒内答完，人才知道要不要往下看 */
+.intro{display:flex;align-items:flex-end;gap:24px;margin:0 0 22px;flex-wrap:wrap}
+.intro-say{flex:1;min-width:0}
+.intro h1{font-family:var(--song);font-size:28px;font-weight:600;margin:0;
+  letter-spacing:.01em}
+.intro p{margin:8px 0 0;font-size:14px;line-height:1.8;color:var(--ink2);max-width:44em}
+.intro-aside{flex:none}
+
+/* 库标题那一行。右边那句统计是**数得出来的**，不是经营看板 */
+.sec-hd{display:flex;align-items:baseline;gap:12px;margin:34px 0 12px;
+  padding-bottom:8px;border-bottom:1px solid var(--line)}
+.sec-hd h2{font-family:var(--song);font-size:18px;font-weight:600;margin:0}
+.sec-hd span{margin-left:auto;font-size:12.5px;color:var(--ink3)}
+.sec-hd b{color:var(--hot);font-weight:600}
+
+/* ── 上传卡 ───────────────────────────────────────────────────────────────
+   一屏只有一个主动作，所以它占整幅宽、给虚线边框和一点暖底 —— 但**不给朱砂**：
+   朱砂留给「开始分析」那个真正要花模型时间的动作 */
+.upzone{margin:0 0 4px}
+.upcard{border:1.5px dashed var(--line);border-radius:var(--r-card);
+  padding:34px 24px;text-align:center;background:var(--panel);cursor:pointer;
+  transition:border-color var(--t-fast) var(--ease),background var(--t-fast) var(--ease)}
+.upcard:hover{border-color:var(--acc)}
+.upcard.hot{border-color:var(--hot);background:var(--hot2)}
+.upcard.busy{opacity:.6;pointer-events:none}
+.upcard b{display:block;font-family:var(--song);font-size:19px;margin-bottom:6px}
+.upcard span{color:var(--ink3);font-size:13px}
+
+/* 三个材料槽里那个小拖拽区 */
+.drop{border:1.5px dashed var(--line);border-radius:var(--r-box);padding:40px 24px;
+      text-align:center;background:var(--panel);cursor:pointer;
+      transition:border-color var(--t-fast) var(--ease),background var(--t-fast) var(--ease)}
+.drop.hot{border-color:var(--hot);background:var(--hot2)}
 .drop.busy{opacity:.6;pointer-events:none}
 .drop b{display:block;font-size:17px;margin-bottom:5px}
 .drop span{color:var(--ink3);font-size:13px}
+
+/* ── 任务卡 ───────────────────────────────────────────────────────────────
+   一个上传任务在页面上的固定位置。状态一变换的是内容，不是位置 ——
+   以前四五条横幅一条接一条往下长，状态一变人要重新找「现在在哪」。 */
+.runcard{background:var(--panel);border:1px solid var(--line);
+  border-left:3px solid var(--acc);border-radius:0 var(--r-card) var(--r-card) 0;
+  padding:14px 18px;margin:0 0 14px;box-shadow:var(--sh-1)}
+.runcard-ok{border-left-color:var(--ok)}
+.runcard-bad{border-left-color:var(--bad)}
+.runcard-hd{display:flex;align-items:center;gap:9px;font-size:15px}
+.runcard-hd b{font-family:var(--song);font-weight:600}
+.runcard-dot{width:7px;height:7px;border-radius:50%;background:var(--acc);flex:none;
+  animation:progpulse 1.3s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.runcard-dot{animation:none;opacity:.9}}
+.runcard-num{margin-left:auto;font-family:var(--mono);font-size:12.5px;color:var(--ink3)}
+.runcard-bar{height:3px;background:var(--hair);border-radius:2px;margin:10px 0 0;
+  overflow:hidden}
+.runcard-bar i{display:block;height:100%;background:var(--acc);
+  transition:width .4s var(--ease)}
+.runcard-say{margin:8px 0 0;font-size:13.5px;line-height:1.75;color:var(--ink2)}
+.runcard-say ul{margin:6px 0 0;padding-left:18px;color:var(--bad)}
+.runcard-counts{display:flex;gap:22px;flex-wrap:wrap;margin:11px 0 0}
+.runcard-counts dt{font-size:11.5px;color:var(--ink3)}
+.runcard-counts dd{margin:2px 0 0;font-family:var(--mono);font-size:17px;color:var(--ink)}
+.runcard-acts{margin:12px 0 0;display:flex;gap:8px;flex-wrap:wrap}
+/* 原始日志：正常跑的时候没人要读，挂了的时候它是唯一说得清挂在哪的东西 */
+.runcard-log{margin:12px 0 0;border-top:1px solid var(--hair);padding-top:9px}
+.runcard-log summary{font-size:12px;color:var(--ink3);cursor:pointer;user-select:none}
+.runcard-log summary:hover{color:var(--acc)}
+.runcard-log pre{font-family:var(--mono);font-size:12px;line-height:1.65;
+  margin:9px 0 0;padding:10px 12px;background:var(--stem);border-radius:var(--r-ctl);
+  color:var(--ink2);white-space:pre-wrap;max-height:280px;overflow:auto}
 
 .log{font-family:var(--mono);font-size:12.5px;background:var(--panel);
      border:1px solid var(--hair);border-radius:4px;padding:12px 14px;margin-top:16px;
@@ -308,12 +371,21 @@ svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
 .ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;
         border-top:1px solid var(--hair)}
 .ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
-.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;border-radius:3px;
-     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer}
+.btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;
+     border-radius:var(--r-ctl);
+     border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer;
+     transition:border-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease),
+     background var(--t-fast) var(--ease)}
 .btn:hover{border-color:var(--acc);color:var(--acc)}
 .btn:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
 .btn[aria-pressed=true]{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
 .btn:disabled{opacity:.45;cursor:not-allowed;border-color:var(--line);color:var(--ink3)}
+/* 主动作：**一屏一个**。它是那个会花掉几十分钟模型时间的按钮，
+   所以给朱砂实底和真正抓得住的点击区（触屏一体机上手指要够得着） */
+.btn.hot{font-size:14px;padding:0 18px;height:40px;border:0;background:var(--hot);
+  color:var(--panel);font-weight:600;letter-spacing:.02em}
+.btn.hot:hover{background:var(--hot);filter:brightness(1.08);color:var(--panel)}
+.btn.hot:disabled{background:var(--hair);color:var(--ink3);filter:none}
 .livebadge{font-family:var(--mono);font-size:10px;letter-spacing:.18em;color:var(--red)}
 /* 当前账号。试卷按人隔离，「现在是谁」必须一直看得见 */
 .who{font-family:var(--mono);font-size:11.5px;color:var(--ink3);margin:0 10px}
@@ -586,12 +658,15 @@ td.prg{white-space:nowrap}
 /* 答题卡上传：三个框。老师手上就是三样东西，让他自己分比让系统猜可靠 ——
    猜错一页参考答案，那一页上的题就悄悄没了。颜色一律用变量，暗色下才不瞎 */
 .slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
-  gap:12px;margin:10px 0 0}
-.slot{border:1px solid var(--hair);border-radius:4px;background:var(--panel);padding:12px}
-.slot h4{margin:0 0 2px;font-size:14px;display:flex;align-items:baseline;gap:8px}
-.slot h4 em{font-style:normal;font-size:11px;color:var(--ink3);
-  border:1px solid var(--line);border-radius:2px;padding:0 5px}
-.slot h4 em.must{color:var(--acc);border-color:var(--acc);background:var(--acc2)}
+  gap:14px;margin:12px 0 0}
+.slot{border:1px solid var(--line);border-radius:var(--r-card);background:var(--panel);
+  padding:15px;box-shadow:var(--sh-1)}
+.slot h4{margin:0 0 3px;font-family:var(--song);font-size:15.5px;font-weight:600;
+  display:flex;align-items:baseline;gap:8px}
+.slot h4 em{font-style:normal;font-family:var(--cjk);font-size:11px;color:var(--ink3);
+  border:1px solid var(--line);border-radius:4px;padding:0 6px;font-weight:400}
+/* 必填那一栏用朱砂：传错这一栏，整份诊断的地基就是歪的 */
+.slot h4 em.must{color:var(--hot);border-color:var(--hot);background:var(--hot2)}
 .slot-want{margin:0 0 8px;color:var(--ink2);font-size:12.5px;line-height:1.5}
 .slot-fate{margin:8px 0 0;color:var(--ink3);font-size:12px;line-height:1.5}
 .drop.slim{padding:18px 10px}
@@ -602,13 +677,17 @@ td.prg{white-space:nowrap}
 .picked-n{flex:1;font-family:var(--mono);font-size:11.5px;word-break:break-all}
 .picked-sz{color:var(--ink3);font-size:11px;font-variant-numeric:tabular-nums}
 .picked-note{color:var(--ink3);font-size:12px;margin:6px 0 0;line-height:1.5}
-.picked-go{display:flex;align-items:center;gap:12px;margin-top:14px;
-  border-top:1px solid var(--hair);padding-top:12px}
-.picked-go span{color:var(--ink3);font-size:13px;flex:1}
-.fieldrow{display:flex;align-items:center;gap:10px;margin:0 0 10px}
-.fieldrow>span{color:var(--ink3);font-size:14px}
-.fieldrow input{flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:4px;
-  background:var(--panel);color:var(--ink);font:inherit;font-size:15px}
+.picked-go{display:flex;align-items:center;gap:14px;margin-top:16px;
+  border-top:1px solid var(--line);padding-top:14px;flex-wrap:wrap}
+.picked-go span{color:var(--ink2);font-size:13px;flex:1;min-width:14em;line-height:1.65}
+.fieldrow{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.fieldrow>span{color:var(--ink2);font-size:14px;flex:none}
+.fieldrow input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);
+  border-radius:var(--r-ctl);background:var(--panel);color:var(--ink);font:inherit;
+  font-size:15px;transition:border-color var(--t-fast) var(--ease),
+  box-shadow var(--t-fast) var(--ease)}
+.fieldrow input:focus{outline:none;border-color:var(--acc);
+  box-shadow:0 0 0 3px var(--acc2)}
 /* 原卷上这道题的那一条截图。整页宽切下来的，所以按容器宽自适应；
    点开看大图（切歪没切歪、公式转写对不对，都要能核） */
 .stemshot{max-width:100%;border:1px solid var(--hair);border-radius:3px;

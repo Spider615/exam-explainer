@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, getJob, Unauthorized, uploadAnswerPaper } from '../api'
+import JobProgress from './JobProgress'
 import type { Job } from '../types'
 
 /**
@@ -72,7 +73,8 @@ const SLOTS: Slot[] = [
     fate: '用来给选择题和填空题挂上知识点（那些题的答案只有一个字母，光看答案判不出考什么）' },
   { key: 'sheet', title: '答题卡', need: '选填',
     want: '学生那份，已经批改过的最好',
-    fate: '传了就**直接分析**：逐题读出学生写了什么、老师给了几分，出对错和丢分' },
+    // 这里是**页面上的一句话**，不是注释 —— 星号会原样打在屏幕上
+    fate: '传了就直接分析：逐题读出学生写了什么、老师给了几分，出对错和丢分' },
 ]
 
 /**
@@ -227,8 +229,44 @@ export default function SheetUpload({ onDone, onOpenSheet }: {
 
   const dismiss = () => { setJob(null); setLost(null); setRetry(0) }
 
+  const open = job?.name
+    ? <button className="btn hot" onClick={() => onDone(job.name!, true)}>
+        去看这份卷子 →
+      </button>
+    : null
+
+  /**
+   * 跑起来之后**上传区就地收起**，任务卡顶上来。
+   *
+   * 不收的话，三个空槽和一句「开始分析」会继续摆在最显眼的位置，
+   * 而它们此刻既没用又容易误点。收起来不等于不能再传：跑完（或点了「知道了」）
+   * 它就回来。
+   */
+  const running = job?.state === 'running' || job?.state === 'solving'
+
   return (
-    <div>
+    <div className="upzone">
+      {job?.state === 'running' && (
+        <JobProgress tone="run" title={job.step || 'Ⓐ 正在读参考答案'}
+                     detail="一页要一分钟上下。读完就能看到每题的标准答案，
+                             知识点在那之后挂。"
+                     log={job.log} />
+      )}
+      {job?.state === 'solving' && (
+        <JobProgress tone="run" title={`已经读出 ${job.n} 题，可以看了`}
+                     detail="知识点在后台继续挂，挂完这份卷子就完整了。"
+                     log={job.log} actions={open} />
+      )}
+      {job?.state === 'done' && (
+        <JobProgress tone="ok" title="完成" log={job.log} actions={open}
+                     detail="参考答案读完了，知识点也挂完了。" />
+      )}
+      {job?.state === 'error' && (
+        <JobProgress tone="bad" title="Ⓐ 读参考答案失败" detail={job.err} log={job.log}
+                     actions={<button className="btn" onClick={dismiss}>知道了</button>} />
+      )}
+
+      {running ? null : (<>
       <label className="fieldrow">
         <span>卷名</span>
         <input value={name} onChange={(e) => setName(e.target.value)}
@@ -294,7 +332,7 @@ export default function SheetUpload({ onDone, onOpenSheet }: {
 
       {total > 0 && (
         <div className="picked-go">
-          <button className="btn" disabled={sending || !name.trim() || !picked.answers.length}
+          <button className="btn hot" disabled={sending || !name.trim() || !picked.answers.length}
                   onClick={() => void send()}>
             {sending ? '正在送上去…' : '开始分析'}
           </button>
@@ -309,11 +347,10 @@ export default function SheetUpload({ onDone, onOpenSheet }: {
                   onClick={() => setPicked(EMPTY)}>全部清掉</button>
         </div>
       )}
+      </>)}
 
       {err && <div className="banner bad"><b>失败</b>　{err}</div>}
       {note && <div className="banner">{note}</div>}
-
-      {job && <pre className="log">{job.log.join('\n')}</pre>}
 
       {/* 问不到后端。不说的话，界面和「正在读」长得一模一样 */}
       {retry > 0 && (
@@ -327,34 +364,6 @@ export default function SheetUpload({ onDone, onOpenSheet }: {
       {lost && (
         <div className="banner">
           <b>问不到这个任务了</b>　{lost}
-          <button className="btn" onClick={dismiss}>知道了</button>
-        </div>
-      )}
-
-      {job?.state === 'solving' && (
-        <div className="banner">
-          <b>已经读出 {job.n} 题，可以看了</b>　知识点在后台继续挂，
-          挂完这份卷子就完整了。
-          {job.name && (
-            <button className="btn" onClick={() => onDone(job.name!, true)}>
-              去看这份卷子 →
-            </button>
-          )}
-        </div>
-      )}
-      {job?.state === 'done' && (
-        <div className="banner">
-          <b>完成</b>　参考答案读完了，知识点也挂完了。
-          {job.name && (
-            <button className="btn" onClick={() => onDone(job.name!, true)}>
-              去看这份卷子 →
-            </button>
-          )}
-        </div>
-      )}
-      {job?.state === 'error' && (
-        <div className="banner bad">
-          <b>Ⓐ 读参考答案失败</b>　{job.err}
           <button className="btn" onClick={dismiss}>知道了</button>
         </div>
       )}

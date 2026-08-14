@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, getJob, getProgress, Unauthorized, uploadPdf } from '../api'
+import JobProgress from './JobProgress'
 import type { Job } from '../types'
 
 /**
@@ -177,10 +178,50 @@ export default function Upload({ onDone }: {
 
   const dismiss = () => { saveJob(null); setJob(null); setLost(null); setRetry(0) }
 
+  /** 「去看这份卷子 →」。入库之后才给得出来 */
+  const open = job?.name
+    ? <button className="btn hot" onClick={() => onDone(job.name!, true)}>
+        去看这份卷子 →
+      </button>
+    : null
+
   return (
-    <div>
+    <div className="upzone">
+      {/* 任务卡在上传卡**上面**，不是替掉它。
+          一卷从 ③ 到 ⑦ 要几小时，把上传框锁上几小时等于这段时间根本不能用；
+          而「同一份卷子不许同时跑两条」那道闸在后端（/api/upload 会回 409） */}
+      {job?.state === 'running' && (
+        <JobProgress tone="run" title={job.step || '正在处理'} log={job.log}
+                     detail="正在跑 ① 摄入与 ② 切分。切完就能看题，解题在那之后。" />
+      )}
+      {job?.state === 'solving' && (
+        <JobProgress tone="run" title={`切出 ${job.n} 题，已经可以看了`}
+                     bar={{ cur: job.solved ?? 0, total: job.total ?? job.n ?? 0 }}
+                     detail="解题在后台逐题进行，解一道要两三分钟 —— 解完一道页面上就多一道。"
+                     log={job.log} actions={open} />
+      )}
+      {job?.state === 'finishing' && (
+        <JobProgress tone="run" title={`${job.n} 题都解完了`}
+                     detail={`正在跑 ④ 写断言与 ⑦ 装配离线页（${job.step ?? ''}）。`
+                       + '题目和解法已经在库里，这一步不影响现在看。'}
+                     log={job.log} actions={open} />
+      )}
+      {job?.state === 'done' && (
+        <JobProgress tone={job.warnings?.length ? 'bad' : 'ok'}
+                     title={`完成 · 切出 ${job.n} 题`}
+                     detail={job.warnings?.length
+                       ? <>切分时有 {job.warnings.length} 条告警：
+                           <ul>{job.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul></>
+                       : '无告警。'}
+                     log={job.log} actions={open} />
+      )}
+      {job?.state === 'error' && (
+        <JobProgress tone="bad" title="管线失败" detail={job.err} log={job.log}
+                     actions={<button className="btn" onClick={dismiss}>知道了</button>} />
+      )}
+
       <div
-        className={`drop${hot ? ' hot' : ''}${sending ? ' busy' : ''}`}
+        className={`upcard${hot ? ' hot' : ''}${sending ? ' busy' : ''}`}
         onClick={() => pick.current?.click()}
         onDragEnter={(e) => { e.preventDefault(); setHot(true) }}
         onDragOver={(e) => { e.preventDefault(); setHot(true) }}
@@ -191,8 +232,9 @@ export default function Upload({ onDone }: {
           if (f) void send(f)
         }}
       >
-        <b>{sending ? '上传中…' : '把试卷 PDF 拖到这里'}</b>
-        <span>{sending ? '正在把文件送上去' : '或者点一下选择文件 · 只接受有文字层的 PDF，暂不支持扫描件'}</span>
+        <b>{sending ? '上传中…' : job ? '再传一份试卷' : '把试卷 PDF 拖到这里'}</b>
+        <span>{sending ? '正在把文件送上去'
+          : '或者点一下选择文件 · 只接受有文字层的 PDF，暂不支持扫描件'}</span>
         <input ref={pick} type="file" accept="application/pdf" hidden
                onChange={(e) => { const f = e.target.files?.[0]; if (f) void send(f) }} />
       </div>
@@ -211,49 +253,6 @@ export default function Upload({ onDone }: {
       {lost && (
         <div className="banner">
           <b>上一次上传</b>　{lost}
-          <button className="btn" onClick={dismiss}>知道了</button>
-        </div>
-      )}
-
-      {job && <pre className="log">{job.log.join('\n')}</pre>}
-
-      {job?.state === 'solving' && (
-        <div className="banner">
-          <b>切出 {job.n} 题，已经可以看了</b>　解题在后台逐题进行
-          （{job.solved ?? 0}/{job.total ?? job.n}），解一道要两三分钟，
-          解完一道页面上就多一道。
-          {job.name && (
-            <button className="btn" onClick={() => onDone(job.name!, true)}>
-              去看这份卷子 →
-            </button>
-          )}
-        </div>
-      )}
-      {job?.state === 'finishing' && (
-        <div className="banner">
-          <b>{job.n} 题都解完了</b>　正在跑 ④ 写断言与 ⑦ 装配离线页（{job.step}）。
-          题目和解法已经在库里，这一步不影响现在看。
-          {job.name && (
-            <button className="btn" onClick={() => onDone(job.name!, true)}>
-              去看这份卷子 →
-            </button>
-          )}
-        </div>
-      )}
-      {job?.state === 'done' && (
-        <div className={`banner${job.warnings?.length ? ' bad' : ''}`}>
-          <b>完成</b>　切出 {job.n} 题
-          {job.warnings?.length ? (
-            <>
-              ，{job.warnings.length} 条告警：
-              <ul>{job.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
-            </>
-          ) : '，无告警'}
-        </div>
-      )}
-      {job?.state === 'error' && (
-        <div className="banner bad">
-          <b>管线失败</b>　{job.err}
           <button className="btn" onClick={dismiss}>知道了</button>
         </div>
       )}
