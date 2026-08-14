@@ -336,22 +336,28 @@ svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
 .auth-f input{min-width:0}
 
 /* 左栏：说清楚这是什么。留白比字多，别让它跟表单抢注意力 */
-.auth-brand{font-family:var(--mono);font-size:11px;letter-spacing:.22em;
-            text-transform:uppercase;color:var(--acc)}
+.auth-brand{font-family:var(--song);font-size:26px;font-weight:600;letter-spacing:.04em;
+            color:var(--ink)}
+.auth-brand em{font-style:normal;color:var(--hot)}
 .auth-say h1{font-family:var(--song);font-size:38px;line-height:1.32;font-weight:600;
-             margin:18px 0 0;letter-spacing:.01em}
+             margin:14px 0 0;letter-spacing:.01em}
 .auth-say p{margin:16px 0 0;font-size:14.5px;line-height:1.85;color:var(--ink2);
             max-width:30em}
-.auth-chain{list-style:none;display:flex;flex-wrap:wrap;gap:6px;margin:24px 0 0;padding:0}
-.auth-chain li{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
-               color:var(--ink3);border:1px solid var(--hair);border-radius:2px;
+/* 两条链各自一组，各带一个小标题 —— 摊成一排的话，Ⓐ 和 ③ 会读成同一条流水线 */
+.auth-chain-g{margin:20px 0 0}
+.auth-chain-g h2{margin:0 0 7px;font-size:12px;font-weight:600;color:var(--ink2);
+                 letter-spacing:.02em}
+.auth-chain{list-style:none;display:flex;flex-wrap:wrap;gap:5px;margin:0;padding:0}
+.auth-chain li{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;
+               color:var(--ink3);border:1px solid var(--hair);border-radius:4px;
                padding:3px 8px;background:var(--panel)}
 .auth-fine{font-size:12.5px !important;color:var(--ink3) !important;
-           border-left:2px solid var(--hair);padding-left:11px;margin-top:22px !important}
+           border-left:2px solid var(--hot);padding-left:11px;margin-top:24px !important}
 
-/* 右栏：表单卡。顶上那道 2px 实线呼应页头那条分割线 */
-.auth-card{background:var(--panel);border:1px solid var(--hair);border-top:2px solid var(--acc);
-           border-radius:3px;padding:30px 30px 24px}
+/* 右栏：表单卡。顶上那道朱砂细线是这一屏唯一的主动作所在 */
+.auth-card{background:var(--panel);border:1px solid var(--line);
+           border-top:2px solid var(--hot);
+           border-radius:var(--r-card);padding:30px 30px 24px;box-shadow:var(--sh-2)}
 @media (prefers-reduced-motion:no-preference){
   .auth-card{animation:auth-in .22s ease-out both}
   @keyframes auth-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -369,8 +375,9 @@ svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
 .auth-f span{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;
              color:var(--ink3);margin:0 0 7px}
 .auth-f input{width:100%;font:inherit;font-size:15px;height:44px;padding:0 13px;
-              border-radius:4px;border:1px solid var(--line);background:var(--paper);
-              color:var(--ink);transition:border-color .12s,box-shadow .12s}
+              border-radius:var(--r-ctl);border:1px solid var(--line);background:var(--paper);
+              color:var(--ink);transition:border-color var(--t-fast) var(--ease),
+              box-shadow var(--t-fast) var(--ease)}
 .auth-f input::placeholder{color:var(--ink3)}
 .auth-f input:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 3px var(--acc2)}
 /* 验证码：一个输入框拉开字距，不做 6 个格子 —— 那种在粘贴、退格、
@@ -385,11 +392,12 @@ svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
 .auth-err{color:var(--red)}
 .auth-hint{color:var(--ink2);border-left:2px solid var(--acc);padding-left:9px}
 
-/* 前景用 --panel 而不是写死 #fff：深色模式下 --acc 是浅蓝，白字会糊 */
-.auth-go{width:100%;height:44px;border:0;border-radius:4px;background:var(--acc);
+/* 唯一的主动作，所以是朱砂的。
+   前景用 --panel 而不是写死 #fff：深色模式下 --hot 是浅橙，白字会糊 */
+.auth-go{width:100%;height:44px;border:0;border-radius:var(--r-ctl);background:var(--hot);
          color:var(--panel);
          font-family:var(--cjk);font-size:14.5px;letter-spacing:.04em;cursor:pointer;
-         transition:filter .12s}
+         transition:filter var(--t-fast) var(--ease)}
 .auth-go:hover:not(:disabled){filter:brightness(1.1)}
 .auth-go:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .auth-go:disabled{background:var(--hair);color:var(--ink3);cursor:not-allowed}
@@ -399,13 +407,18 @@ svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
 
 .auth-ft{margin:24px 0 0;padding:14px 0 0;border-top:1px solid var(--hair);
          font-size:12px;line-height:1.75;color:var(--ink3)}
+/* 技术名退到这里。它仍然是这个项目的名字（命令行、日志、仓库都叫它），
+   只是不再和产品名抢版面 */
+.auth-tech{display:block;margin-top:9px;font-family:var(--mono);font-size:10.5px;
+           letter-spacing:.18em;text-transform:uppercase;color:var(--ink3);opacity:.75}
 
 /* 窄屏：左栏收成一句话，表单占满 —— 手机上先让人能登进去 */
 @media (max-width:840px){
   .auth{padding:34px 18px;align-items:flex-start}
   .auth-grid{grid-template-columns:1fr;gap:28px;max-width:420px}
-  .auth-say h1{font-size:27px;margin-top:12px}
-  .auth-say p,.auth-chain,.auth-fine{display:none}
+  .auth-brand{font-size:22px}
+  .auth-say h1{font-size:27px;margin-top:10px}
+  .auth-say p,.auth-chain-g,.auth-fine{display:none}
   .auth-card{padding:24px 22px 20px}
 }
 input[type=range]{width:118px}

@@ -17,7 +17,16 @@ import { requestCode, verifyCode } from '../api'
  *   不然人对着一个永远收不到信的输入框，只会以为是自己邮箱填错了。
  */
 
-const STAGES = ['① 摄入', '② 切分', '③ 解题', '④ 断言', '⑤ 场景', '⑦ 呈现']
+/**
+ * 两条链各自摊开。
+ *
+ * 以前这里只列了解析试卷那一条 —— 而答题卡诊断早就是并列的第二个工作流。
+ * 登录页是唯一一屏「还没进来的人」看得到的东西，少说一条等于这个功能不存在。
+ */
+const CHAINS: [string, string[]][] = [
+  ['解析试卷', ['① 摄入', '② 切分', '③ 解题', '④ 断言', '⑤ 场景', '⑦ 呈现']],
+  ['答题卡诊断', ['Ⓐ 读参考答案', 'Ⓢ 抠图', 'Ⓑ 读批改', 'Ⓒ 判定', 'Ⓓ 建议']],
+]
 
 export default function Login({ onDone }: { onDone: () => void }) {
   const [email, setEmail] = useState('')
@@ -75,17 +84,23 @@ export default function Login({ onDone }: { onDone: () => void }) {
     <div className="auth">
       <div className="auth-grid">
         <section className="auth-say">
-          <div className="auth-brand">exam-explainer</div>
-          <h1>把物理题<br />做成可验证的动画</h1>
+          <div className="auth-brand">析题<em>。</em></div>
+          <h1>把一份卷子<br />拆到能讲的程度</h1>
           <p>
-            上传一份高考物理真题 PDF，自动跑完切题、解题、写物理断言、
-            生成动画场景，直到一份可以直接读的卷子。
+            上传物理卷 PDF，自动跑完切题、解题、写物理断言、生成动画场景；
+            上传参考答案和学生的答题卡，逐题给出对错、丢分和下一步该练什么。
           </p>
-          <ol className="auth-chain">
-            {STAGES.map((s) => <li key={s}>{s}</li>)}
-          </ol>
+          {CHAINS.map(([title, stages]) => (
+            <div className="auth-chain-g" key={title}>
+              <h2>{title}</h2>
+              <ol className="auth-chain">
+                {stages.map((s) => <li key={s}>{s}</li>)}
+              </ol>
+            </div>
+          ))}
           <p className="auth-fine">
             动画的准入靠的是计算，不是人审 —— 满足不了它自己的断言就不出动画。
+            答题卡上的对错来自老师的批改，不是模型自己判的。
           </p>
         </section>
 
@@ -146,6 +161,7 @@ export default function Login({ onDone }: { onDone: () => void }) {
           <footer className="auth-ft">
             每个账号只看得到自己传的试卷。跑完一份卷子要几十分钟的模型时间，
             所以上传在登录之后。
+            <span className="auth-tech">exam-explainer</span>
           </footer>
         </section>
       </div>
