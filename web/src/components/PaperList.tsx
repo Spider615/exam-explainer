@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import LibraryTable, { RowMenu } from './LibraryTable'
+import StatusBadge from './StatusBadge'
 import type { PaperSummary } from '../types'
 
 /**
@@ -14,15 +16,14 @@ import type { PaperSummary } from '../types'
 function Prog({ p }: { p: NonNullable<PaperSummary['progress']> }) {
   const at = p.total > 1 ? ` ${p.cur}/${p.total}` : ''
   const failureCount = p.solutionFailures ?? 0
-  if (p.failed) return <span className="pill w" title={p.failed}>失败</span>
-  if (p.busy) return <span className="run"><i />{p.short}{at}</span>
+  if (p.failed) return <StatusBadge tone="bad" text="失败" title={p.failed} />
+  if (p.busy) return <StatusBadge tone="run" text={`${p.short}${at}`} />
   if (p.done && failureCount)
-    return <span className="pill w">已完成 · {failureCount}题失败</span>
-  if (p.done) return <span className="pill g">已完成</span>
+    return <StatusBadge tone="warn" text={`已完成 · ${failureCount} 题失败`} />
+  if (p.done) return <StatusBadge tone="ok" text="已完成" />
   return (
-    <span className="pill" title={`没有进程在跑，停在「${p.stage}」`}>
-      已停止 · {p.short}{at}
-    </span>
+    <StatusBadge tone="idle" text={`已停止 · ${p.short}${at}`}
+                 title={`没有进程在跑，停在「${p.stage}」`} />
   )
 }
 
@@ -40,7 +41,14 @@ export default function PaperList({ rows, onOpen, onDelete, busy }: {
 }) {
   const [sel, setSel] = useState<Set<string>>(new Set())
 
-  if (!rows.length) return <div className="empty">还没有处理过任何试卷</div>
+  if (!rows.length) {
+    return (
+      <div className="empty">
+        <b>还没有处理过任何试卷</b>
+        <span>把一份有文字层的物理卷 PDF 拖到上面那个框里就开始。</span>
+      </div>
+    )
+  }
 
   // 列表会因为删除/上传而变，选中集合里可能留着已经不在的名字
   const live = rows.filter((r) => sel.has(r.name)).map((r) => r.name)
@@ -70,43 +78,55 @@ export default function PaperList({ rows, onOpen, onDelete, busy }: {
           <button className="danger" disabled={busy} onClick={() => confirmDelete(live)}>
             {busy ? '删除中…' : '删除所选'}
           </button>
+          {/* 窄屏下表头（连同那个「全选」勾选框）是收起来的，全选得在这里够得着 */}
+          <button onClick={toggleAll}>{allOn ? '取消全选' : '全选'}</button>
           <button onClick={() => setSel(new Set())}>取消选择</button>
         </div>
       )}
-      <table>
-        <thead>
-          <tr>
-            <th className="ck">
-              <input type="checkbox" checked={allOn} onChange={toggleAll}
-                     aria-label="全选" />
-            </th>
-            <th>试卷</th><th>进度</th><th>题数</th><th>插图</th><th>动画</th><th>告警</th><th></th>
+      <LibraryTable cols={[
+        { key: 'ck',
+          label: <input type="checkbox" checked={allOn} onChange={toggleAll}
+                        aria-label="全选" /> },
+        { key: 'name', label: '试卷' },
+        { key: 'prog', label: '进度' },
+        { key: 'n', label: '题数', num: true },
+        { key: 'fig', label: '插图', num: true },
+        { key: 'scene', label: '动画', num: true },
+        { key: 'warn', label: '告警', num: true },
+        { key: 'more', label: '' },
+      ]}>
+        {rows.map((r) => (
+          <tr key={r.name} className={sel.has(r.name) ? 'on' : undefined}>
+            <td className="ck">
+              <input type="checkbox" checked={sel.has(r.name)}
+                     onChange={() => toggle(r.name)} aria-label={`选择 ${r.name}`} />
+            </td>
+            <td className="lib-name">
+              <button className="link" onClick={() => onOpen(r.name)}>{r.name}</button>
+            </td>
+            {/* 返回试卷库不等于任务停了——这一列让「哪份还在跑」一眼可见 */}
+            <td className="prg" data-label="进度">
+              {r.progress ? <Prog p={r.progress} /> : null}
+            </td>
+            <td className="num" data-label="题数">{r.n}</td>
+            <td className="num" data-label="插图">{r.figures}</td>
+            <td className="num" data-label="动画">
+              {r.scenes ? <span className="pill g">{r.scenes}</span>
+                        : <span className="pill">0</span>}
+            </td>
+            <td className="num" data-label="告警">
+              {r.warnings ? <span className="pill w">{r.warnings}</span>
+                          : <span className="pill">0</span>}
+            </td>
+            <td className="lib-more">
+              <RowMenu label={`「${r.name}」的更多操作`}>
+                <button className="rowmenu-danger" disabled={busy}
+                        onClick={() => confirmDelete([r.name])}>删除这份卷子</button>
+              </RowMenu>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.name} className={sel.has(r.name) ? 'on' : undefined}>
-              <td className="ck">
-                <input type="checkbox" checked={sel.has(r.name)}
-                       onChange={() => toggle(r.name)} aria-label={`选择 ${r.name}`} />
-              </td>
-              <td><button className="link" onClick={() => onOpen(r.name)}>{r.name}</button></td>
-              {/* 返回试卷库不等于任务停了——这一列让「哪份还在跑」一眼可见 */}
-              <td className="prg">{r.progress ? <Prog p={r.progress} /> : null}</td>
-              <td className="num">{r.n}</td>
-              <td className="num">{r.figures}</td>
-              <td>{r.scenes ? <span className="pill g">{r.scenes}</span>
-                            : <span className="pill">0</span>}</td>
-              <td>{r.warnings ? <span className="pill w">{r.warnings}</span>
-                              : <span className="pill">0</span>}</td>
-              <td>
-                <button className="del" disabled={busy} title={`删除 ${r.name}`}
-                        onClick={() => confirmDelete([r.name])}>删除</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        ))}
+      </LibraryTable>
     </>
   )
 }

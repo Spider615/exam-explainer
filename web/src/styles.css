@@ -233,12 +233,74 @@ a{color:var(--acc);text-underline-offset:2px}
 h2.lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
        color:var(--ink3);margin:30px 0 10px;font-weight:600}
 table{width:100%;border-collapse:collapse;font-size:14px;background:var(--panel);
-      border:1px solid var(--hair);border-radius:4px;overflow:hidden}
-th{text-align:left;font-size:11px;letter-spacing:.1em;color:var(--ink3);font-weight:600;
-   padding:9px 12px;border-bottom:1px solid var(--hair)}
-td{padding:10px 12px;border-bottom:1px solid var(--hair);color:var(--ink2)}
+      border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden}
+th{text-align:left;font-size:11.5px;letter-spacing:.06em;color:var(--ink3);font-weight:600;
+   padding:10px 14px;border-bottom:1px solid var(--line)}
+td{padding:11px 14px;border-bottom:1px solid var(--hair);color:var(--ink2)}
 tr:last-child td{border-bottom:none}
-tbody tr:hover{background:var(--acc2)}
+tbody tr:hover{background:var(--stem)}
+
+/* ── 状态标 ───────────────────────────────────────────────────────────────
+   颜色是第三层。**符号 + 一句话在前面** —— 红绿色觉差异下「已完成」和「失败」
+   是同一个灰点，而这里差着一整份卷子 */
+.sb{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;line-height:1.5;
+  padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--ink2);
+  white-space:nowrap}
+.sb-mk{font-style:normal;font-size:10.5px;opacity:.9}
+.sb-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none;
+  animation:progpulse 1.3s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.sb-dot{animation:none;opacity:.85}}
+.sb-ok{color:var(--ok);border-color:var(--ok);background:var(--ok2)}
+.sb-run{color:var(--acc);border-color:var(--acc);background:var(--acc2);font-weight:600}
+.sb-idle{color:var(--ink3);border-style:dashed}
+.sb-warn{color:var(--warn);border-color:var(--warn);background:var(--warn2)}
+.sb-bad{color:var(--bad);border-color:var(--bad);background:var(--bad2);font-weight:600}
+
+/* ── 任务库 ───────────────────────────────────────────────────────────────
+   窄屏退化只用 CSS：每个 td 带 data-label，640 以下整张表变成一行一张卡。
+   两套 JSX 的话，改一处忘另一处是必然的 —— 而「手机上少了一列」这种事
+   没人会在桌面上发现 */
+.lib{box-shadow:var(--sh-1)}
+.lib-name{color:var(--ink)}
+.lib-name .link{font-size:14.5px}
+.lib-more{width:44px;text-align:right}
+
+.rowmenu{position:relative;display:inline-block}
+.rowmenu-btn{background:none;border:1px solid transparent;border-radius:var(--r-ctl);
+  color:var(--ink3);cursor:pointer;font-size:15px;line-height:1;padding:5px 9px;
+  transition:border-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
+.rowmenu-btn:hover{border-color:var(--line);color:var(--ink)}
+.rowmenu-pop{position:absolute;right:0;top:calc(100% + 4px);z-index:10;min-width:9em;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-box);
+  box-shadow:var(--sh-2);padding:5px;display:flex;flex-direction:column}
+.rowmenu-pop button{background:none;border:0;font:inherit;font-size:13px;text-align:left;
+  padding:8px 10px;border-radius:var(--r-ctl);cursor:pointer;color:var(--ink2)}
+.rowmenu-pop button:hover{background:var(--stem)}
+/* 危险动作**在菜单里**才变红。静止状态下满屏红色，人会读成「这里出了事」 */
+.rowmenu-danger:hover{background:var(--bad2) !important;color:var(--bad)}
+.rowmenu-pop button:disabled{opacity:.45;cursor:not-allowed}
+
+@media (max-width:640px){
+  .lib{border:0;background:none;box-shadow:none}
+  .lib thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .lib,.lib tbody,.lib tr,.lib td{display:block;width:100%}
+  .lib tr{background:var(--panel);border:1px solid var(--line);
+    border-radius:var(--r-card);box-shadow:var(--sh-1);padding:12px 14px;margin:0 0 10px;
+    position:relative}
+  .lib tr:hover{background:var(--panel)}
+  .lib td{border:0;padding:3px 0;display:flex;align-items:baseline;
+    justify-content:space-between;gap:14px}
+  .lib td::before{content:attr(data-label);color:var(--ink3);font-size:12.5px;flex:none}
+  /* 卷名是这张卡的标题：左对齐、占满、给右上角那两个按钮让出位置。
+     不覆盖 justify-content 的话它会被 space-between 推到右边去撞上勾选框 */
+  .lib .lib-name{justify-content:flex-start;padding:0 78px 8px 0}
+  .lib .lib-name .link{font-size:16px;font-weight:600}
+  .lib .num{font-family:var(--mono)}
+  /* 「更多」钉在卡片右上角，勾选框跟着它 —— 一行一张卡之后它们没有列可占 */
+  .lib .lib-more{position:absolute;right:10px;top:8px;width:auto;padding:0}
+  .lib .ck{position:absolute;right:46px;top:12px;width:auto;padding:0}
+  .lib .ck::before,.lib .lib-more::before{content:none}
+}
 .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
 .link{background:none;border:0;color:var(--acc);cursor:pointer;font:inherit;padding:0;
       text-align:left}
@@ -494,7 +556,12 @@ svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
   .auth-card{padding:24px 22px 20px}
 }
 input[type=range]{width:118px}
-.empty{color:var(--ink3);padding:20px;text-align:center}
+/* 空状态是**一句话，不是留白**：说清楚「还没有」以及下一步该做什么 */
+.empty{color:var(--ink3);padding:34px 20px;text-align:center;background:var(--panel);
+  border:1px dashed var(--line);border-radius:var(--r-card)}
+.empty b{display:block;font-family:var(--song);font-size:16px;font-weight:600;
+  color:var(--ink2);margin-bottom:6px}
+.empty span{font-size:13px}
 
 .cmp{border:1px solid var(--cy);background:var(--cy2);border-radius:4px;padding:12px;
      margin:0 0 13px}

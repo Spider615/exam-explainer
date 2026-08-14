@@ -1,3 +1,5 @@
+import LibraryTable, { RowMenu } from './LibraryTable'
+import StatusBadge from './StatusBadge'
 import type { PaperSummary } from '../types'
 
 /**
@@ -14,45 +16,56 @@ export default function SheetList({ rows, onOpen, onDelete, busy }: {
   busy: boolean
 }) {
   if (!rows.length) {
-    return <div className="empty">还没有传过参考答案</div>
+    return (
+      <div className="empty">
+        <b>还没有传过参考答案</b>
+        <span>上面那三个框里，「参考答案」是必填的 —— 它是整份诊断的地基。</span>
+      </div>
+    )
   }
   const confirmDelete = (name: string) => {
     if (!window.confirm(`删除「${name}」？此操作不可恢复。`)) return
     onDelete([name])
   }
   return (
-    <table>
-      <thead>
-        <tr>
-          <th>卷名</th><th>进度</th><th>题数</th><th>带解答</th><th>挂知识点</th><th></th>
+    <LibraryTable cols={[
+      { key: 'name', label: '卷名' },
+      { key: 'prog', label: '进度' },
+      { key: 'n', label: '题数', num: true },
+      { key: 'sol', label: '带解答', num: true },
+      { key: 'kp', label: '挂知识点', num: true },
+      { key: 'more', label: '' },
+    ]}>
+      {rows.map((r) => (
+        <tr key={r.name}>
+          <td className="lib-name">
+            <button className="link" onClick={() => onOpen(r.name)}>{r.name}</button>
+          </td>
+          <td className="prg" data-label="进度">
+            {r.progress ? (
+              r.progress.busy
+                ? <StatusBadge tone="run" text={r.progress.short} />
+                : r.progress.done
+                  ? <StatusBadge tone="ok" text="已完成" />
+                  : <StatusBadge tone="idle" text={`已停止 · ${r.progress.short}`}
+                                 title={`没有进程在跑，停在「${r.progress.stage}」`} />
+            ) : null}
+          </td>
+          <td className="num" data-label="题数">{r.n}</td>
+          {/* 「带解答」天生小于题数：参考答案的版式就是只有大题给详解 */}
+          <td className="num" data-label="带解答"
+              title="有官方解答过程的题数。只有大题才有，这是参考答案的版式决定的">
+            {r.withSolution ?? 0}
+          </td>
+          <td className="num" data-label="挂知识点">{r.kps ?? 0}</td>
+          <td className="lib-more">
+            <RowMenu label={`「${r.name}」的更多操作`}>
+              <button className="rowmenu-danger" disabled={busy}
+                      onClick={() => confirmDelete(r.name)}>删除这份卷子</button>
+            </RowMenu>
+          </td>
         </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.name}>
-            <td><button className="link" onClick={() => onOpen(r.name)}>{r.name}</button></td>
-            <td className="prg">
-              {r.progress ? (
-                r.progress.busy
-                  ? <span className="run"><i />{r.progress.short}</span>
-                  : r.progress.done
-                    ? <span className="pill g">已完成</span>
-                    : <span className="pill">已停止 · {r.progress.short}</span>
-              ) : null}
-            </td>
-            <td className="num">{r.n}</td>
-            {/* 「带解答」天生小于题数：参考答案的版式就是只有大题给详解 */}
-            <td className="num" title="有官方解答过程的题数。只有大题才有，这是参考答案的版式决定的">
-              {r.withSolution ?? 0}
-            </td>
-            <td className="num">{r.kps ?? 0}</td>
-            <td>
-              <button className="del" disabled={busy} title={`删除 ${r.name}`}
-                      onClick={() => confirmDelete(r.name)}>删除</button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+      ))}
+    </LibraryTable>
   )
 }
