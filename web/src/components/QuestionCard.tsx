@@ -162,6 +162,38 @@ export default function QuestionCard({ q, paper, sourceKind, onRescened }: {
 
         <div className="stem"><StemBody q={q} /></div>
 
+        {/* 插图。**只在这道题没有动画时出现** —— 有动画的话，动画本身就是这张图
+            的动起来的版本，两张并排贴等于同一张图看两遍。
+            `figMarks` 非空表示图已经由 StemBody 落在正文里了，这里不再重复 */}
+        {!q.sceneId && !(q.figMarks?.length ?? 0) && q.figures.map((f, i) => (
+          <figure key={i}>
+            <img src={f.url} alt={`第${q.n}题插图`} style={{ width: `${f.widthPct}%` }} />
+          </figure>
+        ))}
+
+        {q.options.length > 0 && (
+          <ul className="opts">
+            {q.options.map((o) => (
+              <li key={o.key}>
+                <em>{o.key}</em>
+                <span>
+                  {o.latex
+                    ? <Latex tex={o.latex} />
+                    : <MathText text={o.text} math={o.math} />}
+                  {o.figure && <img src={o.figure} alt={`选项${o.key}`} />}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {q.optionImage && (
+          <details className="optimg-wrap">
+            <summary>对照原卷选项区（公式由视觉模型识别，出错时以此为准）</summary>
+            <img className="optimg" src={q.optionImage} alt="原卷选项区" loading="lazy" />
+          </details>
+        )}
+
         {/* 知识点。挂不上就明说 —— 不显示的话，「没挂上」和「还没跑过 ③c」
             在页面上长得一模一样 */}
         <div className="kps">
@@ -212,35 +244,21 @@ export default function QuestionCard({ q, paper, sourceKind, onRescened }: {
         )}
 
 
-        {q.sceneId && q.sceneFigure
-          ? <SceneMount sceneId={q.sceneId} figureHtml={q.sceneFigure} />
-          : (q.figMarks?.length ?? 0) ? null : q.figures.map((f, i) => (
-              <figure key={i}>
-                <img src={f.url} alt={`第${q.n}题插图`} style={{ width: `${f.widthPct}%` }} />
-              </figure>
-            ))}
+        {/* ── 动态讲解 ────────────────────────────────────────────────────
+            **有动画的题，动画就是这张卡的主舞台。**
 
-        {q.options.length > 0 && (
-          <ul className="opts">
-            {q.options.map((o) => (
-              <li key={o.key}>
-                <em>{o.key}</em>
-                <span>
-                  {o.latex
-                    ? <Latex tex={o.latex} />
-                    : <MathText text={o.text} math={o.math} />}
-                  {o.figure && <img src={o.figure} alt={`选项${o.key}`} />}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+            它紧跟在题干和知识点之后、答案之前 —— 顺序是「看变化 → 看结论 →
+            看计算」。以前它夹在选项和解法中间，一道有动画的题和一道没动画的题
+            在版面上几乎一样重，而动画恰恰是这个产品唯一做得到、别处没有的东西。
 
-        {q.optionImage && (
-          <details className="optimg-wrap">
-            <summary>对照原卷选项区（公式由视觉模型识别，出错时以此为准）</summary>
-            <img className="optimg" src={q.optionImage} alt="原卷选项区" loading="lazy" />
-          </details>
+            没有动画的题**不给这一块**，也不给一个「暂无动画」的空框 ——
+            那种占位会让人以为这里坏了。没动画的原因各不相同（④c 判不值得、
+            ④ 写不出断言、⑤ 跑失败），解法那一排 pill 里逐条说得清清楚楚。 */}
+        {q.sceneId && q.sceneFigure && (
+          <section className="stage-block">
+            <h2 className="lbl">动态讲解</h2>
+            <SceneMount sceneId={q.sceneId} figureHtml={q.sceneFigure} />
+          </section>
         )}
 
         <h2 className="lbl">解题思路</h2>

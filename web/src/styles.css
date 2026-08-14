@@ -214,11 +214,13 @@ a{color:var(--acc);text-underline-offset:2px}
 .log{font-family:var(--mono);font-size:12.5px;background:var(--panel);
      border:1px solid var(--hair);border-radius:4px;padding:12px 14px;margin-top:16px;
      white-space:pre-wrap;max-height:300px;overflow:auto;color:var(--ink2)}
-.banner{margin-top:16px;padding:13px 15px;border-radius:4px;background:var(--panel);
-        border:1px solid var(--hair);border-left:3px solid var(--cy)}
-.banner.bad{border-left-color:var(--red)}
-.banner b{color:var(--ink)}
-.banner ul{margin:8px 0 0;padding-left:18px;color:var(--red);font-size:13.5px}
+.banner{margin-top:14px;padding:13px 16px;border-radius:0 var(--r-box) var(--r-box) 0;
+        background:var(--panel);border:1px solid var(--line);
+        border-left:3px solid var(--acc);font-size:13.5px;line-height:1.75;
+        box-shadow:var(--sh-1)}
+.banner.bad{border-left-color:var(--bad)}
+.banner b{color:var(--ink);font-family:var(--song);font-size:15px}
+.banner ul{margin:8px 0 0;padding-left:18px;color:var(--bad);font-size:13.5px}
 /* 提示条里的动作（「去看这份卷子」「知道了」）另起一行，别挤在句尾 */
 .banner .btn{display:inline-block;margin:9px 0 0}
 
@@ -230,8 +232,14 @@ a{color:var(--acc);text-underline-offset:2px}
 /* 转圈是唯一的进度信号，减少动效时也得留着 —— 换成半透明的静态圈 */
 @media (prefers-reduced-motion:reduce){.spin{animation:none;opacity:.6}}
 
-h2.lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;
-       color:var(--ink3);margin:30px 0 10px;font-weight:600}
+/* 小节标题（「动态讲解」「解题思路」）。
+   **字距不给中文。** 原来这里是 .2em 字距 + 大写转换 —— 拉丁字母下好看，
+   而「动态讲解」会被拉成「动 态 讲 解」，读起来像四个不相干的字
+   （登录页那个输入框标签上踩过同一个坑，注释还在） */
+h2.lbl{font-family:var(--cjk);font-size:12.5px;letter-spacing:0;
+       color:var(--ink3);margin:18px 0 8px;font-weight:600;
+       display:flex;align-items:center;gap:9px}
+h2.lbl::after{content:"";flex:1;height:1px;background:var(--hair)}
 table{width:100%;border-collapse:collapse;font-size:14px;background:var(--panel);
       border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden}
 th{text-align:left;font-size:11.5px;letter-spacing:.06em;color:var(--ink3);font-weight:600;
@@ -343,11 +351,13 @@ tbody tr.on{background:var(--acc2)}
                 cursor:pointer;font:inherit;font-size:12px;padding:3px 10px;border-radius:3px}
 .bulkbar .danger{border-color:var(--red);color:var(--red);background:var(--red2)}
 .bulkbar button:disabled{opacity:.45;cursor:not-allowed}
-.toast{margin:0 0 10px;padding:9px 12px;font-size:13px;color:var(--ink2);
-       background:var(--panel);border:1px solid var(--line);border-radius:4px}
+.toast{margin:0 0 10px;padding:10px 14px;font-size:13px;color:var(--ink2);
+       background:var(--panel);border:1px solid var(--line);
+       border-radius:var(--r-box);box-shadow:var(--sh-1)}
 
 .note{background:var(--acc2);border-left:3px solid var(--acc);padding:11px 14px;
-      margin:20px 0 0;font-size:13px;color:var(--ink2);border-radius:0 3px 3px 0}
+      margin:14px 0;font-size:13px;color:var(--ink2);line-height:1.7;
+      border-radius:0 var(--r-ctl) var(--r-ctl) 0}
 .note b{color:var(--acc)}
 
 .stages{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 0;align-items:center}
@@ -381,23 +391,38 @@ tbody tr.on{background:var(--acc2)}
          border-left:3px solid var(--line);border-radius:0 3px 3px 0}
 .ai-note b{color:var(--ink)}
 
-.sec{margin:32px 0 14px;display:flex;align-items:baseline;gap:12px;
-     border-bottom:1px solid var(--ink);padding-bottom:6px}
-.sec h3{font-family:var(--song);font-size:18px;margin:0;font-weight:600}
-.sec span{font-size:12px;color:var(--ink3);font-family:var(--mono)}
-.q{background:var(--panel);border:1px solid var(--line);border-radius:4px;
-   margin-bottom:18px;overflow:hidden;scroll-margin-top:14px}
+.sec{margin:34px 0 16px;display:flex;align-items:baseline;gap:12px;
+     border-bottom:2px solid var(--ink);padding-bottom:7px}
+.sec h3{font-family:var(--song);font-size:19px;margin:0;font-weight:600}
+.sec span{font-size:12px;color:var(--ink3)}
+.q{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-card);
+   margin-bottom:20px;overflow:hidden;scroll-margin-top:78px;box-shadow:var(--sh-1)}
 .q:focus{outline:2px solid var(--acc);outline-offset:3px}
-.qhd{display:flex;align-items:center;gap:9px;padding:11px 15px;
-     border-bottom:1px solid var(--hair);flex-wrap:wrap}
-.qnum{font-family:var(--mono);font-size:20px;font-weight:600;color:var(--acc);
+.qhd{display:flex;align-items:center;gap:9px;padding:12px 18px;
+     border-bottom:1px solid var(--hair);flex-wrap:wrap;background:var(--stem)}
+.qnum{font-family:var(--song);font-size:21px;font-weight:600;color:var(--ink);
       font-variant-numeric:tabular-nums}
-.qbd{padding:13px 15px 15px}
-.stem{font-family:var(--song);font-size:15.5px;line-height:1.95;background:var(--stem);
-      border:1px solid var(--hair);border-left:3px solid var(--line);padding:12px 14px;
-      border-radius:0 3px 3px 0;margin:0 0 13px;white-space:pre-wrap}
-.warn{background:var(--red2);border-left:3px solid var(--red);padding:8px 12px;
-      margin:0 0 12px;font-size:13px;color:var(--red);border-radius:0 3px 3px 0}
+.qbd{padding:16px 18px 18px}
+.stem{font-family:var(--song);font-size:16px;line-height:1.95;background:var(--stem);
+      border:1px solid var(--hair);border-left:3px solid var(--acc);padding:14px 16px;
+      border-radius:0 var(--r-box) var(--r-box) 0;margin:0 0 14px;white-space:pre-wrap}
+
+/* ── 动态讲解 ─────────────────────────────────────────────────────────────
+   有动画的题，动画就是这张卡的主舞台：整幅宽、有画框、控件在下面一条。
+   读数面板画在场景 SVG 内部（`scenegen` 的 panel_svg），**不在外面再造一个** ——
+   那等于凭空多出第二份数值，而它不会跟着物理走。 */
+.stage-block{margin:4px 0 16px}
+.stage-block .lbl{margin:0 0 8px}
+.scenebox{border:1px solid var(--line);border-radius:var(--r-box);overflow:hidden;
+  background:var(--panel)}
+.scenebox figure{margin:0;border:0;border-radius:0;background:var(--panel)}
+.scenebox figcaption{border-top:1px solid var(--hair);color:var(--ink2);
+  font-size:12px;padding:8px 14px;line-height:1.7;background:var(--stem)}
+.scenebox .warn{margin:0;border-radius:0}
+.warn{background:var(--warn2);border-left:3px solid var(--warn);padding:9px 13px;
+      margin:0 0 12px;font-size:13px;color:var(--warn);line-height:1.7;
+      border-radius:0 var(--r-ctl) var(--r-ctl) 0}
+.warn a{color:var(--warn)}
 .opts{list-style:none;margin:0 0 13px;padding:0;display:grid;gap:6px}
 .opts li{display:flex;gap:9px;align-items:flex-start;font-size:14.5px}
 .opts em{font-style:normal;font-family:var(--mono);color:var(--acc);font-weight:600;
@@ -430,8 +455,8 @@ svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
 .fk{fill:var(--ink)}.fa{fill:var(--acc)}.fr{fill:var(--red)}.fc{fill:var(--cy)}
 .wash-a{fill:var(--acc);opacity:.13}.wash-r{fill:var(--red);opacity:.14}
 .wash-c{fill:var(--cy);opacity:.16}
-.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 12px;
-        border-top:1px solid var(--hair)}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 14px;
+        border-top:1px solid var(--line);background:var(--stem)}
 .ctl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2)}
 .btn{font-family:var(--cjk);font-size:11.5px;line-height:1;padding:5px 10px;
      border-radius:var(--r-ctl);
@@ -625,40 +650,80 @@ input[type=range]{width:118px}
 .prog-last{display:block;margin:7px 0 0;font-family:var(--mono);font-size:11.5px;
            color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.facts{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-end;margin:16px 0 0;
-       padding:14px 16px;background:var(--panel);border:1px solid var(--line);border-radius:4px}
-.fact{display:flex;flex-direction:column;gap:2px}
-.fact b{font-family:var(--mono);font-size:22px;font-weight:600;line-height:1.1;
-        font-variant-numeric:tabular-nums}
-.fact span{font-size:11.5px;color:var(--ink3)}
-.fact-act{margin-left:auto;align-items:flex-start;gap:5px}
+/* ── 摘要数 ───────────────────────────────────────────────────────────────
+   数在上、名在下。**名字不许省** —— 一排孤零零的数字看着干净，
+   但没人记得第三个是什么 */
+/* 底色是**面板色，不是线色**。用 1px 间隙露底色画分隔线的话，摘要数填不满
+   最后一行时，那些没有格子的地方会露出一大片深色 —— 实测 390 下就是这样 */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));
+  margin:16px 0 0;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r-card);overflow:hidden;box-shadow:var(--sh-1)}
+.metric{display:flex;flex-direction:column;gap:3px;padding:13px 16px;
+  border-right:1px solid var(--hair);border-bottom:1px solid var(--hair)}
+.metric b{font-family:var(--song);font-size:24px;font-weight:600;line-height:1.15;
+  font-variant-numeric:tabular-nums}
+.metric span{font-size:11.5px;color:var(--ink3)}
+.metric-q{font-style:normal;margin-left:3px;opacity:.7;font-size:10px;vertical-align:super}
+.metric-hot b{color:var(--hot)}
+.metric-ok b{color:var(--ok)}
+.metric-bad b{color:var(--bad)}
+.metrics-act{display:flex;align-items:center;padding:13px 16px}
 
-.pgrid{display:grid;grid-template-columns:186px minmax(0,1fr);gap:26px;margin-top:8px}
-.toc{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px);overflow:auto}
-@media (max-width:900px){
-  .pgrid{grid-template-columns:1fr}
-  .toc{position:static;max-height:none}
-}
+/* ── 试卷详情的两栏 ───────────────────────────────────────────────────────
+   固定目录 + 自适应正文。目录窄到 200，正文才有稳定的阅读宽度 */
+.pgrid{display:grid;grid-template-columns:200px minmax(0,1fr);gap:30px;margin-top:20px}
+.toc{position:sticky;top:70px;align-self:start;max-height:calc(100vh - 86px);
+  overflow:auto;padding-right:4px}
+.toc-hd{padding:0 5px 9px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.toc-hd b{display:block;font-family:var(--song);font-size:14.5px;line-height:1.5;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toc-hd span{font-size:11.5px;color:var(--ink3)}
 .toc-g h4{font-size:11.5px;color:var(--ink3);margin:16px 0 5px;font-weight:600}
-.toc-g:first-child h4{margin-top:4px}
-.toc-i{display:flex;align-items:baseline;gap:7px;width:100%;padding:3px 5px;background:none;
-       border:0;border-radius:3px;cursor:pointer;font:inherit;font-size:12.5px;
-       color:var(--ink2);text-align:left}
+.toc-g:first-of-type h4{margin-top:8px}
+.toc-i{display:flex;align-items:baseline;gap:7px;width:100%;padding:4px 5px;background:none;
+       border:0;border-radius:var(--r-ctl);cursor:pointer;font:inherit;font-size:12.5px;
+       color:var(--ink2);text-align:left;
+       transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
 .toc-i:hover{background:var(--acc2);color:var(--acc)}
-.toc-i:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
 .toc-n{font-family:var(--mono);font-size:11px;color:var(--ink3);flex:none}
 .toc-l{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.toc-a{font-family:var(--mono);font-size:11px;color:var(--red);flex:none;max-width:76px;
+.toc-a{font-family:var(--mono);font-size:11px;color:var(--hot);flex:none;max-width:76px;
        overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-.quick{background:var(--panel);border:1px solid var(--line);border-radius:4px;
-       padding:12px 14px;margin-bottom:6px}
-.quick h4{margin:0 0 9px;font-size:12px;color:var(--ink3);font-weight:600;letter-spacing:.04em}
-.quick-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(134px,1fr));gap:1px;
-         background:var(--hair);border:1px solid var(--hair)}
-.quick-c{display:flex;flex-direction:column;gap:3px;padding:7px 9px;background:var(--panel);
-         border:0;cursor:pointer;font:inherit;text-align:left}
-.quick-c:hover{background:var(--acc2)}
+/* 窄屏：目录收成一条横向跳转带，钉在顶上。正文单列 ——
+   手机上留一栏 200px 的侧栏，正文就只剩一百多像素，题干会变成一列一个字 */
+@media (max-width:900px){
+  .pgrid{grid-template-columns:1fr;gap:16px}
+  .toc{position:sticky;top:0;z-index:15;max-height:none;overflow:visible;
+    background:var(--paper);border-bottom:1px solid var(--line);padding:8px 0}
+  .toc-hd{display:flex;align-items:baseline;gap:10px;border:0;padding:0 0 6px;margin:0}
+  .toc-hd b{font-size:13.5px}
+  .toc-g{display:flex;align-items:center;gap:4px;overflow-x:auto;padding-bottom:2px}
+  .toc-g h4{margin:0;flex:none;padding-right:4px}
+  .toc-i{width:auto;flex:none;border:1px solid var(--hair);border-radius:999px;
+    padding:5px 10px;min-height:32px}
+  .toc-l,.toc-a{display:none}
+  .toc-n{font-size:12px;color:var(--ink2)}
+}
+
+.quick{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-card);
+       padding:12px 16px;margin-bottom:14px;box-shadow:var(--sh-1)}
+.quick>summary{font-size:12.5px;color:var(--ink3);font-weight:600;letter-spacing:.04em;
+  cursor:pointer;user-select:none;list-style:none}
+.quick>summary::-webkit-details-marker{display:none}
+.quick>summary::before{content:"▾ ";color:var(--ink3)}
+.quick:not([open])>summary::before{content:"▸ "}
+.quick>summary:hover{color:var(--acc)}
+.quick-g{margin-top:10px}
+/* 一格一题。**用真边框，不用 1px 间隙露底色的老把戏** ——
+   题数填不满最后一行时，那些空轨道会露出一片没有内容的灰底 */
+.quick-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(134px,1fr));gap:8px}
+.quick-c{display:flex;flex-direction:column;gap:3px;padding:8px 10px;background:var(--panel);
+         border:1px solid var(--hair);border-radius:var(--r-ctl);cursor:pointer;
+         font:inherit;text-align:left;
+         transition:background var(--t-fast) var(--ease),
+         border-color var(--t-fast) var(--ease)}
+.quick-c:hover{background:var(--acc2);border-color:var(--acc)}
 .quick-c:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
 .quick-h{font-family:var(--mono);font-size:10.5px;color:var(--ink3)}
 .quick-a{font-family:var(--mono);font-size:13px;color:var(--red);line-height:1.35;

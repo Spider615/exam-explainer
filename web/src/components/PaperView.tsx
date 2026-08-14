@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getPaper, getProgress, resumePaper, sceneScriptUrl } from '../api'
+import JobProgress from './JobProgress'
+import MetricCard, { Metrics } from './MetricCard'
+import PaperSidebar from './PaperSidebar'
 import QuestionCard from './QuestionCard'
 import { fmtDur } from '../fmt'
 import type { Paper, Progress, Question } from '../types'
@@ -214,49 +217,46 @@ export default function PaperView({ name }: { name: string }) {
       )}
 
       {pg && (pg.busy || !pg.done) && (
-        <div className={`prog${pg.busy ? '' : ' idle'}`}>
-          <div className="prog-hd">
-            <span className="prog-dot" />
-            {/* 状态词在前，阶段在后。停下来的时候「停在哪」和「已停止」一样重要 */}
-            <b>{pg.failed ? `失败 · ${pg.stage}`
-              : pg.busy ? pg.stage
-                : `${pg.stage} · 已停止`}</b>
-            {pct !== null && (
-              <span className="prog-num">{pg.stageCur}/{pg.stageTotal}</span>
-            )}
-            {/* 停下来的卷子给一个「继续执行」。最常见的停法是后端重启：驱动
-                整条链的线程随进程没了，库里的数据是好的，只是没人接着往下走。
-                跑完的卷子不给 —— 那时点它只会白等一圈。 */}
-            {!pg.busy && !pg.done && (
-              <button className="btn" disabled={resuming}
-                      style={pct !== null ? { marginLeft: 8 } : { marginLeft: 'auto' }}
-                      onClick={onResume}>
-                {resuming ? '正在启动…' : '继续执行'}
-              </button>
-            )}
-          </div>
-          {pct !== null && (
-            <div className="prog-bar"><i style={{ width: `${pct}%` }} /></div>
-          )}
-          {pg.failed && <code className="prog-last">{pg.failed}</code>}
-          {resumeNote && <code className="prog-last">{resumeNote}</code>}
-          {/* 每个分母都用那一步自己的口径：④ 只做 ④c 选中的题，⑤ 只做自检通过的题。
-              拿题数当分母的话，一份跑完的卷子会显示成「断言 6/16」，像是没做完 */}
-          <div className="prog-sub">
-            <span>解题 {pg.solutions + failureCount}/{pg.questions}</span>
-            {failureCount > 0 && (
-              <span className="prog-fail">失败 {failureCount}</span>
-            )}
-            <span>选题 {pg.judged}/{pg.solutions}</span>
-            <span>断言 {pg.specsWorth}{pg.worth ? `/${pg.worth}` : ''}</span>
-            <span>自检 {pg.approved}/{pg.specs}</span>
-            <span>动画 {pg.scenes}{pg.ready ? `/${pg.ready}` : ''}</span>
-            {pg.elapsedSeconds !== null && <span className="prog-t">
-              {pg.assembled ? '总耗时' : '已用时'} {fmtDur(pg.elapsedSeconds)}
-            </span>}
-          </div>
-          {pg.step && <code className="prog-last">{pg.step}{pg.last ? ` · ${pg.last.trim()}` : ''}</code>}
-        </div>
+        <JobProgress
+          tone={pg.failed ? 'bad' : pg.busy ? 'run' : 'ok'}
+          /* 状态词在前，阶段在后。停下来的时候「停在哪」和「已停止」一样重要 */
+          title={pg.failed ? `失败 · ${pg.stage}`
+            : pg.busy ? pg.stage : `${pg.stage} · 已停止`}
+          bar={pct !== null ? { cur: pg.stageCur, total: pg.stageTotal } : null}
+          detail={
+            <>
+              {/* 每个分母都用那一步自己的口径：④ 只做 ④c 选中的题，
+                  ⑤ 只做自检通过的题。拿题数当分母的话，一份跑完的卷子会显示成
+                  「断言 6/16」，像是没做完 */}
+              <span className="prog-sub">
+                <span>解题 {pg.solutions + failureCount}/{pg.questions}</span>
+                {failureCount > 0 && <span className="prog-fail">失败 {failureCount}</span>}
+                <span>选题 {pg.judged}/{pg.solutions}</span>
+                <span>断言 {pg.specsWorth}{pg.worth ? `/${pg.worth}` : ''}</span>
+                <span>自检 {pg.approved}/{pg.specs}</span>
+                <span>动画 {pg.scenes}{pg.ready ? `/${pg.ready}` : ''}</span>
+                {pg.elapsedSeconds !== null && <span className="prog-t">
+                  {pg.assembled ? '总耗时' : '已用时'} {fmtDur(pg.elapsedSeconds)}
+                </span>}
+              </span>
+              {pg.failed && <code className="prog-last">{pg.failed}</code>}
+              {resumeNote && <code className="prog-last">{resumeNote}</code>}
+              {pg.step && (
+                <code className="prog-last">
+                  {pg.step}{pg.last ? ` · ${pg.last.trim()}` : ''}
+                </code>
+              )}
+            </>
+          }
+          /* 停下来的卷子给一个「继续执行」。最常见的停法是后端重启：驱动整条链
+             的线程随进程没了，库里的数据是好的，只是没人接着往下走。
+             跑完的卷子不给 —— 那时点它只会白等一圈。 */
+          actions={!pg.busy && !pg.done ? (
+            <button className="btn" disabled={resuming} onClick={onResume}>
+              {resuming ? '正在启动…' : '继续执行'}
+            </button>
+          ) : undefined}
+        />
       )}
 
       {failedQuestions.length > 0 && (
@@ -271,35 +271,32 @@ export default function PaperView({ name }: { name: string }) {
         </div>
       )}
 
-      <div className="facts">
-        <div className="fact"><b>{stats.n}</b><span>题</span></div>
-        {stats.points > 0 && <div className="fact"><b>{stats.points}</b><span>分</span></div>}
-        <div className="fact">
-          <b>{stats.groups.map(([, v]) => v.length).join(' + ')}</b>
-          <span>{stats.groups.map(([k]) => k.split('、').pop()).join(' / ')}</span>
-        </div>
+      <Metrics>
+        <MetricCard value={stats.n} label="题" />
+        {stats.points > 0 && <MetricCard value={stats.points} label="分" />}
+        <MetricCard value={`${paper.coverage.solved}/${paper.coverage.total}`}
+                    label="已解题"
+                    tone={paper.coverage.failed > 0 ? 'bad' : 'plain'} />
+        <MetricCard value={stats.scenes} label="题有动画"
+                    tone={stats.scenes > 0 ? 'ok' : 'plain'} />
         {stats.minutes > 0 && (
-          <div className="fact" title="按分值估算（100 分 / 75 分钟），不是原卷标注">
-            <b>{stats.minutes}</b><span>分钟 · 估</span>
-          </div>
+          <MetricCard value={stats.minutes} label="分钟"
+                      hint="按分值估算（100 分 / 75 分钟），不是原卷标注" />
         )}
-        <div className="fact"><b>{paper.coverage.solved}/{paper.coverage.total}</b>
-          <span>已解题</span></div>
         {pg?.elapsedSeconds != null && (
-          <div className="fact" title="从这一轮上传开始，到 ⑦ 装配完成为止">
-            <b>{fmtDur(pg.elapsedSeconds)}</b>
-            <span>{pg.assembled ? '总耗时' : '已用时'}</span>
-          </div>
+          <MetricCard value={fmtDur(pg.elapsedSeconds)}
+                      label={pg.assembled ? '总耗时' : '已用时'}
+                      hint="从这一轮上传开始，到 ⑦ 装配完成为止" />
         )}
+        {/* 投屏讲解时一键控制全卷。**只在真有动画时出现** */}
         {stats.scenes > 0 && (
-          <div className="fact fact-act">
+          <div className="metrics-act">
             <button className="btn" onClick={toggleAll}>
               {playing ? '⏸ 全部暂停' : '▶ 全部播放'}
             </button>
-            <span>{stats.scenes} 张图为动画</span>
           </div>
         )}
-      </div>
+      </Metrics>
 
       {paper.warnings.length > 0 && (
         <div className="banner bad">
@@ -309,32 +306,19 @@ export default function PaperView({ name }: { name: string }) {
       )}
 
       <div className="pgrid">
-        <nav className="toc">
-          {stats.groups.map(([sec, qs]) => (
-            <div key={sec} className="toc-g">
-              <h4>{sec.includes('、') ? sec.split('、').pop() : sec}</h4>
-              {qs.map((q) => {
-                const a = shortOf(q)
-                return (
-                  <button key={q.n} className="toc-i" onClick={() => jumpTo(q.n)}>
-                    <span className="toc-n">{String(q.n).padStart(2, '0')}</span>
-                    <span className="toc-l">{q.label || ''}</span>
-                    {/* 目录这一列窄，只放真答案和终态失败；其余中间态留白 */}
-                    <span className="toc-a" title={a.kind === 'failed'
-                      ? q.solutionFailure?.reason : undefined}>
-                      {a.kind === 'short' || a.kind === 'raw' || a.kind === 'failed'
-                        ? a.text : ''}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          ))}
-        </nav>
+        <PaperSidebar
+          name={paper.name} count={stats.n} onJump={jumpTo}
+          groups={stats.groups.map(([sec, qs]) => [sec, qs.map((q) => {
+            const a = shortOf(q)
+            // 目录这一列窄，只放真答案和终态失败；其余中间态留白
+            return { n: q.n, label: q.label,
+                     answer: a.kind === 'short' || a.kind === 'raw' || a.kind === 'failed'
+                       ? a.text : '' }
+          })])} />
 
         <div className="pmain">
-          <div className="quick">
-            <h4>答案速览</h4>
+          <details className="quick" open>
+            <summary>答案速览</summary>
             <div className="quick-g">
               {paper.questions.map((q) => {
                 const a = shortOf(q)
@@ -354,9 +338,9 @@ export default function PaperView({ name }: { name: string }) {
                 )
               })}
             </div>
-          </div>
+          </details>
 
-          {!scenesReady ? <div className="empty">载入动画场景…</div>
+          {!scenesReady ? <div className="empty"><b>载入动画场景…</b></div>
             : paper.questions.map((q) => {
               const head = q.section !== lastSection ? (lastSection = q.section) : null
               const cnt = head ? paper.questions.filter((x) => x.section === head).length : 0
