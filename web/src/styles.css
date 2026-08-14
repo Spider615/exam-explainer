@@ -211,9 +211,6 @@ a{color:var(--acc);text-underline-offset:2px}
   margin:9px 0 0;padding:10px 12px;background:var(--stem);border-radius:var(--r-ctl);
   color:var(--ink2);white-space:pre-wrap;max-height:280px;overflow:auto}
 
-.log{font-family:var(--mono);font-size:12.5px;background:var(--panel);
-     border:1px solid var(--hair);border-radius:4px;padding:12px 14px;margin-top:16px;
-     white-space:pre-wrap;max-height:300px;overflow:auto;color:var(--ink2)}
 .banner{margin-top:14px;padding:13px 16px;border-radius:0 var(--r-box) var(--r-box) 0;
         background:var(--panel);border:1px solid var(--line);
         border-left:3px solid var(--acc);font-size:13.5px;line-height:1.75;
@@ -315,10 +312,10 @@ tbody tr:hover{background:var(--stem)}
 .link{background:none;border:0;color:var(--acc);cursor:pointer;font:inherit;padding:0;
       text-align:left}
 .link:hover{text-decoration:underline}
-.pill{font-family:var(--mono);font-size:10.5px;padding:1px 7px;border-radius:2px;
-      border:1px solid var(--line);color:var(--ink3)}
-.pill.w{border-color:var(--red);color:var(--red);background:var(--red2)}
-.pill.g{border-color:var(--cy);color:var(--cy);background:var(--cy2)}
+.pill{font-family:var(--cjk);font-size:11.5px;padding:2px 8px;border-radius:999px;
+      border:1px solid var(--line);color:var(--ink3);white-space:nowrap}
+.pill.w{border-color:var(--warn);color:var(--warn);background:var(--warn2)}
+.pill.g{border-color:var(--ok);color:var(--ok);background:var(--ok2)}
 
 /* 模型解法。可信度标记必须和结论同框，不能折叠 —— 讲解最擅长掩盖错误 */
 .pill.a{border-color:var(--acc);color:var(--acc);background:var(--acc2)}
@@ -633,22 +630,10 @@ input[type=range]{width:118px}
            background:#fff;overflow:hidden;width:fit-content;max-width:100%}
 .inlinefig img{display:block;height:auto;max-width:100%}
 
-/* ── 试卷页：进度带 / 统计条 / 目录 / 答案速览 ───────────────────────── */
-
-/* 进度带。上传页一跳走，这就是唯一能看见管线还在跑的地方 —— 以前这里什么都没有，
-   ③④⑤ 那几十分钟到几个钟头页面上一动不动，看着像卡死了 */
-.prog{margin:14px 0 0;padding:10px 13px;background:var(--panel);border:1px solid var(--line);
-      border-left:3px solid var(--cy);border-radius:0 4px 4px 0}
-.prog-hd{display:flex;align-items:center;gap:8px;font-size:13.5px}
-.prog-hd b{color:var(--ink)}
-.prog-dot{width:7px;height:7px;border-radius:50%;background:var(--cy);flex:none;
-          animation:progpulse 1.3s ease-in-out infinite}
+/* ── 试卷页：进度分项 / 统计条 / 目录 / 答案速览 ─────────────────────────
+   进度带本身现在是 `.runcard`（和上传共用一个组件）。留在这里的是它内部那两样
+   试卷页特有的东西：分项计数和最后一行日志。 */
 @keyframes progpulse{0%,100%{opacity:.25}50%{opacity:1}}
-@media (prefers-reduced-motion:reduce){.prog-dot{animation:none;opacity:.9}}
-.prog-num{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--ink3);
-          font-variant-numeric:tabular-nums}
-.prog-bar{height:3px;background:var(--hair);border-radius:2px;margin:8px 0 0;overflow:hidden}
-.prog-bar i{display:block;height:100%;background:var(--cy);transition:width .4s}
 .prog-last{display:block;margin:7px 0 0;font-family:var(--mono);font-size:11.5px;
            color:var(--ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
@@ -741,23 +726,15 @@ input[type=range]{width:118px}
   padding:0 7px 0 0;text-decoration:underline;cursor:pointer;font:inherit}
 .solve-fail-summary button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
 
-/* 进度带里的分项与计时。跑完之后 .idle 让它退成灰的，但不隐藏 ——
-   「跑到哪儿停的」和「跑完了」是两回事，都得说得出来 */
-.prog.idle{border-left-color:var(--line)}
-.prog.idle .prog-dot{animation:none;background:var(--ink3);opacity:.5}
-.prog-sub{display:flex;gap:14px;flex-wrap:wrap;margin:7px 0 0;
-          font-family:var(--mono);font-size:11px;color:var(--ink3);
+/* 进度带里的分项与计时。**每个分母都是那一步自己的口径**，所以它们并排一行、
+   不各自成块 —— 它们是一句话的六个词，不是六个指标 */
+.prog-sub{display:flex;gap:14px;flex-wrap:wrap;margin:2px 0 0;
+          font-family:var(--mono);font-size:11.5px;color:var(--ink3);
           font-variant-numeric:tabular-nums}
-.prog-sub .prog-fail{color:var(--red);font-weight:600}
+.prog-sub .prog-fail{color:var(--bad);font-weight:600}
 .prog-sub .prog-t{margin-left:auto;color:var(--acc)}
 
-/* 列表里的「在跑」标记。跑动的点比一行文字更容易被扫到 */
 td.prg{white-space:nowrap}
-.run{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);
-     font-size:11px;color:var(--cy)}
-.run i{width:6px;height:6px;border-radius:50%;background:var(--cy);
-       animation:progpulse 1.3s ease-in-out infinite}
-@media (prefers-reduced-motion:reduce){.run i{animation:none}}
 
 /* ③c 知识点 / ②d 卷子上的答案。颜色一律走 :root 的变量，深色模式白拿 */
 .kps{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;align-items:center}
@@ -776,11 +753,16 @@ td.prg{white-space:nowrap}
 .ctl-num{font-family:var(--mono);font-size:11px;color:var(--ink3);min-width:34px}
 .ctl-lab{font-size:11px;color:var(--ink3)}
 
-.acard{border:1px solid var(--hair);border-radius:4px;background:var(--panel);
-  padding:14px 16px;margin:0 0 12px}
-.acard h3{margin:0 0 10px;font-family:var(--song);font-size:16px}
+.acard{border:1px solid var(--line);border-radius:var(--r-card);background:var(--panel);
+  padding:16px 18px;margin:0 0 14px;box-shadow:var(--sh-1);scroll-margin-top:78px}
+.acard h3{margin:0 0 12px;font-family:var(--song);font-size:17px}
 .acard dl{display:grid;grid-template-columns:84px 1fr;gap:6px 14px;margin:0}
 .acard dt{color:var(--ink3);font-size:13px}
+@media (max-width:560px){
+  /* 84px 的名字列在窄屏上把答案挤成一条竖柱 —— 名字改成另起一行 */
+  .acard dl{grid-template-columns:1fr;gap:2px}
+  .acard dd{margin:0 0 8px}
+}
 .acard dd{margin:0}
 .acard .ans{font-weight:600;font-family:var(--math)}
 /* 「没有」要看得出是「没有」，但不能弱到读不见 —— 它是一句话，不是留白 */
@@ -840,19 +822,18 @@ td.prg{white-space:nowrap}
 /* 颜色一律走调色板变量。写死浅色在暗色主题下会瞎 —— 这个文件顶上就有一整套
    `prefers-color-scheme: dark` 的覆盖，绕过它等于只做了一半 */
 
-.sheets{margin:28px 0;padding-top:18px;border-top:1px solid var(--hair)}
-.sheets h3{margin:0 0 10px;font-size:15px}
-.sheets .dim{color:var(--ink3);font-size:14px}
-.sheet-tbl{width:100%;border-collapse:collapse;font-size:14px}
-.sheet-tbl th{text-align:left;font-weight:500;color:var(--ink3);
-  padding:6px 8px;border-bottom:1px solid var(--line)}
-.sheet-tbl td{padding:8px;border-bottom:1px solid var(--hair)}
+.sheets{margin:30px 0}
+.sheets .dim{color:var(--ink3);font-size:13px}
 .sheet-tbl tbody tr{cursor:pointer}
-.sheet-tbl tbody tr:hover{background:var(--stem)}
-.sheet-up{display:flex;gap:8px;align-items:center;margin:12px 0 6px;flex-wrap:wrap}
-
-.sheet-hd h2{margin:6px 0 12px}
-.sheet-hd h2 small{color:var(--ink3);font-weight:400;font-size:14px}
+/* 这张表最后一列是「打开」两个字，44px 会把它折成两行 */
+.sheet-tbl .lib-more{width:auto;white-space:nowrap}
+/* 传一份新答题卡：和上面那些材料槽同一套外观，不另起一种 */
+.sheet-up{margin:16px 0 0;padding:15px 16px;background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-1)}
+.sheet-up .fieldrow{margin:0 0 12px}
+.sheet-up-go{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.sheet-up-go input[type=file]{font-size:12.5px;color:var(--ink2);flex:1;min-width:12em}
+.sheet-up .dim{margin:10px 0 0;line-height:1.7}
 
 /* 逐题速览。**半对是 ◐，自己一档** —— 归到 ✓ 会让人以为这块掌握了，
    归到 ✗ 会让「一分没得」和「差一点」看起来一样严重 */
@@ -861,18 +842,16 @@ td.prg{white-space:nowrap}
   border-radius:6px;font-size:13px;text-decoration:none;
   border:1px solid var(--line);color:var(--ink)}
 .gl i{font-style:normal;color:var(--ink3);font-size:11px}
-.gl-right{background:var(--cy2);border-color:var(--cy)}
-.gl-partial{background:var(--acc2);border-color:var(--acc)}
-.gl-wrong{background:var(--red2);border-color:var(--red)}
+.gl-right{background:var(--ok2);border-color:var(--ok);color:var(--ok)}
+.gl-partial{background:var(--warn2);border-color:var(--warn);color:var(--warn)}
+.gl-wrong{background:var(--bad2);border-color:var(--bad);color:var(--bad)}
 .gl-blank{background:transparent}
 .gl-unsure{background:transparent;border-style:dashed}
-/* 原图切片**挨着判定**，不藏进二级页面 —— 老师一眼能校对是唯一的红绿灯 */
-.srow-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);
-  gap:16px;align-items:start}
-@media (max-width:720px){.srow-body{grid-template-columns:1fr}}
-.sheet-pages{margin:22px 0}
-.sheet-pages img{max-width:100%;margin:8px 0;border:1px solid var(--hair);
-  border-radius:6px}
+.sheet-pages{margin:22px 0;font-size:13px}
+.sheet-pages summary{cursor:pointer;color:var(--ink2)}
+.sheet-pages summary:hover{color:var(--acc)}
+.sheet-pages img{max-width:100%;margin:10px 0;border:1px solid var(--line);
+  border-radius:var(--r-box)}
 .srow-fix{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:12px;
   padding-top:10px;border-top:1px dashed var(--hair);font-size:13px}
 .srow-fix button{font-size:13px;padding:2px 10px}
@@ -971,9 +950,11 @@ td.prg{white-space:nowrap}
 }
 /* 这一趟的异常收成一行。**收起来不等于不说** —— 里面有真信息（哪道题挂不上、
    哪几条没读到），藏掉的话逐题那几行会莫名其妙 */
-.notes{margin:12px 0;padding:8px 12px;border:1px solid var(--hair);
-  border-radius:8px;background:var(--stem);font-size:13px}
-.notes summary{cursor:pointer;color:var(--ink2)}
+.notes{margin:16px 0;padding:11px 15px;border:1px solid var(--line);
+  border-left:3px solid var(--warn);
+  border-radius:0 var(--r-box) var(--r-box) 0;background:var(--panel);font-size:13px}
+.notes summary{cursor:pointer;color:var(--ink2);font-weight:600}
+.notes summary:hover{color:var(--acc)}
 .notes summary .dim{color:var(--ink3);margin-left:6px;font-size:12px}
 .notes p{margin:8px 0 0;color:var(--ink2);line-height:1.6}
 /* 「为什么错 · 怎么提高」。**说不出具体的就留白** —— 一句「加强对该知识点的

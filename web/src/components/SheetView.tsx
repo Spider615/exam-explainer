@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { ApiError, getPaper, getProgress } from '../api'
 import AnswerQuestionCard, { mainOf } from './AnswerQuestionCard'
 import { fmtDur } from '../fmt'
+import JobProgress from './JobProgress'
+import MetricCard, { Metrics } from './MetricCard'
+import PageIntro from './PageIntro'
 import Sheets from './Sheets'
 import type { Paper, Progress } from '../types'
 
@@ -104,7 +107,11 @@ export default function SheetView({ name, onOpenSheet }: {
   const withKps = qs.filter((q) => q.kps?.length).length
 
   return (
-    <div>
+    <div className="rise">
+      <PageIntro title={paper.name}
+                 lede="这份卷子的标准答案与知识点。传一份已经批改的答题卡上来，
+                       就能逐题看对错、丢分和该补什么。" />
+
       {/* 卷子确认不在了。多半是 Ⓐ 读参考答案没成功——一道题的答案都没认出来时，
           后端会把这次新建的空壳卷子删掉，进度端点从此 404。下面仍然用 pg 画
           阶段格子，但那是删除前最后一次问到的快照，不能让「正在跑」的呼吸点
@@ -162,46 +169,45 @@ export default function SheetView({ name, onOpenSheet }: {
           停下来（busy=false 但没跑完）也要画，而且要说「已停止」——
           光把进度条画在那儿，人分不出「在跑」和「停了」。 */}
       {pg && (pg.busy || !pg.done) && (
-        <div className={`prog${pg.busy ? '' : ' idle'}`}>
-          <div className="prog-hd">
-            <span className="prog-dot" />
-            <b>{pg.failed ? `失败 · ${pg.stage}`
-              : pg.busy ? pg.stage
-                : `${pg.stage} · 已停止`}</b>
-            {bar && <span className="prog-num">{bar.cur}/{bar.total} {bar.unit}</span>}
-            {pg.elapsedSeconds != null && (
-              <span className="prog-t">已用时 {fmtDur(pg.elapsedSeconds)}</span>
-            )}
-          </div>
-          {bar && (
-            <div className="prog-bar">
-              <i style={{ width: `${Math.round((bar.cur / bar.total) * 100)}%` }} />
-            </div>
-          )}
-          {/* 最后一行日志。Ⓐ 每读完一页打一条「第2页 读到 20 条（到第14(2)题）」，
-              这句话恰好回答了「读到哪一题了」—— 比进度条本身还有用 */}
-          {pg.step && (
-            <code className="prog-last">
-              {pg.step}{pg.last ? ` · ${pg.last.trim()}` : ''}
-            </code>
-          )}
-          {!pg.busy && !pg.done && (
-            <code className="prog-last">
-              没有进程在动。参考答案没读完的话，重新上传一次就行 ——
-              这一步不支持接着跑（上传的原件跑完就收掉了）。
-            </code>
-          )}
-        </div>
+        <JobProgress
+          tone={pg.failed ? 'bad' : pg.busy ? 'run' : 'ok'}
+          title={pg.failed ? `失败 · ${pg.stage}`
+            : pg.busy ? pg.stage : `${pg.stage} · 已停止`}
+          bar={bar ? { cur: bar.cur, total: bar.total } : null}
+          detail={
+            <>
+              {bar && <span className="prog-sub"><span>{bar.cur}/{bar.total} {bar.unit}</span>
+                {pg.elapsedSeconds != null && (
+                  <span className="prog-t">已用时 {fmtDur(pg.elapsedSeconds)}</span>
+                )}</span>}
+              {/* 最后一行日志。Ⓐ 每读完一页打一条「第2页 读到 20 条（到第14(2)题）」，
+                  这句话恰好回答了「读到哪一题了」—— 比进度条本身还有用 */}
+              {pg.step && (
+                <code className="prog-last">
+                  {pg.step}{pg.last ? ` · ${pg.last.trim()}` : ''}
+                </code>
+              )}
+              {!pg.busy && !pg.done && (
+                <code className="prog-last">
+                  没有进程在动。参考答案没读完的话，重新上传一次就行 ——
+                  这一步不支持接着跑（上传的原件跑完就收掉了）。
+                </code>
+              )}
+            </>
+          }
+        />
       )}
 
-      <div className="facts">
-        <div className="fact"><b>{qs.length}</b><span>题</span></div>
-        {/* 「带解答」天生小于题数，标题里把原因说清楚，免得被当成漏读 */}
-        <div className="fact" title="参考答案的版式就是只有大题给解答过程">
-          <b>{withSolution}</b><span>题带官方解答</span>
-        </div>
-        <div className="fact"><b>{withKps}</b><span>题挂了知识点</span></div>
-      </div>
+      <Metrics>
+        <MetricCard value={qs.length} label="题" />
+        {/* 「带解答」天生小于题数，把原因说清楚，免得被当成漏读 */}
+        <MetricCard value={withSolution} label="题带官方解答"
+                    hint="参考答案的版式就是只有大题给解答过程" />
+        <MetricCard value={withKps} label="题挂了知识点"
+                    tone={withKps < qs.length ? 'plain' : 'ok'} />
+        <MetricCard value={paper.sheets?.length ?? 0} label="份答题卡"
+                    tone={(paper.sheets?.length ?? 0) > 0 ? 'ok' : 'plain'} />
+      </Metrics>
 
       {/* ③c 判完了、但有题挂不上，要**明说**。
           阶段格子打了勾，人很容易读成「26 道都挂上了」；而这里挂不上的原因是
@@ -209,7 +215,9 @@ export default function SheetView({ name, onOpenSheet }: {
           只剩一堆「这道题没挂上知识点」，看着像模型不行 */}
       {pg?.done && withKps < qs.length && (
         <div className="banner">
-          <b>{qs.length - withKps} 道题没挂上知识点</b>
+          {/* 这个全角空格是**排版**，不是笔误：JSX 会把元素和下一行文字之间的
+              换行整个吃掉，不留空格 —— 少了它，页面上是「没挂上知识点它们的」 */}
+          <b>{qs.length - withKps} 道题没挂上知识点</b>{'　'}
           它们的参考答案只有一个字母或一个数（`D`、`BC`、`170 / A`），
           判不出考什么 —— 这不是漏读，是那个答案里真的不含这个信息。
           {qs.some((q) => q.stem)
@@ -244,7 +252,13 @@ export default function SheetView({ name, onOpenSheet }: {
         {qs.some((q) => q.stemImage || q.stem)
           ? '题目来自你上传的原卷。'
           : '这份卷子还没有题目 —— 把原卷传进「原卷」那一栏就能读到。'}
-        还没有学生的答题卡。
+        {/* **这句话必须跟着卷子实际有什么变。** 原来这里写死「还没有学生的
+            答题卡」—— 而答题卡功能做完之后，一份挂着三个学生的卷子页脚上
+            照样这么说。页脚是这一屏唯一交代「哪些东西还没有」的地方，
+            它撒谎比不写更糟（同一个坑上一轮已经补过一次，见 ee93d32） */}
+        {paper.sheets?.length
+          ? `已经有 ${paper.sheets.length} 份学生答题卡，逐题对错来自老师的批改。`
+          : '还没有学生的答题卡。'}
       </footer>
     </div>
   )
