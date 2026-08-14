@@ -261,7 +261,11 @@ def merge(a_rows, b_rows):
             continue
         cur = out[n]
         for k, v in r.items():
-            if k == "n":
+            # `conf` 是模型**对自己的把握**、`y` 是给切条用的坐标 —— 都不是
+            # 读出来的内容。它们两遍不一样再正常不过，报成「两遍读出来不一样」
+            # 只会在页面上冒出老师看不懂也没法处理的警告
+            #（实测：「conf 一个是 'low'、一个是 'high'」）
+            if k in ("n", "conf", "y"):
                 continue
             # Ⓑb 的 filled 就是这道题的作答（填涂式选择题）
             key = "answer" if k == "filled" else k

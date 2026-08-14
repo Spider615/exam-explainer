@@ -298,6 +298,8 @@ export interface Job {
   warnings?: string[]
   err?: string
   log: string[]
+  /** 这一趟顺带分析出来的答题卡号。有它就直接落到结果页 */
+  sheet?: number | null
 }
 
 // ---------------------------------------------------------------- 答题卡（步二）
@@ -355,6 +357,14 @@ export interface SheetRow {
   refAnswer: string | null
   refSolution: string | null
   kps: KnowledgePoint[]
+  /**
+   * 逐题建议：`why` 错在哪、`fix` 这个知识点接下来做什么。
+   *
+   * **null 或空字符串就是「说不出具体的」** —— 页面上留白，
+   * 不许拿一句「加强对该知识点的理解」补位：那种话放到任何一道题上都成立，
+   * 占着位置让人以为看过了，比不写更糟。
+   */
+  advice?: { why?: string; fix?: string } | null
 }
 
 /** 这一次 Ⓑ 跑成什么样。**页面要按块说出来**，不能只在后台记一笔 */

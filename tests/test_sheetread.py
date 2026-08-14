@@ -460,3 +460,23 @@ def _page(tmp_path):
     p = tmp_path / "p.png"
     Image.new("RGB", (540, 750), (250, 250, 250)).save(p)
     return str(p)
+
+
+def test_把握程度不同不算两遍矛盾():
+    """
+    `conf` 是模型**对自己的把握**，不是读出来的数据。两遍不一样再正常不过 ——
+    报成「两遍读出来不一样」会在页面上冒出一条老师完全看不懂、也无从处理的
+    警告（实测：「conf 一个是 'low'、一个是 'high'」）。
+
+    `y` 同理：它是给切条用的坐标，不是内容。
+    """
+    _, clash = sheetread.merge([{"n": 9, "answer": "A", "conf": "low", "y": 0.5}],
+                               [{"n": 9, "answer": "A", "conf": "high", "y": 0.7}])
+    assert clash == []
+
+
+def test_真内容不一样照样报():
+    """别把闸开得太大 —— 作答、分数、批改这些不一样必须报"""
+    _, clash = sheetread.merge([{"n": 9, "answer": "A", "conf": "low"}],
+                               [{"n": 9, "answer": "B", "conf": "high"}])
+    assert len(clash) == 1 and "answer" in clash[0]["why"]

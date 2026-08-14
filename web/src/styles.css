@@ -538,35 +538,52 @@ td.prg{white-space:nowrap}
 .gl-wrong{background:var(--red2);border-color:var(--red)}
 .gl-blank{background:transparent}
 .gl-unsure{background:transparent;border-style:dashed}
-
-.srow{margin:18px 0;padding:14px 16px;border:1px solid var(--hair);
-  border-radius:10px;background:var(--panel)}
-.srow-wrong{border-left:3px solid var(--red)}
-.srow-partial{border-left:3px solid var(--acc)}
-.srow-right{border-left:3px solid var(--cy)}
-.srow h3{margin:0 0 10px;font-size:15px;display:flex;gap:10px;
-  align-items:baseline;flex-wrap:wrap}
-.srow h3 em{font-style:normal;font-size:13px;font-weight:400}
-.srow h3 .v-right{color:var(--cy)}
-.srow h3 .v-partial{color:var(--acc)}
-.srow h3 .v-wrong{color:var(--red)}
-.srow h3 .score{color:var(--ink2)}
-.srow h3 .by{color:var(--ink3);border:1px solid var(--line);
-  border-radius:4px;padding:1px 6px}
 /* 原图切片**挨着判定**，不藏进二级页面 —— 老师一眼能校对是唯一的红绿灯 */
 .srow-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);
   gap:16px;align-items:start}
 @media (max-width:720px){.srow-body{grid-template-columns:1fr}}
-.cropshot{max-width:100%;border:1px solid var(--hair);border-radius:6px}
-.srow dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;
-  margin:0;font-size:14px}
-.srow dt{color:var(--ink3)}
-.srow dd{margin:0}
-.srow .dim{color:var(--ink3)}
-.srow-sol{margin-top:10px;font-size:14px}
 .sheet-pages{margin:22px 0}
 .sheet-pages img{max-width:100%;margin:8px 0;border:1px solid var(--hair);
   border-radius:6px}
 .srow-fix{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:12px;
   padding-top:10px;border-top:1px dashed var(--hair);font-size:13px}
 .srow-fix button{font-size:13px;padding:2px 10px}
+
+/* 逐题结果表：一道题一行。老师第一眼要的是「哪几道错了、错在哪个知识点」，
+   不是 26 张铺开的大卡 */
+.qtbl{width:100%;border-collapse:collapse;font-size:14px;margin:16px 0}
+.qtbl th{text-align:left;font-weight:500;color:var(--ink3);padding:8px 10px;
+  border-bottom:1px solid var(--line);white-space:nowrap}
+.qtbl td{padding:10px;border-bottom:1px solid var(--hair);vertical-align:top}
+.qtbl .qn{font-weight:600;white-space:nowrap}
+.qtbl .ans{max-width:22ch;word-break:break-word}
+.qtbl .dim{color:var(--ink3)}
+/* 原图切片：**行内缩略图**。设计里它是唯一的红绿灯，不能藏进二级页面，
+   但也不该占半屏 */
+.qthumb{width:120px;max-height:64px;object-fit:cover;object-position:left top;
+  border:1px solid var(--hair);border-radius:4px;display:block}
+.qrow-right{background:transparent}
+.qrow-partial{background:var(--acc2)}
+.qrow-wrong{background:var(--red2)}
+.qrow .v{white-space:nowrap}
+.qrow .v-right{color:var(--cy)}
+.qrow .v-partial{color:var(--acc)}
+.qrow .v-wrong{color:var(--red)}
+.qrow .score{font-style:normal;color:var(--ink3);margin-left:6px;font-size:12px}
+.qrow .by{font-style:normal;color:var(--ink3);margin-left:6px;font-size:12px;
+  border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.qmore{font-size:12px;padding:2px 8px}
+.qrow-more td{background:var(--stem);font-size:13px}
+.qrow-more p{margin:4px 0}
+/* 这一趟的异常收成一行。**收起来不等于不说** —— 里面有真信息（哪道题挂不上、
+   哪几条没读到），藏掉的话逐题那几行会莫名其妙 */
+.notes{margin:12px 0;padding:8px 12px;border:1px solid var(--hair);
+  border-radius:8px;background:var(--stem);font-size:13px}
+.notes summary{cursor:pointer;color:var(--ink2)}
+.notes summary .dim{color:var(--ink3);margin-left:6px;font-size:12px}
+.notes p{margin:8px 0 0;color:var(--ink2);line-height:1.6}
+/* 「为什么错 · 怎么提高」。**说不出具体的就留白** —— 一句「加强对该知识点的
+   理解」放到任何一道题上都成立，占着位置让老师以为看过了，比不写更糟 */
+.qtbl .adv{max-width:30ch;font-size:13px;line-height:1.55}
+.adv-why{margin:0;color:var(--red)}
+.adv-fix{margin:4px 0 0;color:var(--ink2)}

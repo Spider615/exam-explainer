@@ -69,10 +69,10 @@ const SLOTS: Slot[] = [
     fate: '这一轮唯一会读的：读出每题的标准答案和官方解答过程' },
   { key: 'stem', title: '原卷（题目）', need: '选填',
     want: '试卷本身，PDF 或拍的照片都行',
-    fate: '现在只收下存着 —— 等「读题干」做好就能给选择题和填空题挂上知识点' },
+    fate: '用来给选择题和填空题挂上知识点（那些题的答案只有一个字母，光看答案判不出考什么）' },
   { key: 'sheet', title: '答题卡', need: '选填',
     want: '学生那份，已经批改过的最好',
-    fate: '现在只收下存着 —— 等「读答题卡」做好就能逐题对错、出薄弱点' },
+    fate: '传了就**直接分析**：逐题读出学生写了什么、老师给了几分，出对错和丢分' },
 ]
 
 /**
@@ -90,9 +90,16 @@ const SLOTS: Slot[] = [
  * 盯着这条链，失败原因和「卷子已经不存在了」谁都看不到。照抄 Upload.tsx 已经
  * 做对的那套：自己轮询 `getJob` 把任务画出来，跳走交给用户点。
  */
-export default function SheetUpload({ onDone }: {
+export default function SheetUpload({ onDone, onOpenSheet }: {
   /** open=true 才跳进详情页；job 进 solving/done 时只用来刷新列表 */
   onDone: (name: string, open: boolean) => void
+  /**
+   * 传了答题卡时，跑完直接落到那份卡的结果页。
+   *
+   * 不落过去的话，老师要「回列表 → 点卷子 → 往下翻 → 再点那份卡」四步才看得到
+   * 自己刚等了十几分钟的东西 —— 而他要的就是那一屏。
+   */
+  onOpenSheet: (name: string, sheet: number) => void
 }) {
   const [name, setName] = useState('')
   const [picked, setPicked] = useState<Batch>(EMPTY)
@@ -154,6 +161,11 @@ export default function SheetUpload({ onDone }: {
           announced = true
           onDone(j.name, false)
         }
+        // 传了答题卡的话，跑完直接进结果页 —— 那才是他等这十几分钟要看的东西
+        if (j.state === 'done' && j.name && j.sheet) {
+          onOpenSheet(j.name, j.sheet)
+          return
+        }
         if (j.state === 'done' || j.state === 'error') return
         // running 是 Ⓐ 在跑（一页一分钟上下），值得盯紧；到 solving 之后
         // 只是 ③c 在后台挂知识点，没必要那么频繁
@@ -162,7 +174,7 @@ export default function SheetUpload({ onDone }: {
     } finally {
       if (watching.current === id) watching.current = null
     }
-  }, [onDone])
+  }, [onDone, onOpenSheet])
 
   /**
    * 把选中的文件收进某一栏的暂存区，**不发**。

@@ -438,3 +438,10 @@ ALTER TABLE answer_sheets ADD COLUMN IF NOT EXISTS reads jsonb NOT NULL DEFAULT 
 -- 而薄弱知识点是按丢分率排的 —— 那条改判完全无效，这个知识点照样背着 3 分
 -- 的丢分挂在榜首。
 ALTER TABLE sheet_answers ADD COLUMN IF NOT EXISTS teacher_score_got numeric;
+
+-- 逐题的「为什么错了 / 怎么提高」。`{"why": "...", "fix": "..."}`
+--
+-- 只给**没拿满分**的题生成（对的题不需要建议，而每多一道就多一份 token）。
+-- 说不出具体的允许为空 —— 一句「要加强对该知识点的理解」比不说更糟：
+-- 它占着位置、看起来像有结论，实际什么都没说。
+ALTER TABLE sheet_answers ADD COLUMN IF NOT EXISTS advice jsonb;

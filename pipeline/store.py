@@ -776,7 +776,9 @@ _SHEET_COLS = ("question_id", "raw_text", "norm", "crop_rel", "box", "page",
                "read_conf", "reread", "reread_raw",
                "verdict", "verdict_by", "verdict_why",
                # 步二：卷子上印着的分数与批改原文
-               "score_got", "score_full", "mark_raw", "teacher_red")
+               "score_got", "score_full", "mark_raw", "teacher_red",
+               # 逐题建议 {"why","fix"}。**jsonb**，写的时候要 json.dumps
+               "advice")
 
 
 def create_sheet(paper_name, student_label, owner_id, n_pages=0):
@@ -922,7 +924,8 @@ def put_sheet_answer(sheet_id, n, scored=False, **fields):
     if fields.get("verdict_by") is not None:
         verdicts.check_by(fields["verdict_by"])
     cols = [k for k in _SHEET_COLS if k in fields]
-    vals = [json.dumps(fields[k], ensure_ascii=False) if k == "box" else fields[k]
+    vals = [json.dumps(fields[k], ensure_ascii=False)
+            if k in ("box", "advice") else fields[k]
             for k in cols]
     extra = ", scored_at=now()" if scored else ""
     sets = ", ".join("%s=EXCLUDED.%s" % (k, k) for k in cols) or "n=EXCLUDED.n"
@@ -952,7 +955,7 @@ def sheet_answers(sheet_id):
                               read_conf, reread, reread_raw,
                               verdict, verdict_by, verdict_why, teacher_verdict,
                               score_got, score_full, mark_raw, teacher_red, scored_at,
-                              teacher_score_got,
+                              teacher_score_got, advice,
                               COALESCE(teacher_verdict, verdict) AS final_verdict,
                               -- **只在这里 COALESCE 一次。** 让每个调用点各写一份
                               -- 总会漏掉一个，漏掉的那个表现为「老师改了判，

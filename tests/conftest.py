@@ -56,21 +56,39 @@ def no_real_model(monkeypatch, request):
     被这道闸拦下时不要把它注掉：要么给那个测试打桩（`monkeypatch.setattr`
     某个模块的 `ask_raw`），要么它本来就不该走到模型那一步。
 
-    **挡的是真正出网那一层**（`post_doubao` 与 claude CLI 的子进程），不是
-    `ask_raw` 本身 —— 有几条测试正是在测 `ask_raw` 的取值和容错，
-    挡在它上面会把那些正当的测试一起打死（第一版就是这么写错的）。
+    **挡在 `urllib.request.urlopen` 上，不是挡某个模块的某个函数。**
+
+    第一版挡的是 `mathvlm.post_doubao`，看着够用 —— 直到 `sheetadvice` 落地：
+    它像 `kpmark`/`spec`/`solve`/`pick`/`outline`/`scene`/`llm_segment` 一样
+    **自己拿 urllib 出网**，一条也没经过 mathvlm。全量测试当场挂住去真调模型，
+    和第一次那回一模一样。`pipeline/` 下有十二个模块各自出网，
+    一个个去堵是堵不完的 —— **闸要设在唯一的出口上。**
+
+    （更早还错过一版：挡 `mathvlm.ask_raw` 本身，把
+    `test_mathvlm_backend` 里那几条**正是在测 `ask_raw`** 的测试一起打死了。）
+
+    **本地回环放行。** `tests/test_arkshim_ensure.py` 会真起一个本地垫片、
+    再用 urllib 去探它 —— 那是在测我们自己的进程，不是调模型。
+    一刀切连 127.0.0.1 一起堵，会把那几条正当的测试打死。
 
     真要跑实拨的验收，用 `-m allow_model` 单独跑，或者直接跑管线脚本。
     """
     if "allow_model" in request.keywords:
         return
-    import mathvlm
+    import urllib.request
 
-    def boom(*a, **k):
+    real = urllib.request.urlopen
+
+    def guard(url, *a, **k):
+        host = getattr(url, "host", None) or str(getattr(url, "full_url", url))
+        if "127.0.0.1" in host or "localhost" in host or host.startswith("file:"):
+            return real(url, *a, **k)
         raise AssertionError(
-            "这个测试真去调模型了。测试里不许 —— 给它打桩，"
+            "这个测试真去联网调模型了（%s）。测试里不许 —— 给它打桩，"
             "或者确认它本来就不该走到这一步。"
-            "（实拨验收请标 @pytest.mark.allow_model）")
+            "（实拨验收请标 @pytest.mark.allow_model）" % str(host)[:80])
 
-    monkeypatch.setattr(mathvlm, "post_doubao", boom)
+    monkeypatch.setattr(urllib.request, "urlopen", guard)
+    # claude CLI 那条路不走 urllib，单独挡
+    import mathvlm
     monkeypatch.setattr(mathvlm, "CLI", None)

@@ -371,3 +371,53 @@ def test_逐题都挂上了原图切片(db, owner, tmp_path, fake_model):
         "每道题都该挂上它所在那一条切片：%s" % [(r["n"], r["crop_rel"]) for r in rows]
     assert all("/" not in r["crop_rel"].split("/", 2)[-1] for r in rows), \
         "切片文件名里不许有斜杠，否则取图的路由接不住"
+
+
+# ---------------------------------------------------------------- 一次传完就出结果
+#
+# 原来传答题卡只是「收下存着」，老师得再进卷子、用另一个上传框传一次才真跑 ——
+# 一次上传被拆成两处入口、两次等待。用户原话：「现在这个交互方式太差了」。
+
+def test_三栏一起传时答题卡也跟着分析(db, owner, tmp_path, fake_model, monkeypatch):
+    """传参考答案的同时传了答题卡 → 一条链跑到底，直接有逐题对错"""
+    monkeypatch.setattr(api, "run_step", lambda *a, **k: True)
+    store.create_answers_paper("一次跑完卷", owner)
+    for n in (9, 11, 1201, 1202, 1203):
+        store.put_answer_question("一次跑完卷", n, "标准%d" % n, None)
+
+    jid = "o" + "0" * 11
+    api.JOBS[jid] = {"state": "running", "log": []}
+    api.run_answer_pipeline(jid, ["ref.png"], "一次跑完卷", owner, False,
+                            extra=[("stem", []),
+                                   ("sheet", [_screenshot(tmp_path)])])
+    assert api.JOBS[jid]["state"] == "done", api.JOBS[jid].get("err")
+    sid = api.JOBS[jid]["sheet"]
+    assert sid, "该建出一份答题卡"
+    assert store.sheet_answers(sid), "该有逐题结果，不能只是收下存着"
+
+
+def test_没传答题卡时不建空卡(db, owner, monkeypatch):
+    """答题卡那一栏是选填的，没传就不该冒出一份空卡"""
+    monkeypatch.setattr(api, "run_step", lambda *a, **k: True)
+    store.create_answers_paper("没答题卡卷", owner)
+    store.put_answer_question("没答题卡卷", 9, "A", None)
+    jid = "o" + "1" * 11
+    api.JOBS[jid] = {"state": "running", "log": []}
+    api.run_answer_pipeline(jid, ["ref.png"], "没答题卡卷", owner, False,
+                            extra=[("stem", []), ("sheet", [])])
+    assert api.JOBS[jid]["state"] == "done"
+    assert api.JOBS[jid]["sheet"] is None
+    assert store.list_sheets("没答题卡卷") == []
+
+
+def test_任务里带着卡号好让页面直接跳过去(db, owner, tmp_path, fake_model, monkeypatch):
+    """传完落在结果页，而不是让人再自己找一遍"""
+    monkeypatch.setattr(api, "run_step", lambda *a, **k: True)
+    store.create_answers_paper("跳转用卷", owner)
+    store.put_answer_question("跳转用卷", 9, "A", None)
+    jid = "o" + "2" * 11
+    api.JOBS[jid] = {"state": "running", "log": [], "owner_id": owner}
+    api.run_answer_pipeline(jid, ["ref.png"], "跳转用卷", owner, False,
+                            extra=[("stem", []),
+                                   ("sheet", [_screenshot(tmp_path)])])
+    assert api.job(jid, user={"id": owner})["sheet"] == api.JOBS[jid]["sheet"]

@@ -54,6 +54,7 @@ import stash            # 原卷/答题卡这一轮读不了，但现在就收�
 import sheetcut         # Ⓢ：从手机截图里抠出答题卡。纯几何，不调模型
 import sheetread        # Ⓑ：读批改结果。两遍——整页定位 + 按 y 切条
 import sheetverdict     # Ⓒ：由分数/符号推判定，互校。纯函数
+import sheetadvice      # Ⓓ 的前半：逐题「为什么错、怎么提高」
 
 from fastapi import Body, Depends, FastAPI, Form, Request, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -865,6 +866,7 @@ def read_progress(line, cur):
 
 
 def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
+    extra0 = list(extra)      # 收原件时要用进来时这份，见文末 finally
     """
     答题卡模式的整条链：Ⓐ 读参考答案 → 收下原卷/答题卡 → ③c 挂知识点。
 
@@ -968,18 +970,27 @@ def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
         elif extra.get("sheet") is not None:
             log("▸ %s：没传原卷，跳过（答案只有一个字母的题会挂不上知识点）" % label)
 
-        # 答题卡这一轮读不了，先收下存着
-        if extra.get("sheet"):
-            log("▸ 收下%s" % stash.KINDS["sheet"][0])
-            stash.stash(name, extra["sheet"], "sheet", verbose=False)
-            log("   %d 个文件已收下，%s（现在还不会读它）"
-                % (len(extra["sheet"]), stash.KINDS["sheet"][1]))
-
-        # ③c 挂不上知识点不算失败：页面逐题写「没挂上知识点」，不塞占位标签
+        # ③c 挂不上知识点不算失败：页面逐题写「没挂上知识点」，不塞占位标签。
+        # **排在读答题卡前面** —— 逐题结果那一栏要显示知识点，先挂上再读卡，
+        # 老师看到结果的那一刻它就是全的
         label, code, script, timeout = step_code[2]
         run_step(jid, label, step_path(script) + [name], timeout=timeout)
+
+        # 传了答题卡就**接着分析**，不再「只收下存着」。
+        #
+        # 原来是 stash 一下就完事，老师得再进卷子、用另一个上传框传一次才真跑 ——
+        # 一次上传被拆成两处入口、两次等待。用户原话：「现在这个交互方式太差了」。
+        # 步二做完之后没有任何理由再这样：一次传完就该出逐题对错。
+        sheet_id = None
+        if extra.get("sheet"):
+            sheet_id = store.create_sheet(name, None, owner_id)
+            with LOCK:
+                JOBS[jid].update(sheet=sheet_id)
+            log("▸ 读答题卡（第 %d 份）" % sheet_id)
+            run_sheet_pipeline(jid, name, sheet_id, extra["sheet"], owner_id,
+                               nested=True)
         with LOCK:
-            JOBS[jid].update(state="done")
+            JOBS[jid].update(state="done", sheet=sheet_id)
         log("✓ 完成")
     except Exception as e:
         with LOCK:
@@ -989,8 +1000,13 @@ def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
         with LOCK:
             CLAIMS.pop(name, None)
         # 三栏的原件都要收 —— 只收参考答案那一栏的话，原卷和答题卡会一直堆在
-        # `work/_uploads/`（那个目录没有 GC），而它们恰恰是最大的那几个文件
-        for p in list(paths) + [q for _, ps in extra for q in ps]:
+        # `work/_uploads/`（那个目录没有 GC），而它们恰恰是最大的那几个文件。
+        #
+        # **用 `extra0`（进来时那份），不是 `extra`** —— 上面那句
+        # `extra = dict(extra)` 把这个名字重绑成了字典，照旧按元组列表遍历会
+        # 当场 ValueError。而这一段在 `finally` 里，抛出去没人看得见：
+        # 从三个上传框上线那天起，这些文件就一次都没被清过。
+        for p in list(paths) + [q for _, ps in extra0 for q in ps]:
             try:
                 os.remove(p)
             except OSError:
@@ -1131,7 +1147,7 @@ async def answer_upload(name: str = Form(...),
     return {"job": jid, "name": paper}
 
 
-def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id):
+def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id, nested=False):
     """
     一份答题卡的整条链。**这一轮只到 Ⓢ**：抠出答题卡页图、存进库。
 
@@ -1191,8 +1207,10 @@ def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id):
         # ── Ⓒ 判定 ──────────────────────────────────────────────────
         bound, warns = sheetverdict.bind(got["rows"], known)
         qid_of = store.question_ids(paper)
-        refs = {q["n"]: q.get("ref_answer")
-                for q in (store.get_paper(paper) or {"questions": []})["questions"]}
+        _qs = (store.get_paper(paper) or {"questions": []})["questions"]
+        refs = {q["n"]: q.get("ref_answer") for q in _qs}
+        sols_ref = {q["n"]: q.get("ref_solution") for q in _qs}
+        kps_of = {q["n"]: q.get("kps") for q in _qs}
         n_written = 0
         # 整题对上时（答题卡上是一整块、参考答案拆成小问），标准答案按整题拼 ——
         # 那是 2026-08-10 实跑逼出来的：一刀切「整题不绑」会让 14/15/16 三道大题
@@ -1234,6 +1252,28 @@ def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id):
                 verdict_why=why + ("　⚠ " + note if note else ""))
             n_written += 1
 
+        # ── 逐题建议：为什么错了、这个知识点怎么提高 ────────────────
+        #
+        # 老师看完「哪几道错了」之后的下一个问题是「那我该怎么办」。
+        # **只给没拿满分的题跑，而且一道都不用给时一次调用都不发**
+        # （全对的卡不该花这个钱）——便宜的筛子排在贵的前面。
+        #
+        # 失败不影响前面的结果：建议是锦上添花，判对错才是这条链的本份
+        try:
+            with LOCK:
+                JOBS[jid].update(step="逐题建议")
+            adv_rows = [dict(r, verdict=sheetverdict.decide(r)[0],
+                             refAnswer=refs.get(r["bind"]),
+                             refSolution=(sols_ref.get(r["bind"]) or None),
+                             kps=(kps_of.get(r["bind"]) or []))
+                        for r in bound]
+            for n, adv in sheetadvice.advise(adv_rows, verbose=False).items():
+                store.put_sheet_answer(sheet_id, n, advice=adv)
+            log("── 逐题建议：写出 %d 条"
+                % len(sheetadvice.pick(adv_rows)))
+        except Exception as e:                                # noqa: BLE001
+            log("   ⚠ 逐题建议没跑成（%s）—— 判对错那部分是好的" % e)
+
         # 这一次跑成什么样，整份落库 —— 页面按块说话靠它
         store.set_sheet_reads(sheet_id, {
             "calls": got["calls"], "checksum": list(got["checksum"]),
@@ -1250,13 +1290,19 @@ def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id):
                                  err_code="sheetread")
             log("✗ 一道题都没读出来 —— 换清楚一点的答题卡图再传一次")
             return
-        with LOCK:
-            JOBS[jid].update(state="done", step="完成", n=n_written)
+        # `nested=True` 时这条链是**接在参考答案那条链后面**跑的，
+        # 状态由外面那层收尾 —— 这里就把 state 写成 done 的话，
+        # 外面还没跑完的步骤会在页面上显示成「已完成」
+        if not nested:
+            with LOCK:
+                JOBS[jid].update(state="done", step="完成", n=n_written)
         log("✓ 读出 %d 题，可以看了" % n_written)
     except Exception as e:                                    # noqa: BLE001
         with LOCK:
             JOBS[jid].update(state="error", err=str(e), err_code="sheetread")
         log("✗ 出错：%s" % e)
+        if nested:
+            raise
 
 
 def _sheet_lines(got, n_pages):
@@ -1385,6 +1431,9 @@ def sheet_detail(sid: int, user=Depends(current_user)):
             "crop": (_sheet_img_url(sid, a["crop_rel"]) if a["crop_rel"] else None),
             "refAnswer": q and q.get("ref_answer"),
             "refSolution": q and q.get("ref_solution"),
+            # 逐题建议 {"why","fix"}。**没有就是没有** —— 页面上留白，
+            # 不许拿一句「加强对该知识点的理解」补位（见 sheetadvice 的说明）
+            "advice": a["advice"],
             "kps": [{"code": k["code"], "why": k.get("why", ""),
                      "name": cat[k["code"]]["name"] if k["code"] in cat else k["code"],
                      "chapter": cat[k["code"]]["chapter"] if k["code"] in cat else ""}
@@ -1531,7 +1580,7 @@ def failure_note(name, code, busy):
 # ④ 一题六分钟、⑤ 一道十几分钟，按时间阈值判必然误报「已停止」。
 PIPE_RE = re.compile(
     r"pipeline/(solve|spec|scene|outline|kpmark|refans|refread|pick|speccheck"
-    r"|assemble|ingest|segment|mathvlm|stemread|sheetread)\.py")
+    r"|assemble|ingest|segment|mathvlm|stemread|sheetread|sheetadvice)\.py")
 # 而且**跑它的得是个 python**。只按命令行里出没出现过脚本名来判的话，一条
 # 恰好提到了 `pipeline/solve.py` 的 shell 命令（编辑器、别的工具、甚至一次
 # 手敲的 grep）就会被算成「管线在跑」，整份卷子被标成解题中。
