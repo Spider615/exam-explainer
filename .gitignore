@@ -18,4 +18,9 @@ logs/
 # 本机部署配置（含整条隧道的 ingress 表），不进公开仓库
 cloudflared-config.yml
 
+# 设计评审那个 skill 的临时目录：每次用都重新生成，里面还有 server.pid、
+# .last-port、.last-token 这些运行时状态。
+# **只忽略这一个子目录** —— `.superpowers/sdd/` 是执行台账，要跟着仓库走
+.superpowers/brainstorm/
+
 .pytest_cache/
