@@ -1,4 +1,6 @@
 .env
+# 改 .env 前留的备份，里面也是整套明文 key —— `.env` 那行只挡文件名恰好是 .env 的
+.env.bak*
 .venv/
 .worktrees/
 work/
