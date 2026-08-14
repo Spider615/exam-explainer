@@ -1,37 +1,145 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   设计令牌 —— 「析题。」的学术编辑台
+   ═══════════════════════════════════════════════════════════════════════════
+
+   暖纸色的底、深墨蓝的字、朱砂点睛。气质是克制的编辑台，不是企业 SaaS 后台，
+   也不是深色开发工具。
+
+   **颜色只有五种语义**，各司其职，不许串：
+
+     --acc  深墨蓝   正文强调、导航、主要按钮、链接 —— 页面的主色
+     --hot  朱砂     **只给**主动作、当前位置、需要注意的变化。它一多就不响了
+     --ok   墨绿     成功、已完成
+     --warn 琥珀     要留意，但不是错
+     --bad  砖红     失败
+
+   每种配一个 `2` 结尾的浅底（深色模式下是深底），用来铺标签和横幅。
+   **组件里不许写死颜色** —— 这个文件下面有一整套深色覆盖，写死等于只做了一半。 */
 :root{
-  --paper:#F2F4F7; --panel:#FFF; --stem:#FAFBFC;
-  --ink:#15191F; --ink2:#5A6472; --ink3:#8A94A3;
-  --line:#C9D2DE; --hair:#E4E9F0;
-  --acc:#2B5490; --acc2:#E9EFF8;
-  --cy:#0C8CAE; --cy2:#E2F2F6;
-  --red:#AE3B2B; --red2:#FBEBE7;
-  --cjk:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  /* 表面：纸 → 面板 → 内嵌块（题干、代码、只读区） */
+  --paper:#F6F2EA; --panel:#FFFCF7; --stem:#F1EBDF;
+  /* 文字三级。--ink3 是辅助灰，**不许再淡** —— 再淡就读不见了 */
+  --ink:#1A2432; --ink2:#4E5A69; --ink3:#737E8C;
+  --line:#D8CFC0; --hair:#EAE3D6;
+
+  --acc:#22456E;  --acc2:#E8EDF4;
+  --hot:#B8402A;  --hot2:#FAEAE4;
+  --ok:#2E6A4E;   --ok2:#E5F0E8;
+  --warn:#8A6412; --warn2:#FAF0DA;
+  --bad:#93372B;  --bad2:#F8E7E3;
+
+  /* 老名字，映射到新语义。逐个任务替换掉，替换期间两套并存也不会串色 */
+  --cy:var(--ok); --cy2:var(--ok2);
+  --red:var(--bad); --red2:var(--bad2);
+
+  /* 字体一律本地栈，不拉外部网络 —— 网慢的时候不能让整页字先没了 */
+  --cjk:"Avenir Next","PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
   --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
   --math:"Times New Roman",Georgia,serif;
-  --song:"Songti SC",SimSun,serif;
+  --song:"Songti SC",STSong,SimSun,"Noto Serif CJK SC",serif;
+
+  /* 圆角：表面 10–16，控件 6–8。不做大圆角，那是消费级 App 的语气 */
+  --r-card:14px; --r-box:10px; --r-ctl:7px;
+  --sh-1:0 1px 2px rgba(26,36,50,.06);
+  --sh-2:0 6px 20px rgba(26,36,50,.09);
+
+  /* 三档动效。悬浮/按钮 160–200ms，折叠与状态切换 200–240ms */
+  --t-fast:.16s; --t-mid:.2s; --t-slow:.24s;
+  --ease:cubic-bezier(.2,.6,.2,1);
 }
+/* 深墨夜色：同一套品牌的夜间变体。**只换颜色，不换布局、层级和尺寸** */
 @media (prefers-color-scheme:dark){:root{
-  --paper:#12151A; --panel:#191D24; --stem:#1D222A;
-  --ink:#E7EAEF; --ink2:#9BA5B4; --ink3:#6E7887;
-  --line:#333B47; --hair:#252B34;
-  --acc:#82A9E4; --acc2:#1B2532; --cy:#46C0D8; --cy2:#132630;
-  --red:#EC806B; --red2:#2E1D19;
+  --paper:#121821; --panel:#19202B; --stem:#1F2733;
+  --ink:#ECE6DB; --ink2:#AFB8C4; --ink3:#8E97A3;
+  --line:#333D4B; --hair:#262F3B;
+
+  --acc:#8FB2DE;  --acc2:#1D2836;
+  --hot:#E5765A;  --hot2:#331E19;
+  --ok:#6FBE93;   --ok2:#16281F;
+  --warn:#D9AE5E; --warn2:#2C2415;
+  --bad:#E58370;  --bad2:#33201C;
+
+  --sh-1:0 1px 2px rgba(0,0,0,.3);
+  --sh-2:0 6px 20px rgba(0,0,0,.38);
 }}
 *{box-sizing:border-box}
 html,body,#root{height:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cjk);
-     font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
-a{color:var(--acc)}
+     font-size:15px;line-height:1.75;-webkit-font-smoothing:antialiased;
+     font-variant-numeric:tabular-nums}
+a{color:var(--acc);text-underline-offset:2px}
+
+/* 焦点圈全局一份。**每个可点的东西都要有** —— 键盘用户看不见焦点就等于用不了 */
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:3px}
+
 .wrap{max-width:960px;margin:0 auto;padding:0 20px 70px}
 /* 试卷页多一栏目录，960 放不下：正文会被挤到 750 出头 */
 .wrap.wide{max-width:1240px}
-.top{display:flex;align-items:baseline;gap:14px;border-bottom:2px solid var(--ink);
-     padding:26px 0 12px;margin-bottom:22px;flex-wrap:wrap}
-.brand{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
-       color:var(--acc);cursor:pointer;background:none;border:0;padding:0}
-.top h1{font-family:var(--song);font-size:25px;margin:0;font-weight:600;flex:1}
-.crumb{font-size:13px;color:var(--ink3)}
-.crumb button{background:none;border:0;color:var(--acc);cursor:pointer;font:inherit;padding:0}
+
+/* ── 页面壳 ────────────────────────────────────────────────────────────────
+   品牌 · 两个一级模式 · 账号。首页不做永久侧栏 —— 那是企业后台的语气；
+   固定目录只在试卷详情里出现，那时候它服务的是阅读，不是导航。 */
+.shell-top{position:sticky;top:0;z-index:20;background:var(--paper);
+  border-bottom:1px solid var(--line)}
+.shell-bar{max-width:960px;margin:0 auto;padding:0 20px;
+  display:flex;align-items:stretch;gap:26px;min-height:56px}
+.shell-bar.wide{max-width:1240px}
+/* 品牌。**句点是朱砂的** —— 全站唯一一处把强调色用在装饰上，它是签名 */
+.brand{font-family:var(--song);font-size:20px;font-weight:600;letter-spacing:.04em;
+  color:var(--ink);background:none;border:0;padding:0 2px 0 0;cursor:pointer;
+  display:flex;align-items:center;flex:none;transition:color var(--t-fast) var(--ease)}
+.brand em{font-style:normal;color:var(--hot)}
+.brand:hover{color:var(--acc)}
+
+/* 两个模式是两件事，不是一个筛选器。切过去整屏都换：上传框、列表列头、详情页。
+   当前那个底下一道朱砂短线 —— 「你在哪」是强调色该管的事之一 */
+.modes{display:flex;gap:2px;align-items:stretch}
+.modes button{background:none;border:0;border-bottom:2px solid transparent;
+  padding:0 14px;margin-bottom:-1px;font:inherit;font-size:14.5px;color:var(--ink3);
+  cursor:pointer;transition:color var(--t-fast) var(--ease),
+  border-color var(--t-fast) var(--ease)}
+.modes button:hover{color:var(--ink2)}
+.modes button.on{color:var(--ink);border-bottom-color:var(--hot);font-weight:600}
+
+.acct{margin-left:auto;display:flex;align-items:center;gap:12px;flex:none}
+/* 当前账号。试卷按人隔离，「现在是谁」必须一直看得见 */
+.who{font-size:12.5px;color:var(--ink3);max-width:20ch;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.acct-out{background:none;border:1px solid var(--line);border-radius:var(--r-ctl);
+  color:var(--ink2);font:inherit;font-size:12.5px;padding:4px 11px;cursor:pointer;
+  transition:border-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
+.acct-out:hover{border-color:var(--acc);color:var(--acc)}
+
+/* 返回入口那一行。详情页才有 —— 库页面上没有可返回的地方 */
+.shell-crumb{border-bottom:1px solid var(--hair);background:var(--panel)}
+.shell-crumb-in{max-width:960px;margin:0 auto;padding:9px 20px;display:flex;
+  align-items:baseline;gap:12px;font-size:13px;color:var(--ink3)}
+.shell-crumb-in.wide{max-width:1240px}
+.shell-back{background:none;border:0;padding:0;font:inherit;color:var(--acc);
+  cursor:pointer}
+.shell-back:hover{text-decoration:underline}
+.shell-here{font-family:var(--song);font-size:15px;color:var(--ink);font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.wrap{padding-top:24px}
+/* 首屏一次轻量分层进入。**只给页面这一层**，不给每个小组件各来一次 */
+@media (prefers-reduced-motion:no-preference){
+  .rise{animation:rise var(--t-slow) var(--ease) both}
+  @keyframes rise{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+}
+
+/* 窄屏：品牌与账号一行，两个模式换到第二行、可横向滚动 */
+@media (max-width:640px){
+  .shell-bar{flex-wrap:wrap;gap:0 14px;padding:0 14px;min-height:0}
+  .brand{padding:12px 0 6px}
+  .acct{padding:12px 0 6px}
+  /* 账号收窄但**不隐藏** —— 卷子按人隔离，「现在是谁」在哪个宽度上都得看得见 */
+  .who{max-width:11ch}
+  .modes{order:3;width:100%;overflow-x:auto;gap:0}
+  .modes button{padding:8px 12px;font-size:14px;white-space:nowrap}
+  .shell-crumb-in{padding:8px 14px}
+  .wrap{padding-left:14px;padding-right:14px}
+}
 
 .drop{border:2px dashed var(--line);border-radius:6px;padding:40px 24px;text-align:center;
       background:var(--panel);transition:.15s;cursor:pointer}
@@ -277,7 +385,9 @@ svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
 .auth-err{color:var(--red)}
 .auth-hint{color:var(--ink2);border-left:2px solid var(--acc);padding-left:9px}
 
-.auth-go{width:100%;height:44px;border:0;border-radius:4px;background:var(--acc);color:#fff;
+/* 前景用 --panel 而不是写死 #fff：深色模式下 --acc 是浅蓝，白字会糊 */
+.auth-go{width:100%;height:44px;border:0;border-radius:4px;background:var(--acc);
+         color:var(--panel);
          font-family:var(--cjk);font-size:14.5px;letter-spacing:.04em;cursor:pointer;
          transition:filter .12s}
 .auth-go:hover:not(:disabled){filter:brightness(1.1)}
@@ -446,14 +556,6 @@ td.prg{white-space:nowrap}
   height:22px}
 .ctl-num{font-family:var(--mono);font-size:11px;color:var(--ink3);min-width:34px}
 .ctl-lab{font-size:11px;color:var(--ink3)}
-
-/* 两个模式的 tab。选中的那个下方一条实线，没选中的只有文字 ——
-   它们是两件事，视觉上要比一个下拉筛选器重 */
-.modes{display:flex;gap:4px;margin:0 0 18px;border-bottom:1px solid var(--hair)}
-.modes button{background:none;border:0;border-bottom:2px solid transparent;
-  padding:8px 14px;font:inherit;font-size:15px;color:var(--ink3);cursor:pointer}
-.modes button:hover{color:var(--ink2)}
-.modes button.on{color:var(--ink);border-bottom-color:var(--ink);font-weight:600}
 
 .acard{border:1px solid var(--hair);border-radius:4px;background:var(--panel);
   padding:14px 16px;margin:0 0 12px}

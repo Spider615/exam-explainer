@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { deletePapers, getMe, getProgress, listPapers, logout, Unauthorized } from './api'
+import AppShell from './components/AppShell'
+import type { Mode } from './components/AppShell'
 import Login from './components/Login'
 import PaperList from './components/PaperList'
 import PaperView from './components/PaperView'
@@ -9,8 +11,6 @@ import SheetView from './components/SheetView'
 import SheetDetail from './components/SheetDetail'
 import Upload, { clearSavedJob } from './components/Upload'
 import type { PaperSummary } from './types'
-
-type Mode = 'paper' | 'sheet'
 
 /**
  * 从地址读「哪个模式、开着哪份卷子」。
@@ -193,26 +193,16 @@ export default function App() {
 
   return (
     // 试卷页多一栏目录，960 放不下：正文会被挤到 750 出头，题干读起来就窄了
-    <div className={open ? 'wrap wide' : 'wrap'}>
-      <div className="top">
-        <button className="brand" onClick={() => go(mode, null)}>exam-explainer</button>
-        <h1>{open ?? (mode === 'sheet' ? '答题卡诊断' : '上传试卷')}</h1>
-        <span className="crumb">
-          {open && <button onClick={() => go(mode, null)}>← 回到{mode === 'sheet' ? '答题卡库' : '试卷库'}</button>}
-          <span className="who" title="卷子按账号隔离，这里只看得到你自己传的">{me}</span>
-          <button onClick={signOut}>退出</button>
-        </span>
-      </div>
-
-      {/* 两个模式是两件事，不是一个筛选器。切过去整屏都换：上传框、列表列头、
-          详情页。互相看不见对方的卷子 */}
-      <nav className="modes">
-        <button className={mode === 'paper' ? 'on' : ''}
-                onClick={() => go('paper', null)}>解析试卷</button>
-        <button className={mode === 'sheet' ? 'on' : ''}
-                onClick={() => go('sheet', null)}>答题卡诊断</button>
-      </nav>
-
+    <AppShell
+      mode={mode} onMode={(m) => go(m, null)}
+      me={me} onSignOut={signOut} onHome={() => go(mode, null)}
+      wide={!!open}
+      crumb={open ? {
+        back: `回到${mode === 'sheet' ? '答题卡库' : '试卷库'}`,
+        onBack: () => go(mode, null),
+        here: open,
+      } : null}
+    >
       {open ? (
         mode === 'sheet' ? (
           sheet != null
@@ -237,6 +227,6 @@ export default function App() {
                      onDelete={remove} busy={busy} />
         </>
       )}
-    </div>
+    </AppShell>
   )
 }
