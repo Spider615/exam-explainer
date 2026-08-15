@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getSheet } from '../api'
 import JobProgress from './JobProgress'
 import MetricCard, { Metrics } from './MetricCard'
+import PaperAnswers from './PaperAnswers'
 import SheetResultRow, { MARK, showN, WORD } from './SheetResultRow'
 import type { Sheet, SheetRow } from '../types'
 
@@ -200,8 +201,13 @@ export default function SheetDetail({ id, paper, onBack, onOpenSheet }: {
           <h1>{s.student || '未署名'}</h1>
           <p>{s.paper}　·　{s.nPages} 页答题卡</p>
         </div>
+        {/* 「回到这份卷子」换成了就地弹框。老师在这一屏要的只是「对一下答案」，
+            不值得换一整页 —— 换过去看完还得退回来，而他正在逐题核对，
+            回来还得找回自己滚到哪了。
+            卷子页没有作废：Ⓐ 的进度和「再传一个学生」的入口还在上面，
+            从答题卡库那一行的「N 份」进得去 */}
         <div className="intro-aside">
-          <button className="btn" onClick={onBack}>← 回到这份卷子</button>
+          <PaperAnswers paper={s.paper} />
         </div>
       </div>
 
