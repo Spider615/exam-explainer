@@ -999,6 +999,22 @@ td.prg{white-space:nowrap}
   border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.35);
   color:#fff;font-size:22px;line-height:1;cursor:pointer}
 .lightbox-x:hover{background:rgba(0,0,0,.6)}
+/* ── 一道大题一组 ─────────────────────────────────────────────────────────
+   小问共用同一段题干和同一张原卷截图，逐条平铺的话第 13 题的五个小问会把
+   同一张整页宽的图贴五遍，而「这几行是同一道大题」反而看不出来。
+   头一行给题号和题目，小问缩进挂在下面。 */
+.qgroup td{background:var(--stem);border-bottom:1px solid var(--line);
+  padding-top:12px;padding-bottom:12px}
+.qgroup .qn{font-family:var(--song);font-size:15px;color:var(--ink);font-weight:600;
+  white-space:nowrap}
+.qgroup .qstem-cell{display:flex;align-items:center;gap:14px}
+.qgroup-n{font-size:12px;color:var(--ink3)}
+/* 小问：题号缩进 + 一道竖线，把它们和上面那行头绑在一起 */
+.qsub .qn{padding-left:22px;position:relative;color:var(--ink2)}
+.qsub .qn::before{content:"";position:absolute;left:10px;top:-11px;bottom:-11px;
+  width:2px;background:var(--line)}
+.qtbl tr.qsub:last-child .qn::before{bottom:50%}
+
 /* 判定的底色只给「要看的那几行」。对的题不上色 —— 全表都有底色等于没有底色 */
 .qrow-right{background:transparent}
 .qrow-partial{background:var(--warn2)}
@@ -1070,6 +1086,21 @@ td.prg{white-space:nowrap}
      完整显示（contain）不裁切：这一屏就是拿来核对的 */
   .qtbl .zoom{width:100%}
   .qtbl .zoom img{max-height:none;object-fit:contain}
+  /* 一行一卡之后，大题那一行头变成一张「小节标题」卡；小问的卡往右缩一点，
+     缩进就是它们的层次 */
+  .qtbl tbody tr.qgroup{background:var(--stem);border:1px solid var(--line);
+    border-radius:var(--r-card);padding:12px 14px;margin:14px 0 8px}
+  .qtbl .qgroup td{background:none;border:0;padding:0}
+  .qtbl .qgroup .qstem-cell{display:block}
+  .qtbl .qgroup .qstem-cell::before{content:none}
+  .qtbl .qgroup .qn{font-size:16px;padding:0 0 8px}
+  .qtbl .qgroup .qn::before{content:none}
+  .qtbl tbody tr.qsub{margin-left:14px;width:calc(100% - 14px)}
+  /* 小问的题目那一格是空的（题干在上面那张卡上），标签也别留 ——
+     一行「题目」后面什么都没有，比不写更难懂 */
+  .qtbl .qsub .qstem-cell{display:none}
+  .qtbl .qsub .qn{padding-left:0}
+  .qtbl .qsub .qn::before{content:"第";position:static;width:auto;background:none}
 }
 /* 这一趟的异常收成一行。**收起来不等于不说** —— 里面有真信息（哪道题挂不上、
    哪几条没读到），藏掉的话逐题那几行会莫名其妙 */

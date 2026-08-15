@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { getSheet } from '../api'
 import JobProgress from './JobProgress'
 import MetricCard, { Metrics } from './MetricCard'
 import PaperAnswers from './PaperAnswers'
-import SheetResultRow, { MARK, showN, WORD } from './SheetResultRow'
+import SheetResultRow, {
+  MARK, mainOf, SheetGroupHead, showN, WORD,
+} from './SheetResultRow'
 import type { Sheet, SheetRow } from '../types'
 
 /**
@@ -53,6 +55,27 @@ const FILTERS: { key: Filter; label: string; hit: (r: SheetRow) => boolean }[] =
     hit: (r) => r.verdict === 'unsure' || (!r.answer || r.answer === 'unreadable') },
   { key: 'unbound', label: '挂不上题', hit: (r) => !r.bound },
 ]
+
+/**
+ * 按大题分组。
+ *
+ * **自己按题号排一遍，不赖后端的顺序。** 后端确实是 `ORDER BY n`，但这个函数
+ * 是「相邻即同组」的写法 —— 顺序一旦不是升序，同一道大题会被切成好几组，
+ * 而那种坏法在页面上看着像「数据本来就是散的」，很难往排序上想。
+ *
+ * `sub` 表示「这一组是小问」：只有这时才画大题那一行头。没有小问的题
+ * （第 1 题这种）照旧是一行，不给它套一个只有一条的组。
+ */
+function group(rows: SheetRow[]): { main: number; sub: boolean; rows: SheetRow[] }[] {
+  const out: { main: number; sub: boolean; rows: SheetRow[] }[] = []
+  for (const r of [...rows].sort((a, b) => a.n - b.n)) {
+    const m = mainOf(r.n)
+    const last = out[out.length - 1]
+    if (last && last.main === m && last.sub) last.rows.push(r)
+    else out.push({ main: m, sub: r.n >= 100, rows: [r] })
+  }
+  return out
+}
 
 /**
  * 优先提升的知识点：按**丢分**排，不按错题数。
@@ -356,8 +379,19 @@ export default function SheetDetail({ id, paper, onBack, onOpenSheet }: {
             </tr>
           </thead>
           <tbody>
-            {shown.map((r) => (
-              <SheetResultRow key={r.n} r={r} sheet={s.id} onChanged={load} />
+            {/* **一道大题一组，小问挂在下面。**
+                小问共用同一段题干和同一张原卷截图（Ⓔ 按主题号回填），
+                逐条平铺的话第 13 题的五个小问会把同一张图贴五遍，
+                而「这几行是同一道大题」反而看不出来。
+                分组按筛选之后的结果算 —— 筛成「只看错的」时，剩下哪几问就归哪几问 */}
+            {group(shown).map((g) => (
+              <Fragment key={g.main}>
+                {g.sub && <SheetGroupHead main={g.main} rows={g.rows} />}
+                {g.rows.map((r) => (
+                  <SheetResultRow key={r.n} r={r} sheet={s.id} onChanged={load}
+                                  sub={g.sub} />
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>

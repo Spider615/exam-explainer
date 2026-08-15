@@ -18,6 +18,53 @@ export function showN(n: number) {
   return n >= 100 ? `${Math.floor(n / 100)}(${n % 100})` : String(n)
 }
 
+/** 1203 → 12（大题号）；9 → 9。小问的编号约定是 主题号*100+小问号 */
+export function mainOf(n: number) {
+  return n >= 100 ? Math.floor(n / 100) : n
+}
+
+/**
+ * 一道大题的头一行：题号 + **题目只出现这一次**。
+ *
+ * 小问共用同一段题干和同一张原卷截图（Ⓔ 是按主题号回填的），逐条渲染的话
+ * 第 13 题的五个小问会把同一张整页宽的截图贴五遍 —— 屏幕上翻半天还在同一道题里，
+ * 而「这几行是同一道大题」这件事反而看不出来。
+ */
+export function SheetGroupHead({ main, rows }: { main: number; rows: SheetRow[] }) {
+  const withShot = rows.find((r) => r.stemImage)
+  const withText = rows.find((r) => r.stem)
+  return (
+    <tr className="qgroup">
+      <td className="qn" data-label="题">第 {main} 题</td>
+      <td className="qstem-cell" data-label="题目" colSpan={7}>
+        {withShot?.stemImage ? (
+          <Zoom label={`第 ${main} 题的题目`}
+                thumb={<img src={withShot.stemImage} alt={`第 ${main} 题的题目`}
+                            loading="lazy" />}>
+            <img className="lightbox-img" src={withShot.stemImage}
+                 alt={`第 ${main} 题在原卷上的样子`} />
+          </Zoom>
+        ) : withText?.stem ? (
+          <Zoom label={`第 ${main} 题的题目`}
+                thumb={<span className="zoom-text">题目（文字）</span>}>
+            <div className="lightbox-text">
+              <RichText text={withText.stem.replace(/\$\$/g, '$')} />
+              <p className="dim">这道题没切出原卷截图，上面是转写的文字。</p>
+            </div>
+          </Zoom>
+        ) : (
+          <span className="dim" title={rows.some((r) => r.bound)
+            ? '这份卷子还没读过题干 —— 把原卷传进「原卷」那一栏，重新上传一次'
+            : '这几条挂不上题（题号在参考答案里对不上），找不到对应的题目'}>
+            {rows.some((r) => r.bound) ? '没有题干' : '挂不上题'}
+          </span>
+        )}
+        <span className="qgroup-n">{rows.length} 小问</span>
+      </td>
+    </tr>
+  )
+}
+
 /**
  * 改判：**就地弹一个小菜单，不再往下展开一行。**
  *
@@ -134,10 +181,15 @@ function RegradeMenu({ r, busy, err, onPick }: {
  * 不是我的判定过程）；改判是就地弹的小菜单；老师红笔写的答案和官方解答
  * 归到「正确答案」那一格 —— 它们本来就是「正确答案是什么」的另外两个来源。
  */
-export default function SheetResultRow({ r, sheet, onChanged }: {
+export default function SheetResultRow({ r, sheet, onChanged, sub = false }: {
   r: SheetRow
   sheet: number
   onChanged: () => void
+  /**
+   * 这一行是某道大题下的小问：题号只写「(2)」（上面那行头已经说了是第几题），
+   * 题目那一格留空（题干在头一行，不重复贴）。
+   */
+  sub?: boolean
 }) {
   const v = r.verdict || 'unsure'
   const [busy, setBusy] = useState(false)
@@ -167,8 +219,12 @@ export default function SheetResultRow({ r, sheet, onChanged }: {
 
   return (
     <>
-      <tr className={`qrow qrow-${v}`} id={`q${r.n}`}>
-        <td className="qn" data-label="题">{showN(r.n)}</td>
+      <tr className={`qrow qrow-${v}${sub ? ' qsub' : ''}`} id={`q${r.n}`}>
+        {/* 小问只写「(2)」—— 上面那行头已经说了是第几题。全称留在 title 里，
+            免得从速览跳过来的人对不上号 */}
+        <td className="qn" data-label="题" title={sub ? `第 ${showN(r.n)} 题` : undefined}>
+          {sub ? `(${r.n % 100})` : showN(r.n)}
+        </td>
 
         {/* ── 题目 ────────────────────────────────────────────────────────
             **它是一列，不藏在展开区里。** 「第 6 题错了」的下一个问题永远是
@@ -176,9 +232,12 @@ export default function SheetResultRow({ r, sheet, onChanged }: {
 
             截图优先于转写的文字（和卷子页同一条规矩）：转写那一段把图丢了，
             而一道题四个选项全是公式时，`$\frac{...}{...}$` 这种源码读起来
-            还不如不给。 */}
+            还不如不给。
+
+            **小问这一格是空的**：题干在大题那一行头上，只贴一次 ——
+            第 13 题五个小问共用同一张整页宽的截图，逐条贴会把它贴五遍。 */}
         <td className="qstem-cell" data-label="题目">
-          {r.stemImage ? (
+          {sub ? null : r.stemImage ? (
             <Zoom label={`第 ${showN(r.n)} 题的题目`}
                   thumb={<img src={r.stemImage} alt={`第 ${showN(r.n)} 题的题目`}
                               loading="lazy" />}>
