@@ -261,7 +261,9 @@ export default function SheetResultRow({ r, sheet, onChanged }: {
           {r.scoreGot != null && r.scoreFull != null && (
             <em className="score">{r.scoreGot}/{r.scoreFull}</em>
           )}
-          {r.teacherVerdict && <em className="by">已改判</em>}
+          {/* 「已改判」那个小标去掉了。**这件事没有丢**：改判过的题，
+              下面那个菜单里才有「撤回改判 · 退回系统原判「…」」——
+              一点就看得见改前是什么，而且那里才是能对它做点什么的地方 */}
           <RegradeMenu r={r} busy={busy} err={err} onPick={change} />
         </td>
 
