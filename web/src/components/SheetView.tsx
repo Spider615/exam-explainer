@@ -110,13 +110,28 @@ export default function SheetView({ name, onOpenSheet }: {
    *
    * 两样都拿不到就不画条，只留状态词和日志：**宁可不画，也不画一个假的**。
    */
-  const bar = pg?.stageCode === 'refread'
-    ? (pg.pageTotal ? { cur: pg.pageDone ?? 0, total: pg.pageTotal, unit: '页' } : null)
-    : pg?.stageCode === 'kpmark'
-      // 分子是「判过几道」不是「挂上几道」—— 只有一个字母答案的题永远挂不上，
-      // 按挂上几道画的话，这条进度条永远走不到头
-      ? { cur: pg.kpsJudged ?? pg.kps, total: pg.questions, unit: '题判过' }
-      : null
+  /**
+   * 正在跑的是**答题卡那条链**（Ⓢ/Ⓑ/Ⓒ）的话，这一屏上的话全都要改口径 ——
+   * 理由见 `types.ts` 里 `Progress.sheet`：卷子级阶段有意不看答题卡，
+   * 所以 Ⓑ 跑着的时候 `stage` 说的是**另一件事**。
+   *
+   * 2026-08-15 实跑：一份 4 页的卡在读，页面顶上写着
+   * 「③c 知识点 · 0/26 题判过 · 已用时 32 分 46 秒」。用户问
+   * 「怎么分析知识点这么久啊，不对吧」—— 三个数没有一个说的是眼下这件事。
+   */
+  const sheetStep = pg?.busy && pg.sheet != null ? pg.step : null
+  const bar = sheetStep
+    // **必须排在 stageCode 前面。** Ⓑ 在跑时卷子阶段还停在 kpmark，
+    // 按它画出来的是一条二十几分钟纹丝不动的「0/26 题判过」
+    ? (pg?.pageTotal
+      ? { cur: pg.pageDone ?? 0, total: pg.pageTotal, unit: '页读过' } : null)
+    : pg?.stageCode === 'refread'
+      ? (pg.pageTotal ? { cur: pg.pageDone ?? 0, total: pg.pageTotal, unit: '页' } : null)
+      : pg?.stageCode === 'kpmark'
+        // 分子是「判过几道」不是「挂上几道」—— 只有一个字母答案的题永远挂不上，
+        // 按挂上几道画的话，这条进度条永远走不到头
+        ? { cur: pg.kpsJudged ?? pg.kps, total: pg.questions, unit: '题判过' }
+        : null
   const groups: [number, typeof qs][] = []
   for (const q of qs) {
     const m = mainOf(q.n)
@@ -193,19 +208,28 @@ export default function SheetView({ name, onOpenSheet }: {
         <JobProgress
           tone={pg.failed ? 'bad' : pg.busy ? 'run' : 'ok'}
           title={pg.failed ? `失败 · ${pg.stage}`
-            : pg.busy ? pg.stage : `${pg.stage} · 已停止`}
+            : pg.busy ? (sheetStep || pg.stage) : `${pg.stage} · 已停止`}
           bar={bar ? { cur: bar.cur, total: bar.total } : null}
           detail={
             <>
               {bar && <span className="prog-sub"><span>{bar.cur}/{bar.total} {bar.unit}</span>
-                {pg.elapsedSeconds != null && (
-                  <span className="prog-t">已用时 {fmtDur(pg.elapsedSeconds)}</span>
-                )}</span>}
+                {/* **读答题卡的时候不给「已用时」。** 它算的是这一轮**整份卷子**
+                    从上传开始的时间（Ⓐ 读参考答案、③c 标知识点都算在里面），
+                    挂在「Ⓑ 读批改」底下会读成「Ⓑ 已经跑了 32 分」，而 Ⓑ 是
+                    刚开始的。换成「一页三四分钟」—— 那才是「还要多久」的答案 */}
+                {sheetStep
+                  ? <span className="prog-t">一页三四分钟</span>
+                  : pg.elapsedSeconds != null && (
+                    <span className="prog-t">已用时 {fmtDur(pg.elapsedSeconds)}</span>
+                  )}</span>}
               {/* 最后一行日志。Ⓐ 每读完一页打一条「第2页 读到 20 条（到第14(2)题）」，
-                  这句话恰好回答了「读到哪一题了」—— 比进度条本身还有用 */}
-              {pg.step && (
+                  这句话恰好回答了「读到哪一题了」—— 比进度条本身还有用。
+                  阶段词进了标题就不在这儿再说一遍 */}
+              {(sheetStep ? pg.last : pg.step) && (
                 <code className="prog-last">
-                  {pg.step}{pg.last ? ` · ${pg.last.trim()}` : ''}
+                  {sheetStep
+                    ? pg.last!.trim()
+                    : `${pg.step}${pg.last ? ` · ${pg.last.trim()}` : ''}`}
                 </code>
               )}
               {!pg.busy && !pg.done && (

@@ -1555,6 +1555,11 @@ def active_job_for(name):
             return None
         jid, j = live[-1]          # dict 保插入序，最后一个就是最近起的那个
         return {"id": jid, "state": j.get("state"), "step": j.get("step"),
+                # **这个活干的是哪份答题卡**（不是答题卡就是 None）。
+                # 页面拿它决定标题听谁的：`_stage_of_sheet` 有意不看答题卡，
+                # 所以 Ⓢ/Ⓑ/Ⓒ 在跑的时候卷子级阶段说的是**别的事** ——
+                # 实测显示成「③c 知识点 0/26 · 已用时 32 分」，而知识点根本没在跑
+                "sheet": j.get("sheet"),
                 "solved": j.get("solved"), "total": j.get("total"),
                 # Ⓐ 读参考答案的进度：读到第几页 / 共几页（见 read_progress）。
                 # 解析试卷那条链没有这两个键，回 None，前端据此不画那条
@@ -1782,6 +1787,8 @@ def paper_progress(name: str, user=Depends(current_user)):
             "done": code == "done", "failed": failed, "failedStage": failed_stage,
             # 网页上传的任务还能给出更细的信息（正在解哪道题），命令行跑的没有
             "step": (live or {}).get("step"), "last": (live or {}).get("last"),
+            # 非 None 就表示「在跑的是答题卡那条链」，此时 `stage` 说的不是它
+            "sheet": (live or {}).get("sheet"),
             # Ⓐ 那一步「读到第几页 / 共几页」。没有分母的进度条只是个转不停的圈
             "pageDone": (live or {}).get("pageDone"),
             "pageTotal": (live or {}).get("pageTotal"),
