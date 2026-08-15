@@ -72,14 +72,20 @@ export default function Sheets({ paper, rows, onOpen }: {
             </tr>
           </thead>
           <tbody>
-            {rows.map((s) => (
+            {rows.map((s) => {
+              /* `done` 不在 STATE 里（跑完的卡由数字说话）；**后端还是旧的时候
+                 `state` 是 undefined**，一样落到这里 —— 退回只显示数字，
+                 而不是让 `STATE[undefined].pill` 把整页炸成白屏。
+                 改完后端没重启是这个仓库反复发生的事，别让它以白屏收场 */
+              const st = STATE[s.state]
+              return (
               <tr key={s.id} onClick={() => onOpen(s.id)}>
                 <td className="lib-name">
                   <button className="link" onClick={(e) => { e.stopPropagation(); onOpen(s.id) }}>
                     {s.student || '未署名'}
                   </button>
                 </td>
-                {s.state === 'done' ? (
+                {!st ? (
                   <>
                     <td className="num" data-label="总分">
                       {s.total ?? <span className="dim">—</span>}
@@ -96,15 +102,13 @@ export default function Sheets({ paper, rows, onOpen }: {
                      「读出 0」三种情况在这张表上长得一模一样的原因 ——
                      而这三种的下一步完全不同：等着、换图重传、去看原图 */
                   <td className="sheet-state" colSpan={5} data-label="状态">
-                    <span className={`pill ${STATE[s.state].pill}`}>
-                      {STATE[s.state].word}
-                    </span>
+                    <span className={`pill ${st.pill}`}>{st.word}</span>
                     {s.state === 'running' && s.runSeconds != null && (
                       <span className="dim">已跑 {fmtDur(s.runSeconds)}</span>
                     )}
                     {/* 失败原因是后端给的、能照着做的那句话，原样显示；
                         没给出原因时才退回本地那句通用的 */}
-                    <span className="dim">{s.stateNote || STATE[s.state].say}</span>
+                    <span className="dim">{s.stateNote || st.say}</span>
                   </td>
                 )}
                 <td className="num" data-label="页">{s.nPages}</td>
@@ -114,7 +118,8 @@ export default function Sheets({ paper, rows, onOpen }: {
                   </button>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       )}

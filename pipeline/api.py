@@ -122,7 +122,20 @@ def step_env():
 
 @contextlib.asynccontextmanager
 async def lifespan(_app):
-    """服务起来之前先扫一遍上一轮的残局（见 `sweep_orphan_sheets`）。"""
+    """
+    起服务之前：**先把库迁到位，再扫上一轮的残局**（见 `sweep_orphan_sheets`）。
+
+    顺序不能反 —— 扫描要读 `answer_sheets.status`，那一列可能是这次才加的。
+
+    以前建表只有命令行 `store.py init` 会调，`run.sh` 里没有这一步。于是
+    「改了 schema.sql 但忘了手动迁移」这件事的表现是：重启之后一切正常，
+    直到有人打开答题卡页面 —— `list_sheets` 撞上不存在的列，整页 500。
+    **而这条路径没有任何测试覆盖得到**（conftest 自己会建表，所以测试永远是绿的）。
+
+    `schema.sql` 通篇 `IF NOT EXISTS` 加带 WHERE 的回填，本来就是照着
+    「反复跑」写的，所以每次起来跑一遍是安全的。
+    """
+    store.init_schema()
     sweep_orphan_sheets()
     yield
 
