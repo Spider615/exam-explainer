@@ -342,9 +342,29 @@
 
 ```bash
 cd /Users/jerry/Desktop/product/exam-explainer
-.venv/bin/python -m pytest tests/ -q          # 应该 781 passed（约 12 秒）
+.venv/bin/python -m pytest tests/ -q          # 应该 796 passed（约 12 秒）
 cd web && npm run build && cd ..              # TypeScript + Vite 构建
 .venv/bin/uvicorn pipeline.api:app --host 127.0.0.1 --port 8712 >> logs/api.log 2>&1 &
+```
+
+**改了 `pipeline/api.py` 的路由表，后端必须重启。** `npm run build` 会把新前端写进
+`web/dist`，而 uvicorn 是把 `web/dist` 直接端出去的 —— 于是「前端是新的、后端是旧的」：
+页面调一条那个进程里根本不存在的路由，FastAPI 回一句默认的 `Not Found`
+（我们自己的 404 都是有话说的，比如「没有这份试卷」）。2026-08-15 就是这么栽的：
+页面上一屏「打不开这份卷子的诊断结果 Not Found」，而代码和测试都是对的。
+
+一句话判据：
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8712/api/papers/x/sheets
+# 404 = 这个进程没有这条路由（旧代码）；401 = 路由在，只是要登录
+```
+
+**重启前先看有没有管线在跑**（`JOBS` 只在内存里，子进程会跟着死；`stemread`
+这类是读完所有页才一次性落库的，中途被杀整趟白跑）：
+
+```bash
+pgrep -fl 'pipeline/.*\.py'
 ```
 
 老师给的真实材料在 `~/Desktop/试卷+答题卡/`（4 张参考答案 + 2 张已批改答题卡截图）。
