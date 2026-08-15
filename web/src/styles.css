@@ -958,7 +958,8 @@ td.prg{white-space:nowrap}
   line-height:1.95}
 
 /* 「这份卷子的标准答案」那个框。一行一题，答案是主角、解答过程和知识点是副的 */
-.papers{width:min(760px,100%);max-height:min(86vh,900px);display:flex;
+/* 带原题截图之后要更宽：原卷是整页宽切下来的一条，760 里读起来太挤 */
+.papers{width:min(980px,100%);max-height:min(88vh,940px);display:flex;
   flex-direction:column}
 .papers-hd{display:flex;align-items:baseline;gap:12px;padding:18px 24px 14px;
   border-bottom:1px solid var(--line);flex:none}
@@ -971,9 +972,24 @@ td.prg{white-space:nowrap}
 .papers-list>li>b{flex:none;width:3.6em;font-family:var(--song);font-size:15px;
   color:var(--ink2)}
 .papers-list>li>div{flex:1;min-width:0}
+/* 原题：整页宽切下来的一条，按框宽自适应 */
+.papers-stem{display:block;max-width:100%;margin:0 0 10px;background:#fff;
+  border:1px solid var(--hair);border-radius:var(--r-ctl)}
+.papers-stemtext{margin:0 0 10px;font-family:var(--song);font-size:14.5px;
+  line-height:1.9;color:var(--ink)}
 .papers-ans{margin:0;font-size:15px;line-height:1.75}
+/* 有了原题之后，「标准答案」这三个字不能省：不然那一行 `D` 贴在题目下面，
+   读起来像题目的一部分 */
+.papers-ans i{font-style:normal;font-size:11.5px;color:var(--ink3);
+  margin-right:8px;vertical-align:1px}
 .papers-sol{margin:6px 0 0;font-size:13px;line-height:1.8;color:var(--ink2)}
-.papers-kp{margin:7px 0 0}
+/* 知识点。这个框里没有列头说明「这一行是什么」，所以做成标签 ——
+   裸文字跟在解答后面，会被读成解答的一部分。
+   （`.kp` 的样式原来只写在 `.acard` 下面，这里够不着） */
+.papers-kp{margin:8px 0 0}
+.papers-kp .kp{display:inline-block;background:var(--stem);border:1px solid var(--hair);
+  border-radius:var(--r-ctl);padding:2px 9px;margin:0 6px 4px 0;font-size:12.5px;
+  color:var(--ink2)}
 .papers-ft{flex:none;padding:12px 24px 16px;border-top:1px solid var(--hair);
   font-size:12px;line-height:1.75;color:var(--ink3)}
 .papers-ft b{color:var(--ink2)}

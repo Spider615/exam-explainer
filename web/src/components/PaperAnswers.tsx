@@ -86,9 +86,31 @@ export default function PaperAnswers({ paper }: { paper: string }) {
                   <li key={q.n}>
                     <b>{showN(q.n)}</b>
                     <div>
+                      {/* ── 原题 ────────────────────────────────────────────
+                          光有答案对不上题 —— 「D」放在这儿，老师还是得回去翻
+                          第 1 题问的是什么。
+
+                          **截图优先于转写的文字**（和别处同一条规矩）：Ⓔ 的
+                          提示词要求「插图只用一句话描述」，所以转写那一段
+                          把图丢了，而一道题四个选项全是公式时，那串 LaTeX
+                          源码读起来还不如不给。
+                          `loading="lazy"` 不能省：一份卷子二十几张整页宽的图，
+                          一次全拉会把这个框卡住。 */}
+                      {q.stemImage ? (
+                        <img className="papers-stem" src={q.stemImage}
+                             alt={`第 ${showN(q.n)} 题在原卷上的样子`} loading="lazy" />
+                      ) : q.stem ? (
+                        <p className="papers-stemtext">
+                          <RichText text={q.stem.replace(/\$\$/g, '$')} />
+                        </p>
+                      ) : (
+                        <p className="dim">这道题还没有题目 —— 把原卷传进「原卷」那一栏就能读到</p>
+                      )}
                       {/* 留白会被读成「这道题本来就没有答案」。说清楚是哪一步没认出来 */}
                       {q.refAnswer
-                        ? <p className="papers-ans"><RichText text={q.refAnswer} /></p>
+                        ? <p className="papers-ans">
+                            <i>标准答案</i><RichText text={q.refAnswer} />
+                          </p>
                         : <p className="dim">这道题没有标准答案 —— Ⓐ 读参考答案时没认出来</p>}
                       {q.refSolution && (
                         <p className="papers-sol">
