@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { regrade } from '../api'
 import RichText from './RichText'
 import Zoom from './Zoom'
-import type { SheetRow, Verdict, VerdictBy } from '../types'
+import type { SheetRow, Verdict } from '../types'
 
 /** **半对是 ◐，自己一档。** 归到 ✓ 会让人以为这块掌握了，归到 ✗ 会让
     「一分没得」和「差一点」看起来一样严重 */
@@ -12,27 +13,126 @@ export const MARK: Record<Verdict, string> = {
 export const WORD: Record<Verdict, string> = {
   right: '对', partial: '半对', wrong: '错', blank: '空着', unsure: '说不清',
 }
-const BY: Record<VerdictBy, string> = {
-  teacher_score: '照卷子上印的分数',
-  teacher_mark: '照红勾红叉',
-  code: '系统按标准答案判的',
-  model: '模型判的',
-  teacher: '你改判的',
-}
-
 /** 1203 → `12(3)`；9 → `9` */
 export function showN(n: number) {
   return n >= 100 ? `${Math.floor(n / 100)}(${n % 100})` : String(n)
 }
 
 /**
+ * 改判：**就地弹一个小菜单，不再往下展开一行。**
+ *
+ * 展开行的毛病是它把整张表顶开、上下行错位，改一道题要重新找回自己看到哪 ——
+ * 而改判本身只是「在四个档里挑一个」。
+ *
+ * 菜单**挂到 `body` 上并按按钮的位置摆**，两个理由：
+ *   · `.qtbl` 有 `overflow:hidden`（圆角要它），绝对定位的菜单会被裁掉；
+ *   · 诊断页的根节点带 `transform`（`.rise`），`position:fixed` 会相对它定位。
+ * 这两条都踩过。
+ *
+ * 页面一滚位置就不对了，所以**滚动就关**，不做跟随。
+ */
+function RegradeMenu({ r, busy, err, onPick }: {
+  r: SheetRow
+  busy: boolean
+  err: string | null
+  onPick: (v: Verdict | null) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [at, setAt] = useState<{ top: number; left: number } | null>(null)
+  const btn = useRef<HTMLButtonElement>(null)
+  const pop = useRef<HTMLDivElement>(null)
+  const v = r.verdict || 'unsure'
+
+  useEffect(() => {
+    if (!open) return
+    const away = (e: MouseEvent) => {
+      if (!pop.current?.contains(e.target as Node)
+          && !btn.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    const gone = () => setOpen(false)
+    document.addEventListener('mousedown', away)
+    document.addEventListener('keydown', esc)
+    window.addEventListener('scroll', gone, true)
+    window.addEventListener('resize', gone)
+    return () => {
+      document.removeEventListener('mousedown', away)
+      document.removeEventListener('keydown', esc)
+      window.removeEventListener('scroll', gone, true)
+      window.removeEventListener('resize', gone)
+    }
+  }, [open])
+
+  // 改判成功后这一行会被重新拉取，菜单跟着关掉
+  useEffect(() => { if (!busy && !err) setOpen(false) }, [r.verdict, r.scoreGot])
+
+  const toggle = () => {
+    const b = btn.current?.getBoundingClientRect()
+    if (b) setAt({ top: b.bottom + 6, left: b.left })
+    setOpen((o) => !o)
+  }
+
+  /**
+   * 摆好之后量一下，装不下就翻到按钮上方 / 往左收。
+   *
+   * **不能靠估一个高度。** 菜单是四档还是五档（有没有「撤回改判」）、
+   * 有没有报错那一行，高度差着好几十像素；而表格最下面那几行的按钮离视口底边
+   * 只有几十像素 —— 估错了菜单就掉出屏幕，那几道题永远改不了。
+   */
+  useLayoutEffect(() => {
+    if (!open || !at || !pop.current) return
+    const m = pop.current.getBoundingClientRect()
+    const b = btn.current?.getBoundingClientRect()
+    let { top, left } = at
+    if (b && m.bottom > window.innerHeight - 8) top = Math.max(8, b.top - m.height - 6)
+    if (m.right > window.innerWidth - 8) {
+      left = Math.max(8, window.innerWidth - m.width - 8)
+    }
+    if (top !== at.top || left !== at.left) setAt({ top, left })
+  }, [open, at])
+
+  return (
+    <>
+      <button ref={btn} className="qwhy" aria-haspopup="menu" aria-expanded={open}
+              onClick={toggle}>改判</button>
+      {open && at && createPortal(
+        <div className="regrade" role="menu" ref={pop}
+             style={{ top: at.top, left: at.left }}>
+          <div className="regrade-hd">第 {showN(r.n)} 题改判为</div>
+          {(['right', 'partial', 'wrong', 'blank'] as Verdict[]).map((k) => (
+            <button key={k} role="menuitem" disabled={busy || v === k}
+                    onClick={() => onPick(k)}>
+              <i>{MARK[k]}</i>{WORD[k]}
+            </button>
+          ))}
+          {/* 改判过才给「撤回」，并且说清楚要退回到什么 ——
+              不说的话，老师不知道自己撤回之后会变成哪一档 */}
+          {r.teacherVerdict && (
+            <button className="regrade-undo" role="menuitem" disabled={busy}
+                    onClick={() => onPick(null)}>
+              撤回改判
+              {r.sysVerdict && (
+                <em>退回系统原判「{WORD[r.sysVerdict]}
+                  {r.sysScoreGot != null ? ` · ${r.sysScoreGot} 分` : ''}」</em>
+              )}
+            </button>
+          )}
+          {err && <p className="regrade-err">{err}</p>}
+        </div>,
+        document.body)}
+    </>
+  )
+}
+
+/**
  * 逐题结果的一行。
  *
  * **原图切片挨着判定，不藏进二级页面** —— 它是老师校对模型转写的唯一红绿灯。
- * 但也不占半屏：行内缩略图，点开看大的。
+ * 但也不占半屏：行内缩略图，点开看大的。题目同理，它是单独一列。
  *
- * 展开之后才出现「怎么判的、老师红笔写了什么、官方解答、改判」。第一眼不需要，
- * 但要够得着。
+ * **这一行不再往下展开。** 判定依据不显示了（老师要的是结论和改判入口，
+ * 不是我的判定过程）；改判是就地弹的小菜单；老师红笔写的答案和官方解答
+ * 归到「正确答案」那一格 —— 它们本来就是「正确答案是什么」的另外两个来源。
  */
 export default function SheetResultRow({ r, sheet, onChanged }: {
   r: SheetRow
@@ -42,7 +142,6 @@ export default function SheetResultRow({ r, sheet, onChanged }: {
   const v = r.verdict || 'unsure'
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const [open, setOpen] = useState(false)
 
   const change = async (next: Verdict | null) => {
     // 半对是几分推不出来，得问一句。对/错后端按满分和 0 推，不用打扰老师
@@ -135,22 +234,35 @@ export default function SheetResultRow({ r, sheet, onChanged }: {
             : <span className="dim" title={r.bound ? '' : '这条挂不上题，没有标准答案可对'}>
                 {r.bound ? '—' : '挂不上题'}
               </span>}
+          {/* 老师在卷子旁边红笔写的正确答案。**白捡的第三份对照** ——
+              它和「正确答案是什么」是同一件事，所以就长在这一格里 */}
+          {r.red && (
+            <span className="ans-red">老师红笔：<RichText text={r.red} /></span>
+          )}
+          {/* 官方解答往往几百字，塞进格子里会把整行撑开 —— 点开在放大层里读，
+              和题目那一列同一个交互 */}
+          {r.refSolution && (
+            <Zoom trigger="zoom-link" label={`第 ${showN(r.n)} 题的官方解答`}
+                  thumb={<>官方解答</>}>
+              <div className="lightbox-text">
+                <RichText text={r.refSolution.replace(/\$\$/g, '$')} />
+                <p className="dim">来自你上传的参考答案，不是 AI 写的。</p>
+              </div>
+            </Zoom>
+          )}
         </td>
 
-        <td data-label="判定">
+        {/* 判定依据不显示了 —— 老师要的是结论和改判入口，不是我的判定过程。
+            它仍然留在 `title` 里：想知道「凭什么这么判」的时候够得着，
+            但不占版面 */}
+        <td data-label="判定" title={r.verdictWhy ?? undefined}>
           <span className={`v v-${v}`}>{MARK[v]} {WORD[v]}</span>
           {/* 分数跟判定一起给 —— 只说「半对」而不给分，老师没法核对 */}
           {r.scoreGot != null && r.scoreFull != null && (
             <em className="score">{r.scoreGot}/{r.scoreFull}</em>
           )}
           {r.teacherVerdict && <em className="by">已改判</em>}
-          {/* 「详情」那个按钮去掉了（题目已经是一列，不用再点开看）。
-              剩下的那几样 —— 怎么判的、老师红笔写了什么、官方解答、改判 ——
-              全都是**判定**这件事的下文，所以入口挪到这一格里，
-              名字直接叫它要做的事 */}
-          <button className="qwhy" aria-expanded={open} onClick={() => setOpen(!open)}>
-            {open ? '收起' : '依据 · 改判'}
-          </button>
+          <RegradeMenu r={r} busy={busy} err={err} onPick={change} />
         </td>
 
         <td data-label="知识点">
@@ -173,44 +285,6 @@ export default function SheetResultRow({ r, sheet, onChanged }: {
         </td>
 
       </tr>
-
-      {open && (
-        <tr className="qrow-more">
-          {/* 题目已经是一列了，这里不再重复贴一遍 —— 剩下的全是「怎么判的」
-              和「要不要改判」 */}
-          <td colSpan={7}>
-            <p className="dim">
-              {r.verdictBy ? BY[r.verdictBy] : '说不清'}
-              {r.verdictWhy ? `：${r.verdictWhy}` : ''}
-              {r.teacherVerdict && r.sysVerdict &&
-                `　（系统原判是「${WORD[r.sysVerdict]}${
-                  r.sysScoreGot != null ? ` · ${r.sysScoreGot} 分` : ''}」）`}
-            </p>
-            {r.red && <p>老师在旁边写的正确答案：<RichText text={r.red} /></p>}
-            {r.refSolution && (
-              <details>
-                <summary>官方解答</summary>
-                <RichText text={r.refSolution.replace(/\$\$/g, '$')} />
-              </details>
-            )}
-            <div className="srow-fix">
-              <span className="dim">改判为</span>
-              {(['right', 'partial', 'wrong', 'blank'] as Verdict[]).map((k) => (
-                <button className="btn" key={k} disabled={busy || v === k}
-                        onClick={() => change(k)}>
-                  {MARK[k]} {WORD[k]}
-                </button>
-              ))}
-              {r.teacherVerdict && (
-                <button className="btn" disabled={busy} onClick={() => change(null)}>
-                  撤回改判
-                </button>
-              )}
-            </div>
-            {err && <div className="banner bad">{err}</div>}
-          </td>
-        </tr>
-      )}
     </>
   )
 }

@@ -14,13 +14,15 @@ import type { ReactNode } from 'react'
  * 放大层里放什么由调用方给（`children`）—— 原卷截图是图，没切出截图的题
  * 是一段转写文字，两者都能放进来。
  */
-export default function Zoom({ label, thumb, children }: {
+export default function Zoom({ label, thumb, children, trigger = 'zoom' }: {
   /** 给读屏和 `aria-label` 用的一句话，例如「第 12(3) 题的题目」 */
   label: string
   /** 表格里那一格的样子 */
   thumb: ReactNode
   /** 放大之后看到的东西 */
   children: ReactNode
+  /** 触发器的样子：`zoom` 是带边框的缩略图格子，`zoom-link` 是一行小字 */
+  trigger?: 'zoom' | 'zoom-link'
 }) {
   const [open, setOpen] = useState(false)
 
@@ -39,7 +41,7 @@ export default function Zoom({ label, thumb, children }: {
 
   return (
     <>
-      <button type="button" className="zoom" onClick={() => setOpen(true)}
+      <button type="button" className={trigger} onClick={() => setOpen(true)}
               aria-label={`${label}（点开看大图）`} title="点开看大图">
         {thumb}
         <span className="zoom-eye" aria-hidden="true">
