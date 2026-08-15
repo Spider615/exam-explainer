@@ -84,7 +84,7 @@ export default function Login({ onDone }: { onDone: () => void }) {
     <div className="auth">
       <div className="auth-grid">
         <section className="auth-say">
-          <div className="auth-brand">析题<em>。</em></div>
+          <div className="auth-brand">析题</div>
           <h1>把一份卷子<br />拆到能讲的程度</h1>
           <p>
             上传物理卷 PDF，自动跑完切题、解题、写物理断言、生成动画场景；

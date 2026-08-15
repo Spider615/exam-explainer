@@ -6,7 +6,7 @@ export type Mode = 'paper' | 'sheet'
  * 登录后所有页面共用的这一层壳：品牌、两个一级模式、账号。
  *
  * ```
- * 析题。        解析试卷   答题卡诊断                         你@邮箱  退出
+ * 析题          解析试卷   答题卡诊断                         你@邮箱  退出
  * ──────────────────────────────────────────────────────────────────────
  * 页面内容
  * ```
@@ -43,7 +43,7 @@ export default function AppShell({ mode, onMode, me, onSignOut, onHome, crumb, w
       <header className="shell-top">
         <div className={`shell-bar${w}`}>
           <button className="brand" onClick={onHome} title="回到任务库">
-            析题<em>。</em>
+            析题
           </button>
           {/* 两个模式是两件事，不是一个筛选器。切过去整屏都换：上传框、
               列表列头、详情页。互相看不见对方的卷子 */}

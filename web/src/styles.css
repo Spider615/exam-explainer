@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   设计令牌 —— 「析题。」的学术编辑台
+   设计令牌 —— 「析题」的学术编辑台
    ═══════════════════════════════════════════════════════════════════════════
 
    暖纸色的底、深墨蓝的字、朱砂点睛。气质是克制的编辑台，不是企业 SaaS 后台，
@@ -84,11 +84,10 @@ a{color:var(--acc);text-underline-offset:2px}
 .shell-bar{max-width:960px;margin:0 auto;padding:0 20px;
   display:flex;align-items:stretch;gap:26px;min-height:56px}
 .shell-bar.wide{max-width:1240px}
-/* 品牌。**句点是朱砂的** —— 全站唯一一处把强调色用在装饰上，它是签名 */
+/* 品牌。设计稿里原来带一个朱砂色的句点，2026-08-15 按用户要求去掉了 */
 .brand{font-family:var(--song);font-size:20px;font-weight:600;letter-spacing:.04em;
   color:var(--ink);background:none;border:0;padding:0 2px 0 0;cursor:pointer;
   display:flex;align-items:center;flex:none;transition:color var(--t-fast) var(--ease)}
-.brand em{font-style:normal;color:var(--hot)}
 .brand:hover{color:var(--acc)}
 
 /* 两个模式是两件事，不是一个筛选器。切过去整屏都换：上传框、列表列头、详情页。
@@ -501,7 +500,6 @@ svg text.a{fill:var(--acc)}svg text.r{fill:var(--red)}svg text.c{fill:var(--cy)}
 /* 左栏：说清楚这是什么。留白比字多，别让它跟表单抢注意力 */
 .auth-brand{font-family:var(--song);font-size:26px;font-weight:600;letter-spacing:.04em;
             color:var(--ink)}
-.auth-brand em{font-style:normal;color:var(--hot)}
 .auth-say h1{font-family:var(--song);font-size:38px;line-height:1.32;font-weight:600;
              margin:14px 0 0;letter-spacing:.01em}
 .auth-say p{margin:16px 0 0;font-size:14.5px;line-height:1.85;color:var(--ink2);
