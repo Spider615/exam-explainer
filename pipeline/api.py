@@ -40,7 +40,7 @@ questions.json。现在没 publish 就不算数，漂移无从发生。
 为什么管线是 Python：PDF 解析、坐标运算、数值求解、无头浏览器编排，
 这几件事在 Node 生态里没有对等的库。前端不必因此也用 Python。
 """
-import json, os, re, secrets, signal, subprocess, sys, threading, time, uuid
+import contextlib, json, os, re, secrets, signal, subprocess, sys, threading, time, uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import segment          # 跨页表的合并规则只写一份，前后端不能各有一套
@@ -120,13 +120,42 @@ def step_env():
     """
     return dict(os.environ, **dotenv_now(), PYTHONUNBUFFERED="1")
 
-app = FastAPI(title="exam-explainer")
+@contextlib.asynccontextmanager
+async def lifespan(_app):
+    """服务起来之前先扫一遍上一轮的残局（见 `sweep_orphan_sheets`）。"""
+    sweep_orphan_sheets()
+    yield
+
+
+app = FastAPI(title="exam-explainer", lifespan=lifespan)
 # allow_credentials 是必须的：会话是 cookie，跨源请求默认不带 cookie。
 # 开发时前端在 5173、API 在 8712，是两个源。上线同源部署时这条不生效也无害。
 app.add_middleware(CORSMiddleware, allow_origins=["http://127.0.0.1:5173",
                                                   "http://localhost:5173"],
                    allow_credentials=True,
                    allow_methods=["*"], allow_headers=["*"])
+
+def sweep_orphan_sheets():
+    """
+    上一个进程留下的**在跑中的答题卡**，标成失败。
+
+    驱动一份卡那条链的是这个进程里的一个线程（`JOBS` 也在这个进程里），
+    进程一没它就没了 —— 库里那一行会永远停在 `running`，页面上永远转圈。
+    刚起来的进程手上一个任务都没有，所以此刻还标着 `running` 的**必然**是孤儿：
+    这是个确定判据，不是「多久没动静算死」那种阈值（Ⓑ 一次子调用实测最慢
+    442 秒，阈值定短了会把正在正常跑的卡说成死了）。
+
+    **不拦启动。** 库连不上是另一回事，有它自己的报错路径；
+    扫不动孤儿只该少一条信息，不该让整个服务起不来。
+    """
+    try:
+        n = store.sweep_running_sheets()
+        if n:
+            print("[启动] %d 份答题卡还标着「在跑」——"
+                  "上个进程留下的，已标成没跑完" % n, flush=True)
+    except Exception as e:                                    # noqa: BLE001
+        print("[启动] 扫不动上一轮的答题卡：%s" % e, flush=True)
+
 
 JOBS = {}
 # 已经开跑、但还没 publish 进库的卷名 → 开跑的人。库要等 ①②②b 跑完才认得出
@@ -1183,6 +1212,7 @@ def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id, nested=False):
             # 拿一张带着状态栏的图去读题号，读出来的东西没人能信
             with LOCK:
                 JOBS[jid].update(state="error", err=str(e), err_code="sheetcut")
+            store.set_sheet_run(sheet_id, "error", str(e))
             log("✗ %s" % e)
             log("   把答题卡那一块裁出来再传一次，或者直接传答题卡的照片")
             return
@@ -1297,8 +1327,14 @@ def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id, nested=False):
             with LOCK:
                 JOBS[jid].update(state="error", err="一道题都没读出来",
                                  err_code="sheetread")
+            store.set_sheet_run(sheet_id, "error",
+                                "一道题都没读出来 —— 换清楚一点的答题卡图再传一次")
             log("✗ 一道题都没读出来 —— 换清楚一点的答题卡图再传一次")
             return
+        # **卡本身跑完了，跟 `nested` 无关。** 下面那个 `nested` 判的是
+        # 「整个任务算不算完」，而这一行说的是「这一份卡跑完了」—— 两件事。
+        # 接在参考答案链后面跑的时候，外面还有步骤没做完，但这份卡确实好了
+        store.set_sheet_run(sheet_id, "done")
         # `nested=True` 时这条链是**接在参考答案那条链后面**跑的，
         # 状态由外面那层收尾 —— 这里就把 state 写成 done 的话，
         # 外面还没跑完的步骤会在页面上显示成「已完成」
@@ -1309,6 +1345,7 @@ def run_sheet_pipeline(jid, paper, sheet_id, paths, owner_id, nested=False):
     except Exception as e:                                    # noqa: BLE001
         with LOCK:
             JOBS[jid].update(state="error", err=str(e), err_code="sheetread")
+        store.set_sheet_run(sheet_id, "error", str(e))
         log("✗ 出错：%s" % e)
         if nested:
             raise

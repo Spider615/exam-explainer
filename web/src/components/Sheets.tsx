@@ -1,6 +1,20 @@
 import { useState } from 'react'
 import { uploadSheet } from '../api'
+import { fmtDur } from '../fmt'
 import type { SheetBrief } from '../types'
+
+/**
+ * 一份卡这一趟跑成什么样，说给人听。**每一档都带下一步该干什么** ——
+ * 光说「失败」的话，老师不知道该重传还是该等，而这两件事代价差很远。
+ *
+ * `done` 不在这里：跑完的卡由那一排数字说话，再挂个「已完成」是噪音。
+ */
+const STATE: Record<string, { word: string; pill: string; say: string }> = {
+  running: { word: '在跑', pill: 'a', say: '一页三四分钟，读完自己会出结果' },
+  failed: { word: '没跑成', pill: 'w', say: '' },
+  empty: { word: '没读出作答', pill: 'w',
+           say: '一条作答都没读出来 —— 换张清楚点的图重传' },
+}
 
 /**
  * 一份卷子下面的答题卡：列表 + 传一份新的。
@@ -65,15 +79,34 @@ export default function Sheets({ paper, rows, onOpen }: {
                     {s.student || '未署名'}
                   </button>
                 </td>
-                <td className="num" data-label="总分">
-                  {s.total ?? <span className="dim">—</span>}
-                </td>
-                {/* 丢分排在错题数前面：薄弱知识点按它排，它才是要看的那个数 */}
-                <td className="num" data-label="丢分"><b>{s.lost ?? '—'}</b></td>
-                <td className="num" data-label="错">{s.wrong}</td>
-                {/* 半对**单独一列**。并进「错」的话，8 道半对的卡会显示「错 2 道」 */}
-                <td className="num" data-label="半对">{s.partial}</td>
-                <td className="num" data-label="读出">{s.answers}</td>
+                {s.state === 'done' ? (
+                  <>
+                    <td className="num" data-label="总分">
+                      {s.total ?? <span className="dim">—</span>}
+                    </td>
+                    {/* 丢分排在错题数前面：薄弱知识点按它排，它才是要看的那个数 */}
+                    <td className="num" data-label="丢分"><b>{s.lost ?? '—'}</b></td>
+                    <td className="num" data-label="错">{s.wrong}</td>
+                    {/* 半对**单独一列**。并进「错」的话，8 道半对的卡会显示「错 2 道」 */}
+                    <td className="num" data-label="半对">{s.partial}</td>
+                    <td className="num" data-label="读出">{s.answers}</td>
+                  </>
+                ) : (
+                  /* 还没有数的时候**不摆五个 0**。那五个 0 正是「在跑」「跑挂了」
+                     「读出 0」三种情况在这张表上长得一模一样的原因 ——
+                     而这三种的下一步完全不同：等着、换图重传、去看原图 */
+                  <td className="sheet-state" colSpan={5} data-label="状态">
+                    <span className={`pill ${STATE[s.state].pill}`}>
+                      {STATE[s.state].word}
+                    </span>
+                    {s.state === 'running' && s.runSeconds != null && (
+                      <span className="dim">已跑 {fmtDur(s.runSeconds)}</span>
+                    )}
+                    {/* 失败原因是后端给的、能照着做的那句话，原样显示；
+                        没给出原因时才退回本地那句通用的 */}
+                    <span className="dim">{s.stateNote || STATE[s.state].say}</span>
+                  </td>
+                )}
                 <td className="num" data-label="页">{s.nPages}</td>
                 <td className="lib-more">
                   <button className="btn" onClick={(e) => { e.stopPropagation(); onOpen(s.id) }}>

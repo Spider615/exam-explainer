@@ -233,6 +233,62 @@ def test_一条都没读出来算失败(db, owner, tmp_path, monkeypatch):
     assert api.JOBS[jid]["err_code"] == "sheetread"
 
 
+def test_这一趟的结果要落在卡上(db, owner, tmp_path, fake_model):
+    """
+    跑完把卡标成 `done`。**任务表不算数** —— 它是进程内的 dict，重启就空，
+    而「学生的答题卡」那张表要一直说得出这一份是什么状况。
+    """
+    _paper("状态落库卷", owner)
+    sid = store.create_sheet("状态落库卷", "张三", owner)
+    jid = "s" + "0" * 11
+    api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
+
+    api.run_sheet_pipeline(jid, "状态落库卷", sid, [_screenshot(tmp_path)], owner)
+
+    row = next(s for s in store.list_sheets("状态落库卷") if s["id"] == sid)
+    assert row["state"] == "done"
+    assert row["runSeconds"] is None
+
+
+def test_失败要连原因一起落在卡上(db, owner, tmp_path, monkeypatch):
+    """
+    一条都没读出来 —— 卡上要留下**为什么**。只留一个「失败」的话，
+    老师不知道该重传还是该等；而重启之后任务表里那句话就没了。
+    """
+    monkeypatch.setattr(sheetread.mathvlm, "ask_raw",
+                        lambda *a, **k: [] if k.get("want") == "array" else {})
+    _paper("状态落库失败卷", owner)
+    sid = store.create_sheet("状态落库失败卷", "张三", owner)
+    jid = "s" + "1" * 11
+    api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
+
+    api.run_sheet_pipeline(jid, "状态落库失败卷", sid, [_screenshot(tmp_path)], owner)
+
+    row = next(s for s in store.list_sheets("状态落库失败卷") if s["id"] == sid)
+    assert row["state"] == "failed"
+    assert "一道题都没读出来" in row["stateNote"]
+
+
+def test_切图就失败也要落在卡上(db, owner, tmp_path, monkeypatch):
+    """
+    Ⓢ 挂了是**最该说清楚**的一种：图里根本没有答题卡，重传才有用。
+    这一条走的是和上面那条不同的出口（`return`，不经过 Ⓑ），得单独钉。
+    """
+    monkeypatch.setattr(api.sheetcut, "cut",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            ValueError("没在这张图里找到答题卡")))
+    _paper("状态落库切图卷", owner)
+    sid = store.create_sheet("状态落库切图卷", "张三", owner)
+    jid = "s" + "2" * 11
+    api.JOBS[jid] = {"state": "running", "log": [], "sheet": sid}
+
+    api.run_sheet_pipeline(jid, "状态落库切图卷", sid, [_screenshot(tmp_path)], owner)
+
+    row = next(s for s in store.list_sheets("状态落库切图卷") if s["id"] == sid)
+    assert row["state"] == "failed"
+    assert "没在这张图里找到答题卡" in row["stateNote"]
+
+
 def test_失败也不删已有的作答(db, owner, tmp_path, monkeypatch):
     monkeypatch.setattr(sheetread.mathvlm, "ask_raw",
                         lambda *a, **k: [] if k.get("want") == "array" else {})

@@ -834,6 +834,10 @@ td.prg{white-space:nowrap}
 .sheet-tbl tbody tr{cursor:pointer}
 /* 这张表最后一列是「打开」两个字，44px 会把它折成两行 */
 .sheet-tbl .lib-more{width:auto;white-space:nowrap}
+/* 还没有数的那几行：一格横跨五列，装「在跑/没跑成/没读出作答」和那句下一步。
+   **左对齐**，不跟着数字列走右对齐 —— 这一格装的是话不是数 */
+.sheet-tbl .sheet-state{text-align:left;display:table-cell}
+.sheet-tbl .sheet-state>*+*{margin-left:9px}
 /* 传一份新答题卡：和上面那些材料槽同一套外观，不另起一种 */
 .sheet-up{margin:16px 0 0;padding:15px 16px;background:var(--panel);
   border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--sh-1)}

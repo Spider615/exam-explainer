@@ -352,6 +352,21 @@ export interface SheetBrief {
   partial: number
   /** 丢了多少分。薄弱知识点按它排，所以卡片上显示的也该是它 */
   lost: number | null
+  /**
+   * 这一趟跑成什么样。**四种，各有各的下一步**：
+   *
+   *   running  在跑        —— 等着就行，别重传
+   *   failed   没跑成      —— `stateNote` 里有原因，多半该换图重传
+   *   empty    没读出作答  —— 卡在库里但一条作答都没有，去看看原图清不清楚
+   *   done     好了        —— 数字自己会说话，不用再挂个牌子
+   *
+   * 在这之前这张表只有数字，**上面三种情况长得一模一样**（都是「读出 0」）。
+   */
+  state: 'running' | 'failed' | 'empty' | 'done'
+  /** 失败原因。只有 failed 才有 */
+  stateNote: string | null
+  /** 已经跑了多久（秒）。**只有 running 才给** —— 一页三四分钟，人要能估还剩多久 */
+  runSeconds: number | null
 }
 
 export interface SheetRow {

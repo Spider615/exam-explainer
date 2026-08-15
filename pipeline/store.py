@@ -804,11 +804,19 @@ _SHEET_COLS = ("question_id", "raw_text", "norm", "crop_rel", "box", "page",
 
 
 def create_sheet(paper_name, student_label, owner_id, n_pages=0):
-    """新建一份答题卡，返回 id。卷子不存在就当场抛。"""
+    """
+    新建一份答题卡，返回 id。卷子不存在就当场抛。
+
+    **建出来就是 `running`。** 建卡和起那条链的线程是同一个动作
+    （见 `api.upload_sheet`），中间没有第三种状态；留成 NULL 的话
+    「刚建好还没开跑」和「跑完了什么都没读出来」在库里同形。
+    """
     with connect() as c:
         cur = c.cursor()
-        cur.execute("""INSERT INTO answer_sheets (paper_id, owner_id, student_label, n_pages)
-                       SELECT p.id, %s, %s, %s FROM papers p WHERE p.name=%s
+        cur.execute("""INSERT INTO answer_sheets (paper_id, owner_id, student_label,
+                                                  n_pages, status, run_started_at)
+                       SELECT p.id, %s, %s, %s, 'running', now()
+                         FROM papers p WHERE p.name=%s
                        RETURNING id""",
                     (owner_id, student_label, n_pages, paper_name))
         row = cur.fetchone()
@@ -1054,7 +1062,8 @@ def list_sheets(paper_name):
     with connect() as c:
         cur = c.cursor()
         cur.execute("""SELECT s.id, s.student_label, s.n_pages, s.created_at, s.updated_at,
-                              s.total_score,
+                              s.total_score, s.status, s.status_note,
+                              EXTRACT(EPOCH FROM now() - s.run_started_at),
                               (SELECT count(*) FROM sheet_answers a WHERE a.sheet_id=s.id),
                               (SELECT count(*) FROM sheet_answers a WHERE a.sheet_id=s.id
                                 AND COALESCE(a.teacher_verdict, a.verdict)='wrong'),
@@ -1079,8 +1088,73 @@ def list_sheets(paper_name):
                     (paper_name,))
         return [{"id": r[0], "student": r[1], "nPages": r[2],
                  "created_at": r[3], "updated_at": r[4], "total": r[5],
-                 "answers": r[6], "wrong": r[7], "partial": r[8], "lost": r[9]}
+                 "answers": r[9], "wrong": r[10], "partial": r[11], "lost": r[12],
+                 **_sheet_state(r[6], r[7], r[8], r[9])}
                 for r in cur.fetchall()]
+
+
+def _sheet_state(status, note, run_seconds, answers):
+    """
+    一份卡该显示成哪一种。**四种，各有各的下一步**：
+
+      running  在跑        —— 等着就行，别重传
+      failed   没跑成      —— 带上原因，多半该换图重传
+      empty    没读出作答  —— 卡在库里但一条作答都没有，去看看原图清不清楚
+      done     好了        —— 数字自己会说话
+
+    「跑完了但一条作答都没有」**是读出来的、不另存一个状态**：存一份等于把
+    同一件事记两遍，两遍迟早不一致（`sheet_answers` 可以被删，`status` 不会
+    跟着变）。
+
+    `runSeconds` 只给在跑的那些 —— 跑完了还挂着秒表的话，一份三天前跑完的卡
+    会显示「已跑 4300 分钟」。
+    """
+    if status == "running":
+        return {"state": "running", "stateNote": note,
+                "runSeconds": int(run_seconds) if run_seconds is not None else 0}
+    if status == "error":
+        return {"state": "failed", "stateNote": note, "runSeconds": None}
+    # `status` 是后加的列。老代码写进来的行、或者迁移之前就在的行会是 NULL ——
+    # **不能当成在跑**（一开页面历史上每一份卡都在转圈），按手上有什么判
+    return {"state": "done" if answers else "empty",
+            "stateNote": note, "runSeconds": None}
+
+
+def set_sheet_run(sheet_id, status, note=None):
+    """
+    这一趟跑成什么样：`running` / `done` / `error`。`note` 是失败原因。
+
+    **不 touch `updated_at`。** 那一列兼着「诊断过没过期」的判据
+    （拿它跟 `diagnoses.created_at` 比），跑一趟就把它推到最新的话，
+    一份刚跑完、诊断还没做的卡会显示成「诊断是新的」。
+    """
+    with connect() as c:
+        c.execute("UPDATE answer_sheets SET status=%s, status_note=%s WHERE id=%s",
+                  (status, note, sheet_id))
+        c.commit()
+
+
+def sweep_running_sheets():
+    """
+    把上一个进程留下的**孤儿**标成失败，返回扫掉几份。**服务启动时调一次。**
+
+    驱动整条链的是 api 进程内的一个线程（`JOBS` 也在那个进程里），进程一没，
+    它就没了 —— 没有任何人会再来改那一行。于是库里还标着 `running` 的，
+    在一个刚起来的进程看来必然是孤儿。
+
+    **这是个确定判据，不是阈值。** 「超过 N 分钟没动静就算死」那条路走不通：
+    Ⓑ 一次子调用实测最慢 442 秒（读图那条路的超时上限本来就是 900 秒），
+    N 定短了会把正在正常跑的卡说成死了，定长了又要等二十分钟才敢说话。
+    """
+    with connect() as c:
+        cur = c.cursor()
+        cur.execute("""UPDATE answer_sheets
+                          SET status='error',
+                              status_note='后端重启了，这一趟没跑完 —— 重新传一次'
+                        WHERE status='running'""")
+        n = cur.rowcount
+        c.commit()
+        return n
 
 
 def sheet_owner(sheet_id):

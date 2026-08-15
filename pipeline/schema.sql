@@ -445,3 +445,31 @@ ALTER TABLE sheet_answers ADD COLUMN IF NOT EXISTS teacher_score_got numeric;
 -- 说不出具体的允许为空 —— 一句「要加强对该知识点的理解」比不说更糟：
 -- 它占着位置、看起来像有结论，实际什么都没说。
 ALTER TABLE sheet_answers ADD COLUMN IF NOT EXISTS advice jsonb;
+
+-- 这份答题卡**这一趟跑成什么样**：running / done / error，外加失败原因。
+--
+-- 不加的话，`list_sheets` 里一份正在跑的卡、一份跑挂了的卡、一份跑完了什么都
+-- 没读出来的卡**长得一模一样**（都是「读出 0」）—— 而这三种情况老师的下一步
+-- 完全不同：等着、换图重传、去看原图。任务表（api.JOBS）说得出这些，但它是
+-- 进程内的 dict，重启就空；「按卡画一条」的东西必须落在库上。
+--
+-- **`run_started_at` 单独一列，不复用 `created_at`。** 重跑一份已有的卡时
+-- created_at 是第一次建卡的时间，拿它算「已经跑了多久」会算出好几天。
+-- 也不复用 `updated_at`：那一列老师改判也会 touch，而它还兼着
+-- 「诊断过没过期」的判据（见上面 answer_sheets 建表处的说明），混用会同时
+-- 弄坏两件事。
+ALTER TABLE answer_sheets ADD COLUMN IF NOT EXISTS status         text;
+ALTER TABLE answer_sheets ADD COLUMN IF NOT EXISTS status_note    text;
+ALTER TABLE answer_sheets ADD COLUMN IF NOT EXISTS run_started_at timestamptz;
+
+-- 回填：老数据全是 NULL，**不能一律当成「在跑」** —— 那样一开页面，
+-- 历史上每一份卡都在转圈，还会被重启扫描一把全标成失败。
+--
+-- 一律标 `done`：这条迁移跑在服务启动时，那一刻没有任何一份卡在跑。
+-- 「跑完了但一条作答都没有」不另存一个状态 —— 那是**读出来的**
+-- （done + 零作答 = 没读出作答），存一份等于把同一件事记两遍，
+-- 而两遍迟早会不一致。
+--
+-- 和 scored_at 那次回填同一个道理（STATUS「踩过的坑」第 1 条：加一格必须
+-- 同时改分支和回填，这个仓库踩过两次）。
+UPDATE answer_sheets SET status = 'done' WHERE status IS NULL;
