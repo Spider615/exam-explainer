@@ -275,6 +275,16 @@ export interface PaperSummary {
   withSolution?: number
   /** 挂上知识点的题数（③c） */
   kps?: number
+  /** 这份卷子挂了几份答题卡。**照实数，空卡也是卡** */
+  sheets?: number
+  /**
+   * 点这一行该落到哪一份答题卡的诊断页。**null 就去卷子页。**
+   *
+   * 它是「最新的**有作答的**那份」，不是「最新那份」—— 跑坏的空卡建出来就删不掉、
+   * 而且 `created_at` 最新永远排第一，照它跳的话这份卷子从此每次点进去都落在
+   * 一屏「0 分丢了 · 逐题合计对得上」上。
+   */
+  latestSheet?: number | null
 }
 
 export interface Job {
@@ -356,6 +366,21 @@ export interface SheetRow {
   crop: string | null
   refAnswer: string | null
   refSolution: string | null
+  /**
+   * 这道题问的是什么（Ⓔ 读出来的题干）。
+   *
+   * **null 有两种**：这条挂不上题（`bound === false`），或者这份卷子还没读过
+   * 题干。页面上是两句不同的话 —— 「挂不上题」是这一条的问题，
+   * 「还没有题干」是整份卷子缺一份原卷。
+   */
+  stem?: string | null
+  /**
+   * 这道题在原卷上的那一条截图。**有它就优先用它。**
+   *
+   * Ⓔ 的提示词明确要求「插图只用一句话描述、不要转写坐标刻度」，所以转写的
+   * 题干**把图丢了** —— 物理题一句「如图所示」之后什么都没有。截图是原件。
+   */
+  stemImage?: string | null
   kps: KnowledgePoint[]
   /**
    * 逐题建议：`why` 错在哪、`fix` 这个知识点接下来做什么。
@@ -393,6 +418,14 @@ export interface SheetReads {
 
 export interface Sheet extends SheetBrief {
   paper: string
+  /**
+   * 同一份卷子下的**全部**答题卡（**包括自己**）。
+   *
+   * 一份卷子可以挂多份（一个学生一份，或者同一批图重跑几遍），而库里点卷名
+   * 现在直接落到其中一份 —— 页面得说得出「你在看谁」、还要能切过去。
+   * `answers` 要一起显示：真实数据里学生名常常是空的，只靠名字分不出哪份是哪份。
+   */
+  siblings?: { id: number; student: string | null; answers: number; nPages: number }[]
   pages: string[]
   reads: SheetReads
   rows: SheetRow[]

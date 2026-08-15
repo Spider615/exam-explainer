@@ -141,9 +141,18 @@ export default function App() {
     return () => { alive = false }
   }, [route.legacy, route.open, me, go])
 
-  // 浏览器前进/后退也要走上面那段模式清理，不能只在 `go()` 里做一遍
+  /**
+   * 浏览器前进/后退也要走上面那段模式清理，不能只在 `go()` 里做一遍。
+   *
+   * **认不出来的 hash 不许改路由。** `readHash` 的兜底是「解析试卷库」，
+   * 于是任何一个别处写进来的锚点（`#q13` 那种）都会把人从答题卡里踢出去 ——
+   * 页面上的锚点已经改成 `scrollIntoView` 了，但浏览器和第三方扩展照样能
+   * 往地址里写东西。**兜底只该用在首次落地上**，不该用在「已经在某一屏」时。
+   */
   useEffect(() => {
     const h = () => {
+      const raw = window.location.hash
+      if (raw && !raw.startsWith('#/')) return    // 不是我们的路由，当没看见
       const next = readHash()
       if (next.mode !== modeRef.current) clearModeResidue()
       setRoute(next)
@@ -174,10 +183,18 @@ export default function App() {
   }, [me, mode])
   useEffect(refresh, [refresh])
 
-  // 列表每 8 秒自己刷一次。后台任务跑着的时候，退回试卷库也能看到它在推进——
-  // 不刷新就只能看到一份「上次打开时」的快照
+  /**
+   * 列表每 8 秒自己刷一次。后台任务跑着的时候，退回试卷库也能看到它在推进——
+   * 不刷新就只能看到一份「上次打开时」的快照。
+   *
+   * **回到库页要立刻拉一次，不能等那 8 秒。** 这条以前无所谓，现在要紧了：
+   * 答题卡库那一行里带着「点进去落到哪一份卡」的号，而在卷子页传完一个新学生
+   * 再退回来时，`rows` 还是进详情页之前那份 —— 那 8 秒里点卷名会打开**上一个
+   * 学生**的诊断页，而两份页面长得一模一样（真实数据里学生名常常都是空的）。
+   */
   useEffect(() => {
     if (open || !me) return              // 详情页有自己的轮询，别重复打
+    refresh()
     const t = window.setInterval(refresh, 8000)
     return () => window.clearInterval(t)
   }, [open, me, refresh])
@@ -225,7 +242,9 @@ export default function App() {
       {open ? (
         mode === 'sheet' ? (
           sheet != null
-            ? <SheetDetail id={sheet} onBack={() => goSheet(open, null)} />
+            ? <SheetDetail id={sheet} paper={open}
+                           onBack={() => goSheet(open, null)}
+                           onOpenSheet={(id) => goSheet(open, id)} />
             : <SheetView name={open} onOpenSheet={(id) => goSheet(open, id)} />
         ) : <PaperView name={open} />
       ) : mode === 'sheet' ? (
@@ -238,7 +257,17 @@ export default function App() {
                        onOpenSheet={(n, id) => { refresh(); goSheet(n, id) }} />
           <LibHead title="答题卡库" rows={rows} />
           {note && <div className="toast">{note}</div>}
-          <SheetList rows={rows} onOpen={(n) => go('sheet', n)}
+          {/* 点卷名**直接到诊断结果页**。目标在点击当场从这一行的数据里算出来，
+              **不做成路由 effect** —— 「进到 #/sheet/<卷名> 就自动跳走」会把
+              诊断页那个「← 回到这份卷子」立刻弹回来，按钮变成死的，
+              而「再传一个学生」的入口正在卷子页上。
+              代价认下来：`#/sheet/<卷名>` 这个地址（书签、刷新、老地址跳过来的、
+              上传卡上那个「去看这份卷子 →」）一律还是卷子页 */}
+          <SheetList rows={rows}
+                     onOpen={(r) => (r.latestSheet
+                       ? goSheet(r.name, r.latestSheet)
+                       : go('sheet', r.name))}
+                     onOpenPaper={(n) => go('sheet', n)}
                      onDelete={remove} busy={busy} />
         </div>
       ) : (

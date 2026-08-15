@@ -261,8 +261,16 @@ export default function SheetUpload({ onDone, onOpenSheet }: {
         <JobProgress tone="ok" title="完成" log={job.log} actions={open}
                      detail="参考答案读完了，知识点也挂完了。" />
       )}
+      {/* **挂在哪一步要说对。** `job.sheet` 有值说明卡已经建出来了 ——
+          那意味着 Ⓐ 读参考答案是成功的，挂的是后面分析答题卡那一段。
+          一律写「Ⓐ 读参考答案失败」的话，老师会去重传参考答案，而那份没问题 */}
       {job?.state === 'error' && (
-        <JobProgress tone="bad" title="Ⓐ 读参考答案失败" detail={job.err} log={job.log}
+        <JobProgress tone="bad" log={job.log}
+                     title={job.sheet ? '答题卡分析失败' : 'Ⓐ 读参考答案失败'}
+                     detail={<>
+                       {job.err}
+                       {job.sheet ? '　参考答案已经读好了，卷子在库里 —— 要重来的是答题卡那一批图。' : ''}
+                     </>}
                      actions={<button className="btn" onClick={dismiss}>知道了</button>} />
       )}
 

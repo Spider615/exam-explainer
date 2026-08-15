@@ -24,6 +24,22 @@ import type { Sheet, SheetRow } from '../types'
  *   · **「半对」用 ◐**，不混进 ✓ 也不混进 ✗
  */
 
+/**
+ * 跳到某一题那一行。
+ *
+ * **不能用 `<a href="#q13">`。** 整个 App 是 hash 路由，`#q13` 谁都不命中，
+ * `readHash` 的兜底是「解析试卷库」—— 点一下速览，当前这份答题卡直接没了。
+ * 同一条纪律在 `PaperView.jumpTo` 里写过一遍。
+ */
+function jumpToRow(n: number) {
+  const el = document.getElementById(`q${n}`)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  // 一闪，告诉眼睛落在哪一行了 —— 表格里几十行长得都一样
+  el.classList.add('qrow-hit')
+  window.setTimeout(() => el.classList.remove('qrow-hit'), 1400)
+}
+
 type Filter = 'all' | 'wrong' | 'partial' | 'unread' | 'unbound'
 
 const FILTERS: { key: Filter; label: string; hit: (r: SheetRow) => boolean }[] = [
@@ -60,12 +76,20 @@ function weakSpots(rows: SheetRow[]) {
   return [...lost.values()].sort((a, b) => b.lost - a.lost).slice(0, 3)
 }
 
-export default function SheetDetail({ id, onBack }: { id: number; onBack: () => void }) {
+export default function SheetDetail({ id, paper, onBack, onOpenSheet }: {
+  id: number
+  /** 卷名。**打不开的时候也要说得出是哪份卷子** —— 那时候 `s` 是 null */
+  paper: string
+  onBack: () => void
+  /** 切到同一份卷子下的另一份答题卡 */
+  onOpenSheet: (id: number) => void
+}) {
   const [s, setS] = useState<Sheet | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
 
   const load = useCallback(() => {
+    setErr(null)
     getSheet(id).then(setS).catch((e) => setErr(String(e)))
   }, [id])
   useEffect(() => { setS(null); setErr(null); setFilter('all'); load() }, [id, load])
@@ -79,11 +103,46 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
 
   const weak = useMemo(() => (s ? weakSpots(s.rows) : []), [s])
 
-  if (err) return <div className="banner bad"><b>打不开</b>　{err}</div>
+  /**
+   * 打不开。**返回入口必须在这一屏上。**
+   *
+   * 以前这里是一句光秃秃的横幅，`return` 在返回按钮之前 —— 而后端重启那几十秒
+   * 里任何一次请求都会落到这儿。库里点进来 → 死页面 → 只能靠面包屑回库 →
+   * 再点又是同一条死路，而卷子页（标准答案、重传入口）根本够不着。
+   */
+  if (err) {
+    return (
+      <div className="sheet">
+        <div className="intro">
+          <div className="intro-say">
+            <h1>打不开这份答题卡</h1>
+            <p>{paper}</p>
+          </div>
+          <div className="intro-aside">
+            <button className="btn" onClick={onBack}>← 回到这份卷子</button>
+          </div>
+        </div>
+        <div className="banner bad">
+          <b>没读到</b>　{err}
+          <div className="runcard-acts">
+            <button className="btn" onClick={load}>再试一次</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
   if (!s) return <div className="empty"><b>载入中…</b></div>
 
   const reads = s.reads || {}
-  const [sumOk, sumWhy] = reads.checksum || [true, '']
+  /**
+   * 逐题合计对不对得上卷面总分。
+   *
+   * **三态，不是两态。** 原来这里是 `reads.checksum || [true, '']` ——
+   * 一份彻底跑坏、`reads` 是空的卡，会在首屏画出一个绿色的「逐题合计 · 对得上」。
+   * 一个字都没读出来的卡，页面在说它分数都对得上。没跑到对账那一步就说没跑到。
+   */
+  const sumOk = reads.checksum ? reads.checksum[0] : null
+  const sumWhy = reads.checksum ? reads.checksum[1] : ''
   const badCalls = (reads.calls || []).filter((c) => !c.ok)
   // 重跑过几次。**要说出来** —— 悄悄重跑然后当没事发生，等于把「这份材料
   // 模型读不稳」藏起来，而那正是老师最该知道的：换一张更清楚的图比重试可靠
@@ -115,7 +174,7 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
     notes.push(`有 ${retried.length} 次读取重跑过 —— 同一张图两次读得不一样，`
       + '说明这几页对模型偏难，换一张更清楚的重传比多重试可靠。')
   }
-  if (!sumOk && sumWhy) notes.push(sumWhy)
+  if (sumOk === false && sumWhy) notes.push(sumWhy)
   for (const w of reads.bindWarnings || []) notes.push(w.why)
   for (const c of reads.clashes || []) notes.push(c.why)
   if (unbound.length) {
@@ -124,6 +183,15 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
   }
 
   const shown = s.rows.filter(FILTERS.find((f) => f.key === filter)!.hit)
+  /**
+   * 一条作答都没读出来。
+   *
+   * 这**不是**「这一筛没有题」，也不是一份 0 分的卷子 —— 是这一趟根本没跑成
+   * （Ⓢ 没能从截图里抠出答题卡，或者那一遍模型一道题都没认出来）。
+   * 而这种卡建出来就删不掉，所以它照样会被人点开。
+   */
+  const blank = s.rows.length === 0 && !s.job
+  const sibs = s.siblings ?? []
 
   return (
     <div className="sheet rise">
@@ -137,6 +205,36 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
         </div>
       </div>
 
+      {/* 同一份卷子下的其他答题卡。**只在真有第二份时出现。**
+          库里点卷名现在直落到其中一份，「你在看谁、还有谁」得在这一屏上说清楚 ——
+          真实数据里学生名常常是空的（三栏上传那条路不收学生名），
+          所以每个标签后面跟着「读出几题」，不然三个「未署名」分不出哪个是哪个 */}
+      {sibs.length > 1 && (
+        <div className="sibs" role="group" aria-label="这份卷子的答题卡">
+          {sibs.map((x) => (
+            <button key={x.id} className={x.id === s.id ? 'on' : ''}
+                    aria-pressed={x.id === s.id}
+                    onClick={() => x.id !== s.id && onOpenSheet(x.id)}>
+              {x.student || '未署名'}
+              <i>{x.answers ? `读出 ${x.answers} 题` : '没读出题'}</i>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {blank && (
+        <div className="banner bad">
+          {/* 全角空格是排版，不是笔误：JSX 把元素和下一行文字之间的换行吃掉，
+              不留空格（这一版里已经踩到第二次了） */}
+          <b>这份答题卡一条作答都没读出来</b>{'　'}
+          多半是没能从截图里抠出答题卡那一条，或者那一遍模型一道题都没认出来。
+          <span className="blank-ok">
+            <b>卷子和标准答案都还在</b>{'　'}
+            换清楚一点的图重新传一份就行 —— 入口在「← 回到这份卷子」里面。
+          </span>
+        </div>
+      )}
+
       {/* 还在跑。Ⓑa 一页三四分钟，不说的话这一屏和「卡死了」长得一样 */}
       {s.job && (
         <JobProgress tone="run" title={s.job.step || '正在读这份答题卡'}
@@ -145,7 +243,10 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
                      detail="逐页读出学生写了什么、老师给了几分。一页要三四分钟。" />
       )}
 
-      {/* ── 先回答「哪里丢分」 ──────────────────────────────────────────── */}
+      {/* ── 先回答「哪里丢分」 ────────────────────────────────────────────
+          一条作答都没读出来时**整块不画**：那时候 `lost`/`wrong`/`answers`
+          全是 0，画出来就是一屏「0 分丢了 · 0 题错」，看着像一份满分卷 */}
+      {!blank && (
       <Metrics>
         {s.total != null && (
           <MetricCard
@@ -163,11 +264,16 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
         <MetricCard value={s.partial} label="题半对" />
         <MetricCard value={s.answers} label="题读出来了"
                     hint="这份卡上认出了作答的题数，不等于学生答了几题" />
-        <MetricCard value={sumOk ? '对得上' : '对不上'} label="逐题合计"
-                    tone={sumOk ? 'ok' : 'bad'}
-                    hint={sumOk ? '逐题得分加起来等于卷面总分'
-                      : sumWhy || '逐题得分加起来和卷面总分不一致'} />
+        <MetricCard
+          value={sumOk === null ? '没算过' : sumOk ? '对得上' : '对不上'}
+          label="逐题合计"
+          tone={sumOk === null ? 'plain' : sumOk ? 'ok' : 'bad'}
+          hint={sumOk === null
+            ? '这一趟没跑到对账那一步 —— 不是「对得上」，是不知道'
+            : sumOk ? '逐题得分加起来等于卷面总分'
+              : sumWhy || '逐题得分加起来和卷面总分不一致'} />
       </Metrics>
+      )}
 
       {/* 优先补哪个知识点。**按丢分排** —— 三道 2 分的选择题错了，
           抵不上一道大题丢的 9 分 */}
@@ -199,6 +305,7 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
       )}
 
       {/* ── 再给逐题证据 ────────────────────────────────────────────────── */}
+      {!blank && (<>
       <div className="qfilter" role="group" aria-label="筛选逐题结果">
         {FILTERS.map((f) => {
           const n = s.rows.filter(f.hit).length
@@ -213,14 +320,19 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
         })}
       </div>
 
-      {/* 逐题速览。半对用 ◐，不混进 ✓ 也不混进 ✗ */}
+      {/* 逐题速览。半对用 ◐，不混进 ✓ 也不混进 ✗。
+          **必须是 button + scrollIntoView，不能是 `<a href="#q13">`** ——
+          整个 App 是 hash 路由，`#q13` 四条正则一条都不命中，兜底把人踢回
+          解析试卷库。`PaperView` 和 `PaperSidebar` 的注释里写着这条纪律，
+          这一侧一直没兑现：点一下速览，当前这份答题卡直接没了。 */}
       <div className="glance">
         {s.rows.map((r) => (
-          <a key={r.n} href={`#q${r.n}`}
-             className={`gl gl-${r.verdict || 'unsure'}`}
-             title={`${showN(r.n)}　${r.verdict ? WORD[r.verdict] : '说不清'}`}>
+          <button key={r.n} type="button"
+                  className={`gl gl-${r.verdict || 'unsure'}`}
+                  onClick={() => jumpToRow(r.n)}
+                  title={`${showN(r.n)}　${r.verdict ? WORD[r.verdict] : '说不清'}`}>
             <i>{showN(r.n)}</i>{r.verdict ? MARK[r.verdict] : '?'}
-          </a>
+          </button>
         ))}
       </div>
 
@@ -244,6 +356,7 @@ export default function SheetDetail({ id, onBack }: { id: number; onBack: () => 
           </tbody>
         </table>
       )}
+      </>)}
 
       {s.pages.length > 0 && (
         <details className="sheet-pages">

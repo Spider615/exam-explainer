@@ -240,7 +240,7 @@ h2.lbl::after{content:"";flex:1;height:1px;background:var(--hair)}
 table{width:100%;border-collapse:collapse;font-size:14px;background:var(--panel);
       border:1px solid var(--line);border-radius:var(--r-card);overflow:hidden}
 th{text-align:left;font-size:11.5px;letter-spacing:.06em;color:var(--ink3);font-weight:600;
-   padding:10px 14px;border-bottom:1px solid var(--line)}
+   padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
 td{padding:11px 14px;border-bottom:1px solid var(--hair);color:var(--ink2)}
 tr:last-child td{border-bottom:none}
 tbody tr:hover{background:var(--stem)}
@@ -838,9 +838,23 @@ td.prg{white-space:nowrap}
 /* 逐题速览。**半对是 ◐，自己一档** —— 归到 ✓ 会让人以为这块掌握了，
    归到 ✗ 会让「一分没得」和「差一点」看起来一样严重 */
 .glance{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 20px}
-.gl{display:inline-flex;align-items:baseline;gap:3px;padding:3px 8px;
-  border-radius:6px;font-size:13px;text-decoration:none;
-  border:1px solid var(--line);color:var(--ink)}
+.gl{display:inline-flex;align-items:baseline;gap:3px;padding:4px 9px;
+  border-radius:var(--r-ctl);font-size:13px;text-decoration:none;font-family:var(--cjk);
+  border:1px solid var(--line);color:var(--ink);background:none;cursor:pointer;
+  transition:transform var(--t-fast) var(--ease)}
+.gl:hover{transform:translateY(-1px)}
+@media (prefers-reduced-motion:reduce){.gl:hover{transform:none}}
+/* 跳过去之后闪一下：表格里几十行长得都一样，不闪的话人不知道落在哪了 */
+.qrow-hit{outline:2px solid var(--hot);outline-offset:-2px}
+@media (prefers-reduced-motion:no-preference){
+  .qrow-hit{animation:hit 1.4s var(--ease)}
+  @keyframes hit{from{background:var(--hot2)}to{background:transparent}}
+}
+/* 题目排在展开区最前面：「第 6 题错了」的下一个问题就是「第 6 题问的是什么」 */
+.qstem{margin:0 0 12px;padding:0 0 12px;border-bottom:1px dashed var(--line)}
+.qstem img{max-width:100%;border:1px solid var(--line);border-radius:var(--r-box);
+  background:#fff;display:block}
+.qstem>.dim{margin:6px 0 0}
 .gl i{font-style:normal;color:var(--ink3);font-size:11px}
 .gl-right{background:var(--ok2);border-color:var(--ok);color:var(--ok)}
 .gl-partial{background:var(--warn2);border-color:var(--warn);color:var(--warn)}
@@ -858,6 +872,22 @@ td.prg{white-space:nowrap}
 
 /* 满分那一格跟在总分后面，小一号 —— 它是分母，不是第二个数 */
 .metric-of{font-style:normal;font-size:15px;color:var(--ink3);margin-left:2px}
+
+/* 「跑坏了」那条横幅里的第二句：卷子还在，要换行说，别和第一句挤成一段 */
+.blank-ok{display:block;margin-top:6px}
+
+/* 同一份卷子下的其他答题卡。**只在真有第二份时出现** ——
+   一份卷子只挂了一份卡的时候，一个只有一个选项的切换器是纯噪音 */
+.sibs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}
+.sibs button{font:inherit;font-size:13px;padding:6px 12px;border-radius:var(--r-ctl);
+  border:1px solid var(--line);background:var(--panel);color:var(--ink2);cursor:pointer;
+  display:inline-flex;align-items:baseline;gap:8px;min-height:34px;
+  transition:border-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
+.sibs button:hover{border-color:var(--acc);color:var(--acc)}
+.sibs button.on{border-color:var(--hot);color:var(--hot);background:var(--hot2);
+  font-weight:600;cursor:default}
+.sibs i{font-style:normal;font-size:11.5px;color:var(--ink3)}
+.sibs button.on i{color:var(--hot)}
 
 /* 优先补哪个知识点。**按丢分排**，所以分数要跟着名字一起出现 */
 .weak{margin:18px 0 0}

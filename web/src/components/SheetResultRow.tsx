@@ -136,6 +136,36 @@ export default function SheetResultRow({ r, sheet, onChanged }: {
       {open && (
         <tr className="qrow-more">
           <td colSpan={8}>
+            {/* ── 题目本身，排在最前面 ────────────────────────────────────
+                「第 6 题错了」的下一个问题永远是「第 6 题问的是什么」。
+                这一栏原来只在卷子页上，而答题卡库现在点进来直接到这一屏。
+
+                **截图优先于转写的文字**（和卷子页同一条规矩）：转写那一段把图
+                丢了，而一道题四个选项全是公式时，`$\frac{...}{...}$` 这种源码
+                读起来还不如不给。截图是原件，两样都有。 */}
+            <div className="qstem">
+              {r.stemImage ? (
+                <a href={r.stemImage} target="_blank" rel="noreferrer" title="点开看大图">
+                  <img src={r.stemImage} alt={`第 ${showN(r.n)} 题在原卷上的样子`}
+                       loading="lazy" />
+                </a>
+              ) : r.stem ? (
+                <>
+                  {/* 只把 `$$` 收成 `$`，不做别的修补 —— 题干大半是中文散句，
+                      整段包成公式会被 KaTeX 拿去硬解析中文和标点 */}
+                  <RichText text={r.stem.replace(/\$\$/g, '$')} />
+                  <p className="dim">（这道题没切出原卷截图，上面是转写的文字）</p>
+                </>
+              ) : (
+                /* 留白会被读成「这道题本来就没有题目」。两种缺法要说得不一样 */
+                <p className="dim">
+                  {r.bound
+                    ? '这道题还没有题目 —— 把原卷传进「原卷」那一栏，重新上传一次就会连题干一起读。'
+                    : '这一条挂不上题（题号在参考答案里对不上），所以找不到它对应的题目。'}
+                </p>
+              )}
+            </div>
+
             <p className="dim">
               {r.verdictBy ? BY[r.verdictBy] : '说不清'}
               {r.verdictWhy ? `：${r.verdictWhy}` : ''}

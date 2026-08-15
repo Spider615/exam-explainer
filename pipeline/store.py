@@ -398,13 +398,35 @@ def list_papers(owner_id=None):
                    (SELECT count(*) FROM questions q
                      WHERE q.paper_id=p.id AND q.ref_solution IS NOT NULL),
                    (SELECT count(*) FROM questions q
-                     WHERE q.paper_id=p.id AND jsonb_array_length(q.kps) > 0)
+                     WHERE q.paper_id=p.id AND jsonb_array_length(q.kps) > 0),
+                   -- 这份卷子挂了几份答题卡，以及**点进去该落到哪一份**。
+                   --
+                   -- 有了它，答题卡库里点一行卷名就能直接跳到诊断结果页 ——
+                   -- 没有的话前端手上只有卷名，只能先进一层卷子页再点一次。
+                   --
+                   -- 份数照实数（空卡也是卡），但**落地目标只挑有作答的那些**：
+                   -- `run_sheet_pipeline` 的两条软失败是 `return` 不是 `raise`
+                   -- （Ⓢ 抠不出答题卡、一道题都没读出来），而卡在失败之前就建好了、
+                   -- 又没有任何删卡路径 —— 那张 0 行的空卡 `created_at` 最新、
+                   -- 永远排第一。照「最新那份」跳的话，这份卷子从此每次点进去都
+                   -- 落在它上面，而那一屏会显示「0 分丢了 · 逐题合计对得上」。
+                   --
+                   -- 排序带 id 兜底：同一瞬间建的两份卡光按时间排是不稳定的，
+                   -- 那样「最新那份」每次查可能给出不同的答案。
+                   (SELECT count(*) FROM answer_sheets s WHERE s.paper_id=p.id),
+                   (SELECT s.id FROM answer_sheets s WHERE s.paper_id=p.id
+                       AND EXISTS (SELECT 1 FROM sheet_answers a
+                                    WHERE a.sheet_id=s.id)
+                     ORDER BY s.created_at DESC, s.id DESC LIMIT 1)
               FROM papers p
              WHERE %s::bigint IS NULL OR p.owner_id = %s
              ORDER BY p.updated_at DESC""", (owner_id, owner_id))
         return [{"name": r[0], "n": r[1], "warnings": r[2],
                  "mtime": r[3].timestamp(), "figures": r[4],
-                 "sourceKind": r[5], "withSolution": r[6], "kps": r[7]}
+                 "sourceKind": r[5], "withSolution": r[6], "kps": r[7],
+                 # 0 份就是 None，**不是 0** —— 页面靠它是不是 null 决定点进去
+                 # 落到哪一屏，给个 0 会跳向一份不存在的卡
+                 "sheets": r[8], "latestSheet": r[9]}
                 for r in cur.fetchall()]
 
 
@@ -1049,7 +1071,11 @@ def list_sheets(paper_name):
                                   AND COALESCE(a.teacher_score_got, a.score_got) IS NOT NULL
                                   AND COALESCE(a.teacher_verdict, a.verdict) IN (%s))
                          FROM answer_sheets s JOIN papers p ON p.id=s.paper_id
-                        WHERE p.name=%%s ORDER BY s.created_at DESC""" % counted,
+                        WHERE p.name=%%s
+                        -- id 兜底：同一瞬间建的两份卡光按时间排是不稳定的，
+                        -- 而「最新那份」在两个页面上必须是同一份
+                        --（列表那条 lateral 用的是同一套排序）
+                        ORDER BY s.created_at DESC, s.id DESC""" % counted,
                     (paper_name,))
         return [{"id": r[0], "student": r[1], "nPages": r[2],
                  "created_at": r[3], "updated_at": r[4], "total": r[5],

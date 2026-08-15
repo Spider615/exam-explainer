@@ -373,6 +373,91 @@ def test_逐题都挂上了原图切片(db, owner, tmp_path, fake_model):
         "切片文件名里不许有斜杠，否则取图的路由接不住"
 
 
+def test_详情端点带出同一份卷子的其他答题卡(db, owner):
+    """
+    一份卷子可以挂多份卡（一个学生一份，或者同一批图重跑几遍）。库里点卷名
+    现在直接落到其中一份 —— 页面必须说得出**你在看谁**、还要能切过去。
+
+    这一趟 `list_sheets` 本来就查了整份名单（只用了其中一行取摘要），
+    兄弟卡是白捡的，不该为了一个切换器再拉一次整卷（一两兆）。
+    """
+    _paper("兄弟卡卷", owner)
+    a = store.create_sheet("兄弟卡卷", "张三", owner)
+    b = store.create_sheet("兄弟卡卷", "李四", owner)
+    store.put_sheet_answer(a, 9, raw_text="x")
+
+    got = api.sheet_detail(b, user={"id": owner})
+    sib = {s["id"]: s for s in got["siblings"]}
+    assert set(sib) == {a, b}, "自己也要在名单里 —— 切换器要显示当前是哪一份"
+    assert sib[a]["student"] == "张三"
+    # 读出几题要给：真实数据里学生名常常是空的，只靠名字分不出哪份是哪份
+    assert sib[a]["answers"] == 1 and sib[b]["answers"] == 0
+
+
+# ---------------------------------------------------------------- 题干要跟着下发
+#
+# 「这道题问的是什么」原来只在**卷子页**上（一道大题一张卡，题干 + 原卷截图 +
+# 标准答案 + 知识点）。而答题卡库点进去现在直接落到诊断页，那一层不再是必经之路 ——
+# 老师看着「第 6 题 错」却不知道第 6 题在考什么。题干必须跟着逐题结果一起给。
+#
+# 用户原话：「只不过这里需要有一个地方显示题目是啥就行了」。
+
+def test_详情端点带出题干和原卷截图(db, owner):
+    """
+    **原卷截图和题干两样都要。**
+
+    Ⓔ 的提示词明确要求「插图只用一句话描述、不要转写坐标刻度」，所以转写的
+    题干**把图丢了** —— 物理题一句「如图所示」之后什么都没有。截图是唯一的图。
+    """
+    _paper("详情用题干卷", owner)
+    store.put_stem("详情用题干卷", 9, "第 9 题：如图所示，导体棒…")
+    store.put_stem_image("详情用题干卷", 9, "mathimg/stem-q0009.png")
+    sid = store.create_sheet("详情用题干卷", "张三", owner)
+    # question_id 就是「挂上题了」——不绑的话这一行是「挂不上题」，本来就没有题干
+    store.put_sheet_answer(sid, 9, raw_text="不变 / 17190",
+                           question_id=store.question_ids("详情用题干卷")[9])
+
+    r = api.sheet_detail(sid, user={"id": owner})["rows"][0]
+    assert r["stem"] == "第 9 题：如图所示，导体棒…"
+    assert r["stemImage"], "原卷截图要跟着给——题干把图丢了，截图是唯一的图"
+
+
+def test_题干截图的url对得上真实路由(db, owner):
+    """
+    **拿真实的路由表核，不是自己再写一遍预期的字符串。**
+
+    2026-08-11 答题卡原图全裂就是这么来的：拼 URL 的地方和路由各自看都「对」，
+    只有拼在一起才错。自己写一遍预期字符串的话，改了路由这里照样绿。
+    """
+    import re
+    _paper("题干URL卷", owner)
+    store.put_stem_image("题干URL卷", 9, "mathimg/stem-q0009.png")
+    sid = store.create_sheet("题干URL卷", "张三", owner)
+    store.put_sheet_answer(sid, 9, raw_text="x",
+                           question_id=store.question_ids("题干URL卷")[9])
+
+    url = api.sheet_detail(sid, user={"id": owner})["rows"][0]["stemImage"]
+    pats = [re.compile("^" + re.sub(r"\{[^}]+\}", "[^/]+", p) + "$")
+            for p in _routes()]
+    assert any(p.match(url) for p in pats), "这个 URL 没有路由接得住：%s" % url
+
+
+def test_挂不上题的那几条没有题干(db, owner):
+    """
+    挂不上题 = 没绑到卷子上任何一道题，**自然就没有题干**。
+
+    这里要的是 `None`，不是空字符串、更不是「随便找一道最近的题的题干」——
+    错的题干比没有题干糟得多：老师会照着它判这道题该不该错。
+    """
+    _paper("挂不上题干卷", owner)
+    sid = store.create_sheet("挂不上题干卷", "张三", owner)
+    store.put_sheet_answer(sid, 1305, raw_text="3 m/s")     # 参考答案里没有 13(5)
+
+    r = api.sheet_detail(sid, user={"id": owner})["rows"][0]
+    assert r["bound"] is False
+    assert r["stem"] is None and r["stemImage"] is None
+
+
 # ---------------------------------------------------------------- 一次传完就出结果
 #
 # 原来传答题卡只是「收下存着」，老师得再进卷子、用另一个上传框传一次才真跑 ——
@@ -394,6 +479,34 @@ def test_三栏一起传时答题卡也跟着分析(db, owner, tmp_path, fake_mo
     sid = api.JOBS[jid]["sheet"]
     assert sid, "该建出一份答题卡"
     assert store.sheet_answers(sid), "该有逐题结果，不能只是收下存着"
+
+
+def test_答题卡跑挂了不许把任务报成完成(db, owner, tmp_path, monkeypatch):
+    """
+    **`run_sheet_pipeline` 的软失败会被无条件盖成 done。**
+
+    它那两条失败分支（Ⓢ 抠不出答题卡、一道题都没读出来）是 `return` 不是
+    `raise`，写完 `state="error"` 就回来了；外层紧接着一句无条件的
+    `JOBS[jid].update(state="done")` 把它盖掉 —— 于是一次彻底失败的分析，
+    在上传卡上显示「完成」，而库里留着一张 0 行的空卡。
+
+    这正是「不许用 UI 掩盖失败」那条规矩要挡的东西。
+    """
+    monkeypatch.setattr(api, "run_step", lambda *a, **k: True)
+    store.create_answers_paper("跑挂了卷", owner)
+    store.put_answer_question("跑挂了卷", 9, "标准9", None)
+
+    # Ⓢ 抠不出答题卡：喂一张纯黑图，`sheetcut` 找不到亮带
+    black = tmp_path / "black.png"
+    Image.fromarray(np.zeros((600, 400), dtype=np.uint8), mode="L").convert(
+        "RGB").save(black)
+
+    jid = "f" + "0" * 11
+    api.JOBS[jid] = {"state": "running", "log": []}
+    api.run_answer_pipeline(jid, ["ref.png"], "跑挂了卷", owner, False,
+                            extra=[("stem", []), ("sheet", [str(black)])])
+    assert api.JOBS[jid]["state"] == "error", \
+        "答题卡那一步挂了，整趟任务就不是「完成」：%s" % api.JOBS[jid].get("err")
 
 
 def test_没传答题卡时不建空卡(db, owner, monkeypatch):

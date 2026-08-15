@@ -990,8 +990,17 @@ def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
             run_sheet_pipeline(jid, name, sheet_id, extra["sheet"], owner_id,
                                nested=True)
         with LOCK:
-            JOBS[jid].update(state="done", sheet=sheet_id)
-        log("✓ 完成")
+            # **不许把 error 盖成 done。** `run_sheet_pipeline` 的两条软失败是
+            # `return` 不是 `raise`（Ⓢ 抠不出答题卡、一道题都没读出来），
+            # 它们已经把 state 写成 error 了；无条件盖过去的话，一次彻底失败的
+            # 分析在上传卡上显示「完成」，而库里留着一张 0 行的空卡 ——
+            # 正是「不许用 UI 掩盖失败」要挡的东西。
+            #
+            # `sheet` 照给：失败的那份卡号也是信息（页面上要说得出是哪一份）。
+            JOBS[jid].update(sheet=sheet_id)
+            if JOBS[jid].get("state") != "error":
+                JOBS[jid].update(state="done")
+        log("✓ 完成" if JOBS[jid].get("state") != "error" else "✗ 答题卡那一步没跑成")
     except Exception as e:
         with LOCK:
             JOBS[jid].update(state="error", err=str(e))
@@ -1431,6 +1440,21 @@ def sheet_detail(sid: int, user=Depends(current_user)):
             "crop": (_sheet_img_url(sid, a["crop_rel"]) if a["crop_rel"] else None),
             "refAnswer": q and q.get("ref_answer"),
             "refSolution": q and q.get("ref_solution"),
+            # **题目本身。** 原来只在卷子页上（一道大题一张卡）——而答题卡库
+            # 现在点进去直接落到诊断页，那一层不再是必经之路。不带过来的话，
+            # 老师看着「第 6 题 错」却不知道第 6 题在考什么。
+            #
+            # 空串是 Ⓔ 没跑到这道题（`put_answer_question` 给的默认值），
+            # **归一成 None** —— 页面上「还没读到题干」和「题干是一段空文本」
+            # 得是同一句话，别让前端再判一次空串。
+            #
+            # 小问不用回退到大题：`stemread.spread` 已经把主题号的题干和截图
+            # 回填给了它下面所有小问。
+            "stem": (q.get("stem") or None) if q else None,
+            # 截图和题干两样都要：Ⓔ 的提示词明确要求「插图只用一句话描述」，
+            # 所以转写的题干**把图丢了** —— 物理题一句「如图所示」之后什么都没有
+            "stemImage": (("/api/papers/%s/%s" % (name, q["stem_image"]))
+                          if q and q.get("stem_image") else None),
             # 逐题建议 {"why","fix"}。**没有就是没有** —— 页面上留白，
             # 不许拿一句「加强对该知识点的理解」补位（见 sheetadvice 的说明）
             "advice": a["advice"],
@@ -1439,8 +1463,19 @@ def sheet_detail(sid: int, user=Depends(current_user)):
                      "chapter": cat[k["code"]]["chapter"] if k["code"] in cat else ""}
                     for k in ((q or {}).get("kps") or [])],
         })
-    meta = next((s for s in store.list_sheets(name) if s["id"] == sid), {})
+    # 一趟查完整份名单：自己那行拿来做摘要，其余的是**兄弟卡**。
+    # 一份卷子可以挂多份（一个学生一份，或者同一批图重跑几遍），而库里点卷名
+    # 现在直接落到其中一份 —— 页面得说得出「你在看谁」、还要能切过去。
+    # 为这个再拉一次整卷（一两兆）是不划算的，而这一趟本来就查了。
+    siblings = store.list_sheets(name)
+    meta = next((s for s in siblings if s["id"] == sid), {})
     return {"id": sid, "paper": name, "student": meta.get("student"),
+            # **自己也在名单里**：切换器要显示当前是哪一份。
+            # 「读出几题」要给 —— 真实数据里学生名常常是空的（三栏上传那条路
+            # 写死 student_label=None），只靠名字分不出哪份是哪份
+            "siblings": [{"id": s["id"], "student": s["student"],
+                          "answers": s["answers"], "nPages": s["nPages"]}
+                         for s in siblings],
             "nPages": meta.get("nPages"), "total": _num(meta.get("total")),
             "answers": meta.get("answers"), "wrong": meta.get("wrong"),
             "partial": meta.get("partial"), "lost": _num(meta.get("lost")),

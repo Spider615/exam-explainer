@@ -9,9 +9,19 @@ import type { PaperSummary } from '../types'
  * 永远是 0，不该占一列。这边关心的是「读出来几题、几题有官方解答、几题挂上了
  * 知识点」。
  */
-export default function SheetList({ rows, onOpen, onDelete, busy }: {
+export default function SheetList({ rows, onOpen, onOpenPaper, onDelete, busy }: {
   rows: PaperSummary[]
-  onOpen: (name: string) => void
+  /**
+   * 点卷名。**直接落到诊断结果页** —— 有 `latestSheet` 就跳那一份，
+   * 没有（一份卡都没有、或者挂着的全是跑坏的空卡）就去卷子页。
+   *
+   * 目标在**点击当场**算出来，不做成「进去再自动跳走」的路由 effect：
+   * 那样的话诊断页那个「← 回到这份卷子」会被自动跳转立刻弹回来，按钮变成死的，
+   * 而卷子页上那个「再传一个学生」的入口也就永久失联了。
+   */
+  onOpen: (r: PaperSummary) => void
+  /** 明确要看卷子页（标准答案、知识点、Ⓐ 的进度、再传一份的入口） */
+  onOpenPaper: (name: string) => void
   onDelete: (names: string[]) => void
   busy: boolean
 }) {
@@ -34,12 +44,18 @@ export default function SheetList({ rows, onOpen, onDelete, busy }: {
       { key: 'n', label: '题数', num: true },
       { key: 'sol', label: '带解答', num: true },
       { key: 'kp', label: '挂知识点', num: true },
+      { key: 'sheets', label: '答题卡', num: true },
       { key: 'more', label: '' },
     ]}>
       {rows.map((r) => (
         <tr key={r.name}>
           <td className="lib-name">
-            <button className="link" onClick={() => onOpen(r.name)}>{r.name}</button>
+            <button className="link" onClick={() => onOpen(r)}
+                    title={r.latestSheet
+                      ? '打开这份卷子最新的诊断结果'
+                      : '这份卷子还没有能看的诊断结果，先进卷子页'}>
+              {r.name}
+            </button>
           </td>
           <td className="prg" data-label="进度">
             {r.progress ? (
@@ -57,7 +73,20 @@ export default function SheetList({ rows, onOpen, onDelete, busy }: {
               title="有官方解答过程的题数。只有大题才有，这是参考答案的版式决定的">
             {r.withSolution ?? 0}
           </td>
-          <td className="num" data-label="挂知识点">{r.kps ?? 0}</td>
+          {/* 挂了几份卡。**它是去卷子页的入口** —— 卷名那一跳直奔诊断结果，
+              而「另一个学生」「每题的标准答案」「再传一份」都在卷子页上，
+              得有一处点得进去 */}
+          <td className="num" data-label="答题卡">
+            {r.sheets
+              ? <button className="link" onClick={() => onOpenPaper(r.name)}
+                        title="看这份卷子的标准答案，或者再传一份答题卡">
+                  {r.sheets} 份
+                </button>
+              : <button className="link dim" onClick={() => onOpenPaper(r.name)}
+                        title="还没传过答题卡，点这里去传">
+                  还没传
+                </button>}
+          </td>
           <td className="lib-more">
             <RowMenu label={`「${r.name}」的更多操作`}>
               <button className="rowmenu-danger" disabled={busy}
