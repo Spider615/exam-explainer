@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { ReactNode } from 'react'
 
 /**
@@ -53,7 +54,19 @@ export default function Zoom({ label, thumb, children }: {
         </span>
       </button>
 
-      {open && (
+      {/**
+        * **必须挂到 `body` 上，不能就地渲染。**
+        *
+        * 诊断页的根节点是 `<div class="sheet rise">`，而 `.rise` 是个带
+        * `transform` 的进入动画 —— **带 transform 的祖先会成为
+        * `position:fixed` 的包含块**。就地渲染的话，这层「铺满屏幕」的遮罩
+        * 实际铺的是那张几千像素高的表：图被居中到表格中间，也就是屏幕外
+        * 几千像素的地方，人只看到整页变暗、什么都没出来。
+        *
+        * 这个坑在短表上不显形（图恰好落在屏幕底边，看着像「有点靠下」），
+        * 行一多就彻底看不见了 —— 所以别指望肉眼在截图上发现它。
+        */}
+      {open && createPortal(
         // 点空白关掉。里面那块 stopPropagation，免得点内容也关
         <div className="lightbox" role="dialog" aria-modal="true" aria-label={label}
              onClick={() => setOpen(false)}>
@@ -62,8 +75,8 @@ export default function Zoom({ label, thumb, children }: {
           </div>
           <button type="button" className="lightbox-x" aria-label="关闭"
                   onClick={() => setOpen(false)}>×</button>
-        </div>
-      )}
+        </div>,
+        document.body)}
     </>
   )
 }
