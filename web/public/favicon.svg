@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!--
+    「析题」的标签页图标。
+
+    和站内那个 `Logo.tsx` 是同一个标记（◐ 半对），但**这里必须自带底色**：
+    浏览器把 favicon 画在它自己的标签栏上，明暗主题都有可能 —— 一个只有描边
+    的标记会在深色标签栏上消失。所以给它一块暖纸色的圆角瓦片当底。
+
+    颜色也**不能用 currentColor**：独立的 SVG 文件没有可继承的文字颜色，
+    那样会退成黑色。这里写死墨蓝和朱砂。
+  -->
+  <rect width="32" height="32" rx="7" fill="#F6F2EA"/>
+  <circle cx="16" cy="16" r="10.5" fill="none" stroke="#22456E" stroke-width="2.4"/>
+  <path d="M18.5 8.7A8 8 0 1 0 13.5 23.3Z" fill="#B8402A"/>
+</svg>

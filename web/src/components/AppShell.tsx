@@ -1,3 +1,4 @@
+import Logo from './Logo'
 import type { ReactNode } from 'react'
 
 export type Mode = 'paper' | 'sheet'
@@ -43,7 +44,7 @@ export default function AppShell({ mode, onMode, me, onSignOut, onHome, crumb, w
       <header className="shell-top">
         <div className={`shell-bar${w}`}>
           <button className="brand" onClick={onHome} title="回到任务库">
-            析题
+            <Logo />析题
           </button>
           {/* 两个模式是两件事，不是一个筛选器。切过去整屏都换：上传框、
               列表列头、详情页。互相看不见对方的卷子 */}
