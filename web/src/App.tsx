@@ -276,10 +276,18 @@ export default function App() {
       .then((r) => {
         // 删掉的正好是当前打开的那份，就退回列表——否则详情页会 404
         if (open && r.deleted.includes(open)) go(mode, null)
-        const bits = [`已删除 ${r.deleted.length} 份`]
-        if (r.missing.length) bits.push(`${r.missing.length} 份本来就不在`)
-        if (r.objects) bits.push(`清理 ${r.objects} 个对象`)
-        setNote(bits.join('，'))
+        /**
+         * **删成功了不吱声。** 那一行从表里消失就是回执，再补一句
+         * 「已删除 1 份」是同一件事说两遍；而「清理 2 个对象」是内部账
+         * （资产表里删了几条），老师不关心。
+         *
+         * **只在结果和他以为的不一样时才说**：勾了三份、其实只有两份还在
+         * （列表是几秒前的快照）。那时候「删了几份」这个数才有信息。
+         * 失败仍然走下面那条 `.catch` —— 这个通道不能一起拆掉。
+         */
+        setNote(r.missing.length
+          ? `有 ${r.missing.length} 份本来就不在了（列表是旧的），其余已删除`
+          : null)
         refresh()
       })
       .catch((e) => setNote('删除失败：' + e.message))
