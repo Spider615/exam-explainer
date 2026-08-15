@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { regrade } from '../api'
 import RichText from './RichText'
+import Zoom from './Zoom'
 import type { SheetRow, Verdict, VerdictBy } from '../types'
 
 /** **半对是 ◐，自己一档。** 归到 ✓ 会让人以为这块掌握了，归到 ✗ 会让
@@ -70,11 +71,49 @@ export default function SheetResultRow({ r, sheet, onChanged }: {
       <tr className={`qrow qrow-${v}`} id={`q${r.n}`}>
         <td className="qn" data-label="题">{showN(r.n)}</td>
 
-        <td data-label="原图">
+        {/* ── 题目 ────────────────────────────────────────────────────────
+            **它是一列，不藏在展开区里。** 「第 6 题错了」的下一个问题永远是
+            「第 6 题问的是什么」—— 为这个点一下展开，二十几道题就要点二十几次。
+
+            截图优先于转写的文字（和卷子页同一条规矩）：转写那一段把图丢了，
+            而一道题四个选项全是公式时，`$\frac{...}{...}$` 这种源码读起来
+            还不如不给。 */}
+        <td className="qstem-cell" data-label="题目">
+          {r.stemImage ? (
+            <Zoom label={`第 ${showN(r.n)} 题的题目`}
+                  thumb={<img src={r.stemImage} alt={`第 ${showN(r.n)} 题的题目`}
+                              loading="lazy" />}>
+              <img className="lightbox-img" src={r.stemImage}
+                   alt={`第 ${showN(r.n)} 题在原卷上的样子`} />
+            </Zoom>
+          ) : r.stem ? (
+            <Zoom label={`第 ${showN(r.n)} 题的题目`}
+                  thumb={<span className="zoom-text">题目（文字）</span>}>
+              <div className="lightbox-text">
+                {/* 只把 `$$` 收成 `$`，不做别的修补 —— 题干大半是中文散句，
+                    整段包成公式会被 KaTeX 拿去硬解析中文和标点 */}
+                <RichText text={r.stem.replace(/\$\$/g, '$')} />
+                <p className="dim">这道题没切出原卷截图，上面是转写的文字。</p>
+              </div>
+            </Zoom>
+          ) : (
+            /* 留白会被读成「这道题本来就没有题目」。两种缺法要说得不一样 */
+            <span className="dim" title={r.bound
+              ? '这份卷子还没读过题干 —— 把原卷传进「原卷」那一栏，重新上传一次'
+              : '这一条挂不上题（题号在参考答案里对不上），找不到它对应的题目'}>
+              {r.bound ? '没有题干' : '挂不上题'}
+            </span>
+          )}
+        </td>
+
+        <td className="qcrop-cell" data-label="原图">
           {r.crop
-            ? <a href={r.crop} target="_blank" rel="noreferrer" title="点开看大图">
-                <img className="qthumb" src={r.crop} alt={`第 ${showN(r.n)} 题原图`} />
-              </a>
+            ? <Zoom label={`第 ${showN(r.n)} 题在答题卡上的原图`}
+                    thumb={<img src={r.crop} alt={`第 ${showN(r.n)} 题原图`}
+                                loading="lazy" />}>
+                <img className="lightbox-img" src={r.crop}
+                     alt={`第 ${showN(r.n)} 题在答题卡上的原图`} />
+              </Zoom>
             : <span className="dim">没有切片</span>}
         </td>
 
@@ -105,6 +144,13 @@ export default function SheetResultRow({ r, sheet, onChanged }: {
             <em className="score">{r.scoreGot}/{r.scoreFull}</em>
           )}
           {r.teacherVerdict && <em className="by">已改判</em>}
+          {/* 「详情」那个按钮去掉了（题目已经是一列，不用再点开看）。
+              剩下的那几样 —— 怎么判的、老师红笔写了什么、官方解答、改判 ——
+              全都是**判定**这件事的下文，所以入口挪到这一格里，
+              名字直接叫它要做的事 */}
+          <button className="qwhy" aria-expanded={open} onClick={() => setOpen(!open)}>
+            {open ? '收起' : '依据 · 改判'}
+          </button>
         </td>
 
         <td data-label="知识点">
@@ -126,46 +172,13 @@ export default function SheetResultRow({ r, sheet, onChanged }: {
           )}
         </td>
 
-        <td className="qmore-cell">
-          <button className="qmore" aria-expanded={open} onClick={() => setOpen(!open)}>
-            {open ? '收起' : '详情'}
-          </button>
-        </td>
       </tr>
 
       {open && (
         <tr className="qrow-more">
-          <td colSpan={8}>
-            {/* ── 题目本身，排在最前面 ────────────────────────────────────
-                「第 6 题错了」的下一个问题永远是「第 6 题问的是什么」。
-                这一栏原来只在卷子页上，而答题卡库现在点进来直接到这一屏。
-
-                **截图优先于转写的文字**（和卷子页同一条规矩）：转写那一段把图
-                丢了，而一道题四个选项全是公式时，`$\frac{...}{...}$` 这种源码
-                读起来还不如不给。截图是原件，两样都有。 */}
-            <div className="qstem">
-              {r.stemImage ? (
-                <a href={r.stemImage} target="_blank" rel="noreferrer" title="点开看大图">
-                  <img src={r.stemImage} alt={`第 ${showN(r.n)} 题在原卷上的样子`}
-                       loading="lazy" />
-                </a>
-              ) : r.stem ? (
-                <>
-                  {/* 只把 `$$` 收成 `$`，不做别的修补 —— 题干大半是中文散句，
-                      整段包成公式会被 KaTeX 拿去硬解析中文和标点 */}
-                  <RichText text={r.stem.replace(/\$\$/g, '$')} />
-                  <p className="dim">（这道题没切出原卷截图，上面是转写的文字）</p>
-                </>
-              ) : (
-                /* 留白会被读成「这道题本来就没有题目」。两种缺法要说得不一样 */
-                <p className="dim">
-                  {r.bound
-                    ? '这道题还没有题目 —— 把原卷传进「原卷」那一栏，重新上传一次就会连题干一起读。'
-                    : '这一条挂不上题（题号在参考答案里对不上），所以找不到它对应的题目。'}
-                </p>
-              )}
-            </div>
-
+          {/* 题目已经是一列了，这里不再重复贴一遍 —— 剩下的全是「怎么判的」
+              和「要不要改判」 */}
+          <td colSpan={7}>
             <p className="dim">
               {r.verdictBy ? BY[r.verdictBy] : '说不清'}
               {r.verdictWhy ? `：${r.verdictWhy}` : ''}

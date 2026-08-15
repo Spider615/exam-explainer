@@ -345,8 +345,8 @@ export default function SheetDetail({ id, paper, onBack, onOpenSheet }: {
         <table className="qtbl">
           <thead>
             <tr>
-              <th>题</th><th>原图</th><th>学生答案</th><th>正确答案</th>
-              <th>判定</th><th>知识点</th><th>为什么错 · 怎么提高</th><th />
+              <th>题</th><th>题目</th><th>原图</th><th>学生答案</th><th>正确答案</th>
+              <th>判定</th><th>知识点</th><th>为什么错 · 怎么提高</th>
             </tr>
           </thead>
           <tbody>

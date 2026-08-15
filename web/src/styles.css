@@ -850,11 +850,6 @@ td.prg{white-space:nowrap}
   .qrow-hit{animation:hit 1.4s var(--ease)}
   @keyframes hit{from{background:var(--hot2)}to{background:transparent}}
 }
-/* 题目排在展开区最前面：「第 6 题错了」的下一个问题就是「第 6 题问的是什么」 */
-.qstem{margin:0 0 12px;padding:0 0 12px;border-bottom:1px dashed var(--line)}
-.qstem img{max-width:100%;border:1px solid var(--line);border-radius:var(--r-box);
-  background:#fff;display:block}
-.qstem>.dim{margin:6px 0 0}
 .gl i{font-style:normal;color:var(--ink3);font-size:11px}
 .gl-right{background:var(--ok2);border-color:var(--ok);color:var(--ok)}
 .gl-partial{background:var(--warn2);border-color:var(--warn);color:var(--warn)}
@@ -921,14 +916,49 @@ td.prg{white-space:nowrap}
   padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}
 .qtbl td{padding:11px 10px;border-bottom:1px solid var(--hair);vertical-align:top}
 .qtbl tr:last-child td{border-bottom:0}
-.qmore-cell{text-align:right}
 .qtbl .qn{font-weight:600;white-space:nowrap}
 .qtbl .ans{max-width:22ch;word-break:break-word}
 .qtbl .dim{color:var(--ink3)}
-/* 原图切片：**行内缩略图**。设计里它是唯一的红绿灯，不能藏进二级页面，
-   但也不该占半屏 */
-.qthumb{width:120px;max-height:64px;object-fit:cover;object-position:left top;
-  border:1px solid var(--hair);border-radius:4px;display:block}
+/* ── 点开看大的 ───────────────────────────────────────────────────────────
+   「题目」和「原图」在表里都只有一格宽：缩略图看得出**有**，看不清**是什么**。
+   所以悬浮时压一层眼睛，点开在整屏上看原尺寸。
+
+   不用 `<a target="_blank">` —— 新标签页会把老师从这一屏带走，
+   而他正在逐题核对，回来还得找回滚到哪了。 */
+/* `min-height` 不是为了好看：切片有的很扁（一条 520×76 的答题条缩到 132px 宽
+   就只剩十几像素高），那样眼睛没地方站，手指也点不准 ——
+   设计文档里「主要点击区域至少约 44px」说的就是这种地方 */
+.zoom{position:relative;display:flex;align-items:center;padding:0;
+  border:1px solid var(--hair);border-radius:var(--r-ctl);background:#fff;
+  cursor:zoom-in;overflow:hidden;width:132px;min-height:46px;line-height:0;
+  transition:border-color var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease)}
+.zoom img{width:100%;max-height:64px;object-fit:cover;object-position:left top;
+  display:block}
+.zoom:hover{border-color:var(--acc);box-shadow:var(--sh-1)}
+.zoom-eye{position:absolute;inset:0;display:flex;align-items:center;
+  justify-content:center;color:#fff;background:rgba(26,36,50,.42);opacity:0;
+  transition:opacity var(--t-fast) var(--ease)}
+.zoom:hover .zoom-eye,.zoom:focus-visible .zoom-eye{opacity:1}
+/* 没切出截图的题：一格文字，同样点得开 */
+.zoom-text{display:block;padding:10px 8px;font-family:var(--cjk);font-size:12.5px;
+  line-height:1.4;color:var(--ink2);text-align:center}
+
+.lightbox{position:fixed;inset:0;z-index:100;display:flex;align-items:center;
+  justify-content:center;padding:32px;background:rgba(18,24,33,.82);cursor:zoom-out}
+@media (prefers-reduced-motion:no-preference){
+  .lightbox{animation:fade var(--t-mid) var(--ease)}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+}
+.lightbox-in{max-width:min(1100px,100%);max-height:100%;overflow:auto;cursor:auto;
+  background:var(--panel);border-radius:var(--r-card);box-shadow:var(--sh-2)}
+.lightbox-img{display:block;max-width:100%;height:auto;background:#fff}
+.lightbox-text{padding:22px 26px;font-family:var(--song);font-size:16px;
+  line-height:1.95}
+.lightbox-text .dim{font-family:var(--cjk);font-size:12.5px;margin:14px 0 0}
+.lightbox-x{position:fixed;top:18px;right:22px;width:40px;height:40px;
+  border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.35);
+  color:#fff;font-size:22px;line-height:1;cursor:pointer}
+.lightbox-x:hover{background:rgba(0,0,0,.6)}
 /* 判定的底色只给「要看的那几行」。对的题不上色 —— 全表都有底色等于没有底色 */
 .qrow-right{background:transparent}
 .qrow-partial{background:var(--warn2)}
@@ -942,10 +972,12 @@ td.prg{white-space:nowrap}
   font-family:var(--mono)}
 .qrow .by{font-style:normal;color:var(--hot);margin-left:6px;font-size:11.5px;
   border:1px solid var(--hot);border-radius:4px;padding:0 5px}
-.qmore{font-size:12px;padding:4px 10px;border:1px solid var(--line);
-  border-radius:var(--r-ctl);background:var(--panel);color:var(--ink2);cursor:pointer;
-  font-family:var(--cjk)}
-.qmore:hover{border-color:var(--acc);color:var(--acc)}
+/* 「依据 · 改判」。它接的是**判定**这件事的下文（怎么判的、老师红笔写了什么、
+   官方解答、改判），所以就长在判定那一格里，名字直接叫它要做的事 ——
+   原来那个叫「详情」的按钮独占一列，而它现在没有内容可展了：题目已经是一列 */
+.qwhy{display:block;margin:6px 0 0;padding:0;border:0;background:none;
+  font:inherit;font-size:12px;color:var(--acc);cursor:pointer;text-align:left}
+.qwhy:hover{text-decoration:underline}
 .qrow-more td{background:var(--stem);font-size:13px;line-height:1.75}
 .qrow-more p{margin:4px 0}
 .qrow-more summary{cursor:pointer;color:var(--acc);font-size:12.5px}
@@ -971,10 +1003,11 @@ td.prg{white-space:nowrap}
   .qtbl td.qn{display:flex;gap:6px;align-items:baseline;font-size:18px;
     font-family:var(--song);padding:0 0 4px}
   .qtbl td.qn::before{content:"第";display:inline;margin:0;font-size:12px}
-  .qtbl .qmore-cell{text-align:right;padding-top:10px}
-  .qtbl .qmore-cell::before{content:none}
   .qtbl .adv p{margin:0 0 6px}
-  .qthumb{width:100%;max-height:none;object-fit:contain}
+  /* 窄屏一行一卡，两张图都放开占满宽 —— 132px 的缩略图在手机上等于看不见。
+     完整显示（contain）不裁切：这一屏就是拿来核对的 */
+  .qtbl .zoom{width:100%}
+  .qtbl .zoom img{max-height:none;object-fit:contain}
   .qrow-more td{background:none;padding:0}
   .qrow-more td::before{content:none}
 }
