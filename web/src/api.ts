@@ -1,4 +1,6 @@
-import type { Job, Paper, PaperSummary, Progress, Sheet, Verdict } from './types'
+import type {
+  Job, Paper, PaperSummary, Progress, Sheet, SheetBrief, Verdict,
+} from './types'
 
 /** 会话是 HttpOnly cookie，JS 读不到它，只能靠请求自动带上 */
 const CRED: RequestInit = { credentials: 'include' }
@@ -58,6 +60,17 @@ export const getJob = (id: string) => fetch(`/api/jobs/${id}`, CRED).then(j<Job>
 /** 轻量进度。只有计数，可以每几秒轮询——整卷数据有一两兆，拿来轮询太重 */
 export const getProgress = (name: string) =>
   fetch(`/api/papers/${encodeURIComponent(name)}/progress`, CRED).then(j<Progress>)
+
+/**
+ * 这份卷子挂着哪些答题卡，以及**该打开哪一份**（`landing`）。
+ *
+ * `#/sheet/<卷名>` 的含义是「给我看这份卷子的诊断结果」，而书签、刷新、
+ * 老地址落进来时前端手上只有卷名 —— 靠这条轻量端点问出落地目标。
+ * **不能拿整卷端点问**：那是一两兆，为一次跳转拉它不划算。
+ */
+export const getPaperSheets = (name: string) =>
+  fetch(`/api/papers/${encodeURIComponent(name)}/sheets`, CRED)
+    .then(j<{ landing: number | null; sheets: SheetBrief[] }>)
 
 export function uploadPdf(file: File) {
   const fd = new FormData()

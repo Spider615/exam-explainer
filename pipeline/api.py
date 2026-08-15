@@ -1738,6 +1738,29 @@ def mode_block(pg, name, code, failed_stage, artifacts=None):
                                         failed_stage, artifacts)}
 
 
+@app.get("/api/papers/{name}/sheets")
+def paper_sheets(name: str, user=Depends(current_user)):
+    """
+    这份卷子挂着哪些答题卡，以及**该打开哪一份**。
+
+    `#/sheet/<卷名>` 这个地址的含义是「给我看这份卷子的诊断结果」——
+    书签、刷新、老地址 `#/p/<名>`、上传卡上那个「去看这份卷子 →」都落在它上面。
+    前端手上只有卷名时，得有一处能问出落地目标；而**整卷端点是一两兆**，
+    为一次跳转拉它不划算。
+
+    `landing` 是「最新的**有作答的**那份」，和列表里那个 `latestSheet` 是同一条
+    规则（`tests/test_sheet_pipeline.py` 里有一条把两处钉在一起的测试）：
+    跑坏的空卡建出来就删不掉、`created_at` 最新永远排第一，落在它上面是
+    一屏「0 分丢了 · 逐题合计对得上」。
+
+    `landing` 为 null 表示没有能看的诊断结果 —— 前端该留在卷子页，
+    那里有 Ⓐ 的进度和上传入口。
+    """
+    rows = store.list_sheets(mine(name, user))
+    return {"landing": next((s["id"] for s in rows if s["answers"]), None),
+            "sheets": rows}
+
+
 @app.get("/api/papers/{name}/progress")
 def paper_progress(name: str, user=Depends(current_user)):
     """

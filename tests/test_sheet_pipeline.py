@@ -394,6 +394,69 @@ def test_详情端点带出同一份卷子的其他答题卡(db, owner):
     assert sib[a]["answers"] == 1 and sib[b]["answers"] == 0
 
 
+# ---------------------------------------------------------------- 落地端点
+#
+# `#/sheet/<卷名>` 这个地址现在的含义是「给我看这份卷子的诊断结果」——
+# 书签、刷新、老地址 `#/p/<名>`、上传卡上那个「去看这份卷子 →」全落在它上面。
+# 前端手上只有卷名时，得有一处能问出「该打开哪一份卡」。
+#
+# **不能拿整卷端点去问**：那是一两兆的载荷，为一次跳转拉它不划算。
+
+def test_落地端点给出该打开哪一份卡和全部名单(db, owner):
+    _paper("落地用卷", owner)
+    a = store.create_sheet("落地用卷", "张三", owner)
+    store.put_sheet_answer(a, 9, raw_text="x")
+    got = api.paper_sheets("落地用卷", user={"id": owner})
+    assert got["landing"] == a
+    assert [s["id"] for s in got["sheets"]] == [a]
+
+
+def test_落地端点跳过跑坏的空卡(db, owner):
+    """
+    和列表那条规则**必须是同一条**：跑坏的空卡建出来就删不掉、`created_at`
+    最新永远排第一，落在它上面是一屏「0 分丢了 · 逐题合计对得上」。
+    """
+    _paper("落地跳空卡卷", owner)
+    good = store.create_sheet("落地跳空卡卷", "张三", owner)
+    store.put_sheet_answer(good, 9, raw_text="x")
+    store.create_sheet("落地跳空卡卷", None, owner)          # 跑坏的
+    got = api.paper_sheets("落地跳空卡卷", user={"id": owner})
+    assert got["landing"] == good
+    assert len(got["sheets"]) == 2, "名单照实给，空卡也在里面"
+
+
+def test_落地端点和列表给的是同一份卡(db, owner):
+    """
+    两处各算一遍「该落到哪一份」，迟早会有一处先改。这条把它们钉在一起 ——
+    对不上的话，从库里点和从书签进会打开**不同的学生**。
+    """
+    _paper("落地一致卷", owner)
+    a = store.create_sheet("落地一致卷", "张三", owner)
+    b = store.create_sheet("落地一致卷", "李四", owner)
+    for sid in (a, b):
+        store.put_sheet_answer(sid, 9, raw_text="x")
+    store.create_sheet("落地一致卷", None, owner)             # 跑坏的，最新
+    row = [r for r in store.list_papers(owner) if r["name"] == "落地一致卷"][0]
+    got = api.paper_sheets("落地一致卷", user={"id": owner})
+    assert got["landing"] == row["latestSheet"] == b
+
+
+def test_一份卡都没有时不给落地目标(db, owner):
+    """没有能看的诊断结果 → 前端留在卷子页，那里有 Ⓐ 的进度和上传入口"""
+    _paper("落地无卡卷", owner)
+    got = api.paper_sheets("落地无卡卷", user={"id": owner})
+    assert got["landing"] is None and got["sheets"] == []
+
+
+def test_别人的卷子问不到落地目标(db, owner, conn):
+    conn.execute("INSERT INTO users (id, email) VALUES (90598, 'ld@test.local') "
+                 "ON CONFLICT (id) DO NOTHING")
+    conn.commit()
+    _paper("落地别人卷", 90598)
+    with pytest.raises(Exception):
+        api.paper_sheets("落地别人卷", user={"id": owner})
+
+
 # ---------------------------------------------------------------- 题干要跟着下发
 #
 # 「这道题问的是什么」原来只在**卷子页**上（一道大题一张卡，题干 + 原卷截图 +

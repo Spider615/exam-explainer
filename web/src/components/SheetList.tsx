@@ -12,12 +12,11 @@ import type { PaperSummary } from '../types'
 export default function SheetList({ rows, onOpen, onOpenPaper, onDelete, busy }: {
   rows: PaperSummary[]
   /**
-   * 点卷名。**直接落到诊断结果页** —— 有 `latestSheet` 就跳那一份，
-   * 没有（一份卡都没有、或者挂着的全是跑坏的空卡）就去卷子页。
+   * 点卷名。**直接落到诊断结果页。**
    *
-   * 目标在**点击当场**算出来，不做成「进去再自动跳走」的路由 effect：
-   * 那样的话诊断页那个「← 回到这份卷子」会被自动跳转立刻弹回来，按钮变成死的，
-   * 而卷子页上那个「再传一个学生」的入口也就永久失联了。
+   * 这里只负责说「打开这份卷子的诊断结果」，该落到哪一份卡由 `SheetLanding`
+   * 解析（`latestSheet` 只用来把 title 那句话说准）—— 判据写两处的话，
+   * 迟早有一处先改，而两处的差别表现为「从库里点和从书签进打开了不同的学生」。
    */
   onOpen: (r: PaperSummary) => void
   /** 明确要看卷子页（标准答案、知识点、Ⓐ 的进度、再传一份的入口） */
