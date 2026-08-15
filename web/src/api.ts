@@ -68,8 +68,8 @@ export const getProgress = (name: string) =>
  * 老地址落进来时前端手上只有卷名 —— 靠这条轻量端点问出落地目标。
  * **不能拿整卷端点问**：那是一两兆，为一次跳转拉它不划算。
  */
-export const getPaperSheets = (name: string) =>
-  fetch(`/api/papers/${encodeURIComponent(name)}/sheets`, CRED)
+export const getPaperSheets = (name: string, signal?: AbortSignal) =>
+  fetch(`/api/papers/${encodeURIComponent(name)}/sheets`, { ...CRED, signal })
     .then(j<{ landing: number | null; sheets: SheetBrief[] }>)
 
 export function uploadPdf(file: File) {

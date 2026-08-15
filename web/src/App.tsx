@@ -88,6 +88,8 @@ export default function App() {
 
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
+  /** 列表拉不下来。**和「一份都没有」是两句话** */
+  const [listErr, setListErr] = useState<string | null>(null)
 
   // `go` 和 hashchange 都要知道「换模式前是哪个模式」，但只有 `go` 能在
   // 同一次调用里同步拿到旧值——hashchange 触发时 `mode` 这个闭包变量可能是
@@ -237,11 +239,14 @@ export default function App() {
 
   const refresh = useCallback(() => {
     if (!me) return
-    listPapers(mode).then(setRows).catch((e) => {
+    listPapers(mode).then((r) => { setRows(r); setListErr(null) }).catch((e) => {
       // 会话过期时不能只是清空列表——那看起来像「一份卷子都没有」。
       // 退回登录页，把「你得重新登录」这件事说出来
-      if (e instanceof Unauthorized) setMe(null)
-      setRows([])
+      if (e instanceof Unauthorized) { setMe(null); setRows([]); return }
+      // **其余的失败不许清空。** 清了的话，一个手上有三十份卷子的老师会在后端
+      // 重启的那几十秒里被告知「还没有传过参考答案」——而每一条降级路径
+      // （打不开的诊断页、打不开的卷子页）的出口都是这一屏
+      setListErr(e instanceof Error ? e.message : String(e))
     })
   }, [me, mode])
   useEffect(refresh, [refresh])
@@ -307,18 +312,29 @@ export default function App() {
       {open ? (
         mode === 'sheet' ? (
           sheet != null
+            /* 「← 回到这份卷子」用 **replace**。它画的是 `←`、指向上一级，
+               老师读它就是后退 —— 而 push 的话历史会长成
+               `[库, 卷子页, 张三, 卷子页, 李四, 卷子页]`：刚主动离开李四，
+               按一下浏览器后退，李四又回来了；看三个学生要按六次后退才回得到库。
+               replace 让这条链收敛到 `[库, 卷子页]`。代价是刚看过的那份卡从
+               历史里没了 —— 但它就列在卷子页上，一点就回去，没有东西不可达 */
             ? <SheetDetail id={sheet} paper={open}
-                           onBack={() => goSheetPaper(open)}
+                           onBack={() => goSheetPaper(open, true)}
                            onOpenSheet={(id) => goSheet(open, id)} />
             /* `#/sheet/<卷名>/paper` 是「我就要看卷子页」；
                光秃秃的 `#/sheet/<卷名>` 是「给我看这份卷子的诊断结果」，
                交给解析器换到某一份卡上（换址用 replace，不留历史格） */
             : paperPage
               ? <SheetView name={open} onOpenSheet={(id) => goSheet(open, id)} />
-              : <SheetLanding name={open}
+              /* `key` 不能省：换一份卷子（改地址栏、点第二个书签）走的是同
+                 文档 hash 跳转，React 会**复用同一个实例**只换 name ——
+                 于是上一份卷子「没有诊断结果」的结论会先把新卷子的卷子页画出来
+                 （还顺带触发那个一两兆的整卷请求），闪一下再跳走。
+                 而这一屏存在的全部意义就是不让人看见那一闪 */
+              : <SheetLanding key={open} name={open}
                               onLand={(id) => goSheet(open, id, true)}
                               onNoLanding={() => goSheetPaper(open, true)}
-                              onOpenSheet={(id) => goSheet(open, id)} />
+                              onOpenPaper={() => goSheetPaper(open)} />
         ) : <PaperView name={open} />
       ) : mode === 'sheet' ? (
         <div className="rise">
@@ -330,6 +346,14 @@ export default function App() {
                        onOpenSheet={(n, id) => { refresh(); goSheet(n, id) }} />
           <LibHead title="答题卡库" rows={rows} />
           {note && <div className="toast">{note}</div>}
+          {/* 列表拉不下来时**保留上一份**，只在上面加一条 ——
+              清空的话页面会说「还没有传过」，那是撒谎 */}
+          {listErr && (
+            <div className="banner bad">
+              <b>列表没刷新成</b>　{listErr}
+              　下面显示的是上一次问到的，可能不是最新的。
+            </div>
+          )}
           {/* 点卷名**直接到诊断结果页**。这里只管把地址改成
               `#/sheet/<卷名>`（含义就是「给我看这份卷子的诊断结果」），
               该落到哪一份交给 `SheetLanding` —— 它手上有列表这份数据，
@@ -349,6 +373,14 @@ export default function App() {
           <Upload onDone={(n, o) => { refresh(); if (o) go('paper', n) }} />
           <LibHead title="试卷库" rows={rows} />
           {note && <div className="toast">{note}</div>}
+          {/* 列表拉不下来时**保留上一份**，只在上面加一条 ——
+              清空的话页面会说「还没有传过」，那是撒谎 */}
+          {listErr && (
+            <div className="banner bad">
+              <b>列表没刷新成</b>　{listErr}
+              　下面显示的是上一次问到的，可能不是最新的。
+            </div>
+          )}
           <PaperList rows={rows} onOpen={(n) => go('paper', n)}
                      onDelete={remove} busy={busy} />
         </div>

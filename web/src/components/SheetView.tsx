@@ -30,7 +30,11 @@ export default function SheetView({ name, onOpenSheet }: {
   const [pollMiss, setPollMiss] = useState(0)
 
   const load = useCallback(() => {
-    getPaper(name).then(setPaper).catch((e) => setErr(String(e)))
+    // **成功时要把上一次的错误清掉。** 不清的话那条横幅是写一次就永远挂着：
+    // 后端重启 20 秒就好了，而这一屏在整个会话里都写着「打不开」
+    setErr(null)
+    getPaper(name).then((p) => { setPaper(p); setErr(null) })
+      .catch((e) => setErr(String(e)))
   }, [name])
   useEffect(() => {
     setPaper(null); setErr(null); setGone(false); setPollMiss(0)
@@ -75,8 +79,25 @@ export default function SheetView({ name, onOpenSheet }: {
     return () => { alive = false; window.clearTimeout(timer) }
   }, [name, load, pg?.busy])
 
-  if (err) return <div className="banner bad"><b>打不开</b>　{err}</div>
-  if (!paper) return <div className="empty">载入中…</div>
+  /**
+   * 打不开。**要能重试。**
+   *
+   * 原来这里是一句光秃秃的横幅，而它写一次就再也不清：进度轮询只在计数变了
+   * 时才重新拉整卷，一份跑完的卷子那几个数永远不变 —— 后端早恢复了，
+   * 这一屏还挂着 `TypeError: Failed to fetch`。（同一条在 `SheetDetail`
+   * 那边已经修过，这边一直没跟上。）
+   */
+  if (err) {
+    return (
+      <div className="banner bad">
+        <b>打不开这份卷子</b>　{err}
+        <div className="runcard-acts">
+          <button className="btn" onClick={load}>再试一次</button>
+        </div>
+      </div>
+    )
+  }
+  if (!paper) return <div className="empty"><b>载入中…</b></div>
 
   const cells = pg?.mode?.stages ?? paper.mode?.stages ?? []
   const qs = paper.questions
