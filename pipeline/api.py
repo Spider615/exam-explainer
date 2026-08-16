@@ -707,8 +707,24 @@ def resume_paper(jid, name, source_kind=None):
                 # Ⓐ 续跑不重新读图 —— 上传的原件跑完就收掉了，这里根本没有图可读。
                 # 「卷子建了但一题都没读出来」那种情况该重传，不该在这里假装能接上
                 job_log(jid, "   %s 跳过 —— 要重读请重新上传参考答案" % label)
-            else:
-                run_step(jid, label, step_path(how) + [name], timeout=timeout)
+            elif not run_step(jid, label, step_path(how) + [name],
+                              timeout=timeout):
+                # **续跑那条路上原来也把返回值丢了。** 点了「继续执行」、转一圈、
+                # 什么都没变、什么都没说 —— 比第一次失败更糟，因为人已经主动
+                # 来救了，而页面还是那句「已停止 · 标知识点」。
+                #
+                # 代号从脚本名推（`kpmark.py` → `kpmark`），**但只在这个模式
+                # 认得它的时候才报**：报一个没有对应格子的代号（②d 的 `refans`
+                # 就不在任何 `cell_of` 里），等于让调用方去染一格不存在的格子。
+                # 认不出就只报原因 —— 设计里明确允许 code 为 None
+                #（见 `failed_job_for` 的说明）
+                bad = os.path.splitext(os.path.basename(how))[0]
+                with LOCK:
+                    JOBS[jid].update(
+                        err_code=bad if bad in modes.of(source_kind).cell_of
+                        else None)
+                job_log(jid, "   ⚠ %s 没跑成 —— 之前做完的步骤不受影响，"
+                             "可以再点一次「继续执行」" % label)
         # sheet 模式没有 @finish 收尾 —— 循环正常走完了，得在这里把 state 从
         # /resume 端点写下的 "running" 改过来。不改的话 active_job_for 永远判它
         # 在跑：busy 永远 true → 列表/详情页永远画「正在跑」，failure_note 被
@@ -1015,8 +1031,24 @@ def run_answer_pipeline(jid, paths, name, owner_id, created, extra=()):
         # ③c 挂不上知识点不算失败：页面逐题写「没挂上知识点」，不塞占位标签。
         # **排在读答题卡前面** —— 逐题结果那一栏要显示知识点，先挂上再读卡，
         # 老师看到结果的那一刻它就是全的
+        #
+        # **但「没跑成」要出声。** 原来这里把 run_step 的返回值直接丢了，
+        # 于是 kpmark 挂掉之后不写 err_code、不打日志、不标红 —— 那份卷子从此
+        # 永远停在「已停止 · 标知识点」，页面上一个字的解释都没有
+        #（2026-08-15 真撞上了，用户问「为啥这个显示停止标记了」）。
+        #
+        # 两件事分得清：`mark()` 判过了却一个标签都挂不上时返回写入数（0 也算
+        # 成功，`kps_at` 会落），只有真跑不成才非零退出。所以 run_step 返回
+        # False 就是「这一步没跑成」，不是「挂不上」。
+        #
+        # 不改 state：整份卷子的题目已经读出来了，那部分是好的
+        #（`test_知识点挂不上不算整个任务失败` 钉着这一条）
         label, code, script, timeout = step_code[2]
-        run_step(jid, label, step_path(script) + [name], timeout=timeout)
+        if not run_step(jid, label, step_path(script) + [name], timeout=timeout):
+            with LOCK:
+                JOBS[jid].update(err_code=code)
+            log("   ⚠ %s 没跑成 —— 题目和标准答案都是好的，只是没挂上知识点。"
+                "在卷子页上点「继续执行」可以只补这一步，不用重传" % label)
 
         # 传了答题卡就**接着分析**，不再「只收下存着」。
         #

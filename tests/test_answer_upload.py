@@ -191,3 +191,54 @@ def test_知识点挂不上不算整个任务失败():
         mock_delete.assert_not_called()
     finally:
         api.JOBS.pop(jid, None)
+
+
+def test_知识点没跑成要出声():
+    """
+    不算整个任务失败（上一条），**但不等于一声不吭**。
+
+    2026-08-15 实跑撞的就是这个：`run_step` 的返回值在 ③c 这一步被直接丢掉，
+    于是 kpmark 挂了之后不写 `err_code`、不打日志、不标红 —— 那份卷子从此
+    永远停在「已停止 · 标知识点」，页面上一个字的解释都没有。
+    用户问「为啥这个显示停止标记了」，而页面本来就该自己说出来。
+
+    照 Ⓔ 读题干那一步已有的写法：**写 err_code、打一句能照着做的话，不改 state。**
+
+    注意 `mark()` 分得清两件事 —— 「判过了但一个标签都挂不上」返回的是写入数
+    （0 也算成功，`kps_at` 会落），只有真跑不成才非零退出。所以
+    `run_step` 返回 False 就是「这一步没跑成」，不是「挂不上」。
+    """
+    jid = "job-kpmark-silent"
+    _fresh_job(jid)
+    try:
+        with patch.object(api, "run_step", side_effect=[True, False]), \
+             patch.object(api.store, "get_paper",
+                          return_value={"questions": [{"n": 1}, {"n": 2}]}), \
+             patch.object(api.store, "delete_papers"):
+            api.run_answer_pipeline(jid, [], "期末卷", 7, created=True)
+        assert api.JOBS[jid]["state"] != "error"       # 上一条的意图不许被推翻
+        assert api.JOBS[jid]["err_code"] == "kpmark"
+        log = "\n".join(api.JOBS[jid]["log"])
+        assert "③c" in log or "知识点" in log
+        # 「点继续执行」是能照着做的那句话 —— 续跑本来就带 kpmark
+        #（见 `_RESUME["sheet"]`），不用重传参考答案
+        assert "继续执行" in log
+    finally:
+        api.JOBS.pop(jid, None)
+
+
+def test_续跑时知识点没跑成也要出声():
+    """
+    续跑那条路上 `run_step` 的返回值**同样**被丢掉（`resume_paper` 里）。
+    点了「继续执行」、转一圈、什么都没变、什么都没说 —— 比第一次失败更糟，
+    因为人已经主动来救了。
+    """
+    jid = "job-resume-kpmark"
+    _fresh_job(jid)
+    try:
+        with patch.object(api, "run_step", return_value=False):
+            api.resume_paper(jid, "期末卷", source_kind="answers_only")
+        assert api.JOBS[jid]["err_code"] == "kpmark"
+        assert "知识点" in "\n".join(api.JOBS[jid]["log"])
+    finally:
+        api.JOBS.pop(jid, None)

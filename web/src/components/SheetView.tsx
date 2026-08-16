@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ApiError, getPaper, getProgress } from '../api'
+import { ApiError, getPaper, getProgress, resumePaper } from '../api'
 import AnswerQuestionCard, { mainOf } from './AnswerQuestionCard'
 import { fmtDur } from '../fmt'
 import JobProgress from './JobProgress'
@@ -28,6 +28,33 @@ export default function SheetView({ name, onOpenSheet }: {
   const [gone, setGone] = useState(false)
   /** 连着几轮问不到进度了（网络抖动/后端重启中，不是卷子没了）。0 = 正常 */
   const [pollMiss, setPollMiss] = useState(0)
+  const [resuming, setResuming] = useState(false)
+  const [resumeNote, setResumeNote] = useState<string | null>(null)
+
+  /**
+   * 「继续执行」。**这一屏原来根本没有这个按钮**，停下来时只写着
+   * 「重新上传一次就行 —— 这一步不支持接着跑」。
+   *
+   * 那句话对 Ⓐ 是真的（上传的原件跑完就收掉了，没有图可读），
+   * 对 ③c 是**假的** —— `_RESUME["sheet"]` 里本来就带着 `kpmark.py`，
+   * 续跑只补那一步，不用重传、也不会重读参考答案。
+   *
+   * 2026-08-15 那份卷子正是停在 ③c：页面既不说为什么，又指了条最贵的路。
+   */
+  const onResume = useCallback(async () => {
+    setResuming(true); setResumeNote(null)
+    try {
+      await resumePaper(name)
+      setResumeNote('已经接着跑了 —— 只补没做完的那一步，做完的会跳过。')
+      setPg((p) => (p ? { ...p, busy: true } : p))
+    } catch (e) {
+      // 后端 409 的两种（正在跑、已经完成）都不是错误，是「不用点」，
+      // detail 原样显示
+      setResumeNote(String(e instanceof Error ? e.message : e))
+    } finally {
+      setResuming(false)
+    }
+  }, [name])
 
   const load = useCallback(() => {
     // **成功时要把上一次的错误清掉。** 不清的话那条横幅是写一次就永远挂着：
@@ -232,14 +259,29 @@ export default function SheetView({ name, onOpenSheet }: {
                     : `${pg.step}${pg.last ? ` · ${pg.last.trim()}` : ''}`}
                 </code>
               )}
+              {/* 停下来时说的话**要分是哪一步**。原来一律写「重新上传一次」，
+                  那对 Ⓐ 是真的（上传的原件跑完就收掉了，没有图可读），
+                  对 ③c 是假的 —— 续跑本来就只补那一步。而 2026-08-15 那份
+                  卷子正好停在 ③c：既没说为什么停，又指了条最贵的路 */}
               {!pg.busy && !pg.done && (
                 <code className="prog-last">
-                  没有进程在动。参考答案没读完的话，重新上传一次就行 ——
-                  这一步不支持接着跑（上传的原件跑完就收掉了）。
+                  {pg.stageCode === 'kpmark'
+                    ? '没有进程在动。知识点这一步没跑完 —— 点「继续执行」只补它，'
+                      + '题目和标准答案都不会重读。'
+                    : '没有进程在动。参考答案没读完的话，重新上传一次就行 ——'
+                      + '这一步不支持接着跑（上传的原件跑完就收掉了）。'}
                 </code>
               )}
+              {resumeNote && <code className="prog-last">{resumeNote}</code>}
             </>
           }
+          /* 只在**停在 ③c** 时给。Ⓐ 停下来点它没用（`_RESUME` 里那一步是
+             `@skip`，续跑不重读图），给一个点了不管用的按钮比不给更糟 */
+          actions={!pg.busy && !pg.done && pg.stageCode === 'kpmark' ? (
+            <button className="btn" disabled={resuming} onClick={onResume}>
+              {resuming ? '正在启动…' : '继续执行'}
+            </button>
+          ) : undefined}
         />
       )}
 
