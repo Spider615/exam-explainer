@@ -2,7 +2,7 @@
 
 这份文件回答一个问题：**停在哪儿了、下一步捡哪一件。**
 
-工作区干净，**816 条测试全绿**、`cd web && npm run build` 通过（2026-08-16 实测）。
+工作区干净，**820 条测试全绿**、`cd web && npm run build` 通过（2026-08-16 实测）。
 
 ---
 
@@ -28,7 +28,26 @@
 话，不改 `state`。两件事分得清：`mark()` 判过了却挂不上时返回写入数（0 也算成功，
 `kps_at` 会落），只有真跑不成才非零退出。
 
-提交：`fe470aa`。
+### 而 ③c 当初为什么失败：超时写死 300 秒
+
+补知识点时当场复现了：`kpmark.ask` 里硬写着 `timeout=300`，三次重试全部倒在
+`read operation timed out` 上。**端点是好的** —— 同一时刻一个小请求 1.9 秒就回。
+
+拿真实 payload 计时：提示词 14167 字符、26 题、回 3637 字符，**一趟 567 秒**，
+一次就挂满 26/26。300 秒短了将近一半。
+
+**这个坑仓库踩过一模一样的一次**，`solve.py` 的注释记着：「重跑三道全部
+`read operation timed out`，放到 900 秒后三道一次全过。**它们不是难题，
+是被超时砍掉的**」；那次的另一半教训是「上限写死，连环境变量都调不上去」。
+`kpmark` 两条都没跟上。现在是 `EXAM_KP_TIMEOUT`，默认 900（按实测 567 留
+1.6 倍余量），0/负数/写错退回默认。
+
+注意 `run_step` 只给这一步 1800 秒，所以最多容得下两趟完整尝试 —— 那是有意的，
+外层总时限该赢。
+
+「测试」那份卷子已经补上：`kps 26/26`，`stage_of` 变成 `done`。
+
+提交：`fe470aa`（三个缺陷）、`0840f00`（文档）、`+ 超时`。
 
 ---
 
@@ -465,7 +484,7 @@
 
 ```bash
 cd /Users/jerry/Desktop/product/exam-explainer
-.venv/bin/python -m pytest tests/ -q          # 应该 816 passed（约 12 秒）
+.venv/bin/python -m pytest tests/ -q          # 应该 820 passed（约 12 秒）
 cd web && npm run build && cd ..              # TypeScript + Vite 构建
 .venv/bin/uvicorn pipeline.api:app --host 127.0.0.1 --port 8712 >> logs/api.log 2>&1 &
 ```

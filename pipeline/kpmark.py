@@ -46,6 +46,36 @@ BASE = os.environ.get("EXAM_KP_BASE") or os.environ.get("DEEPSEEK_BASE_URL",
 MODEL = os.environ.get("EXAM_KP_MODEL") or os.environ.get("DEEPSEEK_MODEL",
                                                           "deepseek-v4-pro")
 
+
+def _timeout():
+    """
+    一次 ③c 调用等多久。**不能写死 300 秒。**
+
+    2026-08-16 实测：一份 26 题的卷子，提示词 14167 字符、回 3637 字符，
+    **一趟要 567 秒**。写死 300 的话三次重试全部倒在读超时上，一道知识点都
+    挂不上 —— 而端点是好的（同一时刻一个小请求 1.9 秒就回）。那份卷子于是
+    永远停在「已停止 · 标知识点」。
+
+    这个仓库**踩过一模一样的坑**，`solve.py` 那段注释写着：「重跑三道全部
+    `read operation timed out`，放到 900 秒后三道一次全过。它们不是难题，
+    是被超时砍掉的」——**而且那次的另一半教训是「上限写死连环境变量都调不上去」**，
+    所以这里要调得动。
+
+    900 是按实测 567 留出 1.6 倍余量。注意 `run_step` 只给这一步 1800 秒，
+    所以最多容得下两趟完整尝试，第三趟会被外面的 killpg 截断 —— 那是有意的：
+    外层的总时限该赢。
+    """
+    try:
+        v = int(os.environ.get("EXAM_KP_TIMEOUT", "900"))
+    except (TypeError, ValueError):
+        return 900
+    # 0/负数是写错了。**退回默认，不是照单全收** —— 照收的话每次调用被立刻
+    # 砍掉，表现和「模型不回」一模一样，而这次正是这种坏法查了半天
+    return min(v, 3600) if v > 0 else 900
+
+
+TIMEOUT = _timeout()
+
 MAX_KPS = 3
 
 PROMPT_HEAD = """给一份物理试卷的每道题挂知识点标签。
@@ -163,7 +193,7 @@ def ask(payload, tries=3):
             r = urllib.request.Request(BASE + "/chat/completions", body,
                                        {"Authorization": "Bearer " + KEY,
                                         "Content-Type": "application/json"})
-            d = json.loads(urllib.request.urlopen(r, timeout=300).read())
+            d = json.loads(urllib.request.urlopen(r, timeout=TIMEOUT).read())
             txt = d["choices"][0]["message"]["content"]
             m = re.search(r"\[.*\]", txt, re.S)
             if not m:
